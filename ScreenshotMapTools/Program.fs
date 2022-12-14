@@ -19,4 +19,6 @@ let main argv =
     
     //StitchView.svMain()
 
+    Elephantasy.Screenshot.testMain()
+
     0

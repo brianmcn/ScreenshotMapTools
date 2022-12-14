@@ -13,6 +13,7 @@
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
     <Compile Include="DeepRune.fs" />
+    <Compile Include="Elephantasy.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
