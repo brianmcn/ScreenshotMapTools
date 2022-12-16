@@ -19,6 +19,8 @@ let main argv =
     
     //StitchView.svMain()
 
-    Elephantasy.Screenshot.testMain()
+    //Elephantasy.Screenshot.testMain()
+    let app = new Application()
+    app.Run(new Elephantasy.MyWindow())
 
-    0
+    //0
