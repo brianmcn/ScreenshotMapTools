@@ -48,3 +48,28 @@ let BMPtoBitmapImage(bmp:System.Drawing.Bitmap) =  // can be done on background 
     bmimage.EndInit()
     bmimage.Freeze()  // makes threadsafe
     bmimage
+open System.Drawing
+open System.Drawing.Imaging
+open System.Drawing.Drawing2D
+(*
+let ResizeImage(image:Image, width, height) =
+    let destRect = new Rectangle(0, 0, width, height)
+    let destImage = new Bitmap(width, height)
+    destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution)
+    use graphics = Graphics.FromImage(destImage)
+    graphics.CompositingMode <- CompositingMode.SourceCopy
+    graphics.CompositingQuality <- CompositingQuality.HighQuality
+    graphics.InterpolationMode <- InterpolationMode.NearestNeighbor // .HighQualityBicubic
+    graphics.SmoothingMode <- SmoothingMode.None // .HighQuality
+    graphics.PixelOffsetMode <- PixelOffsetMode.None // .HighQuality
+    use wrapMode = new ImageAttributes()
+    wrapMode.SetWrapMode(WrapMode.TileFlipXY)
+    graphics.DrawImage(image, destRect, 0, 0, image.Width,image.Height, GraphicsUnit.Pixel, wrapMode)
+    destImage
+*)
+let PerfectDownscale(bmp:Bitmap, scale) =
+    let r = new Bitmap(bmp.Width/scale, bmp.Height/scale)
+    for x = 0 to r.Width-1 do
+        for y = 0 to r.Height-1 do
+            r.SetPixel(x,y, bmp.GetPixel(x*scale, y*scale))
+    r

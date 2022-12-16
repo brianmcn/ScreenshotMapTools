@@ -61,14 +61,14 @@ module Screenshot =
         bmpScreenshot
 
     let getScreenInfo() =
-        // with Elephantasy drawn at 4x size
+        // with Elephantasy drawn at +4 size, everything in 5x5 pixel groups
         let w,h = 640,640   // how big the area to screenshot
         let left,top = findElephantasyWindowLeftTop().Value
         let left, top = left+8, top+32-1  // upper left of drawn area
         let left,top = left+80, top+80
         let gameArea = getScreenBitmap(w,h,left,top)
         let screenName = getScreenBitmap(400, 80, left, top-80)
-        gameArea, screenName    
+        Utils.PerfectDownscale(gameArea, 5), Utils.PerfectDownscale(screenName, 5)
 
     let testMain() =
         let bmp1,bmp2 = getScreenInfo()
@@ -120,8 +120,6 @@ type GridCanvas(rows,cols,rowH,colW,borderThickness) =
             c.Children.Remove(a.[x,y])
         a.[x,y] <- e
         Utils.canvasAdd(c, e, float(borderThickness+x*(colW+borderThickness)), float(borderThickness+y*(rowH+borderThickness)))
-    member this.GetCenterCoord(x,y) =
-        float(borderThickness+x*(colW+borderThickness)+colW/2), float(borderThickness+y*(rowH+borderThickness)+rowH/2)
     member this.Highlight(x,y) =
         Canvas.SetLeft(top, float(x*(colW+borderThickness)))
         Canvas.SetTop(top, float(y*(rowH+borderThickness)))
@@ -160,9 +158,10 @@ type MyWindow() as this =
     // for app
     let mutable curX,curY = 9,9     // skurry at 10,10, but array is 0-based
     let SIZE = 32
+    let BORDER = 2
     let ROWS,COLS = 20,18
-    let gc = new GridCanvas(ROWS,COLS,SIZE,SIZE,2)
-    let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,2)
+    let gc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)
+    let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)
     let screenshots = Array2D.zeroCreate COLS ROWS
     let screenNames = Array2D.zeroCreate COLS ROWS
     let bottomLeftPreview = new Canvas(Width=float(SIZE*16), Height=float(SIZE*3))
@@ -170,24 +169,28 @@ type MyWindow() as this =
         bottomLeftPreview.Children.Clear()
         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf "%d,%d" (curX+1) (curY+1), BorderThickness=Thickness(0.), 
                                 Foreground=Brushes.Black, Background=Brushes.LightGray,
-                                Width=float SIZE, Height=float SIZE, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
-        bottomLeftPreview.Children.Add(tb) |> ignore
+                                Width=float SIZE, Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+        let BUFF = 8
+        Utils.canvasAdd(bottomLeftPreview, tb, float(BUFF), 0.) |> ignore
         if screenNames.[curX,curY] <> null then
             let i = Utils.BMPtoImage screenNames.[curX,curY]
             i.Height <- float (2*SIZE)
             i.Width <- float (10*SIZE)
-            i.Stretch <- Stretch.Fill
-            Utils.canvasAdd(bottomLeftPreview, i, 0., float(SIZE))
+            RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.NearestNeighbor)
+            Utils.canvasAdd(bottomLeftPreview, i, float(BUFF), float(SIZE))
             let i = Utils.BMPtoImage screenshots.[curX,curY]
             i.Height <- float (3*SIZE)
             i.Width <- float (3*SIZE)
-            Utils.canvasAdd(bottomLeftPreview, i, float(SIZE*10), 0.)
+            RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.NearestNeighbor)
+            Utils.canvasAdd(bottomLeftPreview, i, float(SIZE*10+2*BUFF), 0.)
     let mutable isZoomed = false
     let c = new Canvas(Width=gc.Canvas.Width, Height=gc.Canvas.Height)  // on which draw coord grid, then screenshots painted atop
     let recenterZoom() =
         if isZoomed then
             let SCALE = 4
-            let cx,cy = gc.GetCenterCoord(curX,curY)
+            let SIZE = SIZE + BORDER
+            let cx,cy = float(curX*SIZE+SIZE/2)/float(COLS)*float(COLS+2)-float(SIZE), 
+                        float(curY*SIZE+SIZE/2)/float(ROWS)*float(ROWS+2)-float(SIZE)
             c.RenderTransform <- ScaleTransform(float SCALE, float SCALE, cx, cy)
     let update() = 
         updateBottomLeftPreview()
@@ -200,6 +203,24 @@ type MyWindow() as this =
         this.SizeToContent <- SizeToContent.Manual
         this.Width <- 622. + 16.
         this.Height <- 800. + 16. + 20.
+        // load screenshots from disk
+        for i = 0 to COLS-1 do
+            for j = 0 to ROWS-1 do
+                let ssf = sprintf "SS-%02d-%02d.png" i j
+                if System.IO.File.Exists(ssf) then
+                    let bytes = System.IO.File.ReadAllBytes(ssf)
+                    let ss = new System.Drawing.Bitmap(new System.IO.MemoryStream(bytes))
+                    screenshots.[i,j] <- ss
+                    let img = Utils.BMPtoImage ss
+                    img.Height <- float SIZE
+                    img.Width <- float SIZE
+                    RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.NearestNeighbor)
+                    ssc.Put(i, j, img)
+                let snf = sprintf "SN-%02d-%02d.png" i j
+                if System.IO.File.Exists(snf) then
+                    let bytes = System.IO.File.ReadAllBytes(snf)
+                    let name = new System.Drawing.Bitmap(new System.IO.MemoryStream(bytes))
+                    screenNames.[i,j] <- name
         // top layout
         let topc = new Canvas(Width=gc.Canvas.Width, Height=gc.Canvas.Height)
         topc.ClipToBounds <- true
@@ -211,16 +232,15 @@ type MyWindow() as this =
                 gc.Put(x,y,tb)
         gc.Highlight(curX,curY)
         c.Children.Add(gc.Canvas) |> ignore
-        // TODO load screenshots from disk
         c.Children.Add(ssc.Canvas) |> ignore
         topc.Children.Add(c) |> ignore
-        let b = new Border(Child=topc, BorderBrush=Brushes.Blue, BorderThickness=Thickness(2.0), Background=Brushes.Black)
+        let b = new Border(Child=topc, BorderBrush=Brushes.Blue, BorderThickness=Thickness(0.0), Background=Brushes.DarkSlateBlue)
         let top = new DockPanel(LastChildFill=true)
-        DockPanel.SetDock(b, Dock.Right)
+        DockPanel.SetDock(b, Dock.Top)
         top.Children.Add(b) |> ignore
         top.Children.Add(new DockPanel()) |> ignore // eat rest of space
         // rest layout
-        let all = new DockPanel(LastChildFill=true)
+        let all = new DockPanel(LastChildFill=true, Background=Brushes.DarkSlateBlue)
         DockPanel.SetDock(top, Dock.Top)
         all.Children.Add(top) |> ignore
         let bottom = new DockPanel(LastChildFill=true)
@@ -228,11 +248,13 @@ type MyWindow() as this =
         bottom.Children.Add(bottomLeftPreview) |> ignore
         bottom.Children.Add(new DockPanel()) |> ignore // eat rest of space
         all.Children.Add(bottom) |> ignore // eat rest of space
+        all.UseLayoutRounding <- true
         this.Content <- all
         this.Loaded.Add(fun _ ->
             printfn "top: %A %A" top.ActualWidth top.ActualHeight
             let handle = Winterop.GetConsoleWindow()
             Winterop.ShowWindow(handle, Winterop.SW_MINIMIZE) |> ignore
+            update()
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)
@@ -288,9 +310,12 @@ type MyWindow() as this =
                     let ss,name = Screenshot.getScreenInfo()
                     screenshots.[curX,curY] <- ss
                     screenNames.[curX,curY] <- name
+                    ss.Save(sprintf "SS-%02d-%02d.png" curX curY, System.Drawing.Imaging.ImageFormat.Png)
+                    name.Save(sprintf "SN-%02d-%02d.png" curX curY, System.Drawing.Imaging.ImageFormat.Png)
                     let i = Utils.BMPtoImage screenshots.[curX,curY]
                     i.Height <- float SIZE
                     i.Width <- float SIZE
+                    RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.NearestNeighbor)
                     ssc.Put(curX, curY, i)
                     update()
                 if key = VK_NUMPAD7 then
