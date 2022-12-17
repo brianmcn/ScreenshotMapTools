@@ -103,8 +103,19 @@ type GridCanvas(rows,cols,rowH,colW,borderThickness) =
     let c = new Canvas(Width=float w, Height=float h)
     // elements
     let a = Array2D.zeroCreate cols rows
+    member this.Canvas = c
+    member this.Put(x,y,e:System.Windows.UIElement) =
+        if a.[x,y] <> null then
+            c.Children.Remove(a.[x,y])
+        a.[x,y] <- e
+        Utils.canvasAdd(c, e, float(borderThickness+x*(colW+borderThickness)), float(borderThickness+y*(rowH+borderThickness)))
+type GridCanvasCursor(rows,cols,rowH,colW,borderThickness) =
+    // canvas
+    let w = cols*colW + (cols+1)*borderThickness
+    let h = rows*rowH + (rows+1)*borderThickness
+    let c = new Canvas(Width=float w, Height=float h)
     // cursor highlight
-    let fill = Brushes.Lime // TODO
+    let fill = new SolidColorBrush(Colors.White)
     let top = new Rectangle(Width=float(colW+2*borderThickness), Height=float(borderThickness), Fill=fill, Opacity=0.)
     let bottom = new Rectangle(Width=float(colW+2*borderThickness), Height=float(borderThickness), Fill=fill, Opacity=0.)
     let left = new Rectangle(Width=float(borderThickness), Height=float(rowH+2*borderThickness), Fill=fill, Opacity=0.)
@@ -114,12 +125,14 @@ type GridCanvas(rows,cols,rowH,colW,borderThickness) =
         c.Children.Add(bottom) |> ignore
         c.Children.Add(left) |> ignore
         c.Children.Add(right) |> ignore
+        let ca = System.Windows.Media.Animation.ColorAnimation()
+        ca.From <- Colors.White
+        ca.To <- Colors.Black
+        ca.AutoReverse <- true
+        ca.Duration <- System.Windows.Duration(System.TimeSpan.FromSeconds(0.5))
+        ca.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
+        fill.BeginAnimation(SolidColorBrush.ColorProperty, ca)
     member this.Canvas = c
-    member this.Put(x,y,e:System.Windows.UIElement) =
-        if a.[x,y] <> null then
-            c.Children.Remove(a.[x,y])
-        a.[x,y] <- e
-        Utils.canvasAdd(c, e, float(borderThickness+x*(colW+borderThickness)), float(borderThickness+y*(rowH+borderThickness)))
     member this.Highlight(x,y) =
         Canvas.SetLeft(top, float(x*(colW+borderThickness)))
         Canvas.SetTop(top, float(y*(rowH+borderThickness)))
@@ -134,6 +147,85 @@ type GridCanvas(rows,cols,rowH,colW,borderThickness) =
     member this.Unhighlight() =
         for e in [top;bottom;left;right] do
             e.Opacity <- 0.0
+
+let CIRCLES_JSON_FILENAME = "CIRCLES.json"
+[<AllowNullLiteral>]
+type CirclesJson() =
+    member val Circles : int[][] = null with get,set
+type GridCanvasCircles(rows,cols,rowH,colW,borderThickness,colors:_[],circleThickness) as this =
+    // canvas
+    let w = cols*colW + (cols+1)*borderThickness
+    let h = rows*rowH + (rows+1)*borderThickness
+    let c = new Canvas(Width=float w, Height=float h)
+    // elements
+    let a = Array.init colors.Length (fun _ -> Array2D.zeroCreate cols rows)
+    let MIDDLE_OPACITY = 0.5
+    do
+        try
+            let json = System.IO.File.ReadAllText(CIRCLES_JSON_FILENAME)
+            let data = System.Text.Json.JsonSerializer.Deserialize<CirclesJson>(json)
+            for y = 0 to rows-1 do
+                for x = 0 to cols-1 do
+                    let s = data.Circles.[y].[x].ToString()
+                    for i = 0 to colors.Length-1 do
+                        if s.Chars(i)='2' then
+                            this.Cycle(x,y,i)
+                        elif s.Chars(i)='3' then
+                            this.Cycle(x,y,i)
+                            this.Cycle(x,y,i)
+        with e ->
+            printfn "failed to open %s: %s" CIRCLES_JSON_FILENAME (e.ToString())
+    member this.Canvas = c
+    member this.Cycle(x, y, colorIndex) =
+        if a.[colorIndex].[x,y] = null then
+            let n = colorIndex-3
+            let e = new System.Windows.Shapes.Ellipse(Stroke=colors.[colorIndex], StrokeThickness=float circleThickness, Width=float(colW-n*2*circleThickness), Height=float(rowH-n*2*circleThickness))
+            Utils.canvasAdd(c, e, float(borderThickness+x*(colW+borderThickness)+n*circleThickness), float(borderThickness+y*(rowH+borderThickness)+n*circleThickness))
+            a.[colorIndex].[x,y] <- e
+        elif a.[colorIndex].[x,y].Opacity = 1.0 then
+            a.[colorIndex].[x,y].Opacity <- MIDDLE_OPACITY
+        else
+            c.Children.Remove(a.[colorIndex].[x,y])
+            a.[colorIndex].[x,y] <- null
+    member this.HideMiddleOpacity() =
+        for e in c.Children do
+            if e.Opacity <> 1.0 then
+                e.Opacity <- 0.0
+    member this.UnhideMiddleOpacity() =
+        for e in c.Children do
+            if e.Opacity <> 1.0 then
+                e.Opacity <- MIDDLE_OPACITY
+    member this.AsJsonLines() =
+        (*
+        { Circles: [
+              [ 1111, 1112, 1211 ],
+              [ 1111, 1112, 1211 ],
+              [ 1111, 1112, 1211 ]
+          ]
+        }
+        *)
+        let lines = [|
+            yield "{ \"Circles\": ["
+            for y = 0 to rows-1 do
+                let sb = new System.Text.StringBuilder("    [ ")
+                for x = 0 to cols-1 do
+                    for i = 0 to colors.Length-1 do
+                        if a.[i].[x,y]=null then
+                            sb.Append('1') |> ignore
+                        elif a.[i].[x,y].Opacity=1.0 then
+                            sb.Append('2') |> ignore
+                        else
+                            sb.Append('3') |> ignore
+                    if x<>cols-1 then
+                        sb.Append(", ") |> ignore
+                sb.Append(" ]") |> ignore
+                if y<>rows-1 then
+                    sb.Append(',') |> ignore
+                yield sb.ToString()
+            yield "  ]"
+            yield "}"
+            |]
+        lines
         
 open System
 open System.Windows
@@ -153,15 +245,25 @@ type MyWindow() as this =
     let VK_NUMPAD7 = 0x67
     let VK_NUMPAD8 = 0x68
     let VK_NUMPAD9 = 0x69
+    let VK_MULTIPLY = 0x6A
+    let VK_ADD = 0x6B
+    let VK_SEPARATOR = 0x6C
+    let VK_SUBTRACT = 0x6D
+    let VK_DECIMAL = 0x6E
+    let VK_DIVIDE = 0x6F
     let MOD_NONE = 0u
-    let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9 |]
+    let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
+                    VK_MULTIPLY; VK_ADD; VK_SEPARATOR; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE |]
     // for app
     let mutable curX,curY = 9,9     // skurry at 10,10, but array is 0-based
     let SIZE = 32
     let BORDER = 2
     let ROWS,COLS = 20,18
-    let gc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)
-    let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)
+    let gc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)       // coordinates
+    let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)      // screenshots
+    let circlesc = new GridCanvasCircles(ROWS,COLS,SIZE,SIZE,BORDER,[|Brushes.Red;Brushes.Yellow;Brushes.Lime;Brushes.Cyan|],BORDER)  // circles
+    let mutable circleState = 0 // 0 = show all, 1 = hide middle opacity, 2 = hide all
+    let gccursor = new GridCanvasCursor(ROWS,COLS,SIZE,SIZE,BORDER)       // cursor
     let screenshots = Array2D.zeroCreate COLS ROWS
     let screenNames = Array2D.zeroCreate COLS ROWS
     let bottomLeftPreview = new Canvas(Width=float(SIZE*16), Height=float(SIZE*3))
@@ -230,9 +332,11 @@ type MyWindow() as this =
                                         Foreground=Brushes.Black, Background=Brushes.LightGray,
                                         Width=float SIZE, Height=float SIZE, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
                 gc.Put(x,y,tb)
-        gc.Highlight(curX,curY)
         c.Children.Add(gc.Canvas) |> ignore
         c.Children.Add(ssc.Canvas) |> ignore
+        c.Children.Add(circlesc.Canvas) |> ignore
+        c.Children.Add(gccursor.Canvas) |> ignore
+        gccursor.Highlight(curX,curY)
         topc.Children.Add(c) |> ignore
         let b = new Border(Child=topc, BorderBrush=Brushes.Blue, BorderThickness=Thickness(0.0), Background=Brushes.DarkSlateBlue)
         let top = new DockPanel(LastChildFill=true)
@@ -289,22 +393,22 @@ type MyWindow() as this =
                 if key = VK_NUMPAD4 then
                     if curX > 0 then
                         curX <- curX - 1
-                        gc.Highlight(curX,curY)
+                        gccursor.Highlight(curX,curY)
                         update()
                 if key = VK_NUMPAD6 then
                     if curX < COLS-1 then
                         curX <- curX + 1
-                        gc.Highlight(curX,curY)
+                        gccursor.Highlight(curX,curY)
                         update()
                 if key = VK_NUMPAD8 then
                     if curY > 0 then
                         curY <- curY - 1
-                        gc.Highlight(curX,curY)
+                        gccursor.Highlight(curX,curY)
                         update()
                 if key = VK_NUMPAD2 then
                     if curY < ROWS-1 then
                         curY <- curY + 1
-                        gc.Highlight(curX,curY)
+                        gccursor.Highlight(curX,curY)
                         update()
                 if key = VK_NUMPAD5 then
                     let ss,name = Screenshot.getScreenInfo()
@@ -324,35 +428,38 @@ type MyWindow() as this =
                         recenterZoom()
                     else
                         c.RenderTransform <- null
+                let saveJson() = System.IO.File.WriteAllLines(CIRCLES_JSON_FILENAME, circlesc.AsJsonLines())
+                if key = VK_MULTIPLY then
+                    circlesc.Cycle(curX, curY, 0)
+                    saveJson()
+                if key = VK_ADD then
+                    circlesc.Cycle(curX, curY, 1)
+                    saveJson()
+                if key = VK_SUBTRACT then
+                    circlesc.Cycle(curX, curY, 2)
+                    saveJson()
+                if key = VK_DIVIDE then
+                    circlesc.Cycle(curX, curY, 3)
+                    saveJson()
+                if key = VK_NUMPAD9 then
+                    if circleState=0 then
+                        circleState <- 1
+                        circlesc.HideMiddleOpacity()
+                    elif circleState=1 then
+                        circleState <- 2
+                        circlesc.Canvas.Opacity <- 0.0
+                    else
+                        circleState <- 0
+                        circlesc.Canvas.Opacity <- 1.0
+                        circlesc.UnhideMiddleOpacity()
         IntPtr.Zero
 
 (*
-at 4x draw, game is 10x10 blocks of 80x80 pixels, e.g. 800x800
-in a 16x9 OBS layout, that means 9x9 is taken by the game, leaving 7x9 for the tool
-so tool window is (800*7/9 wide (~622) by 800 tall)
+TODO
 
-the map is 18 across by 20 tall
-if we did 30x30 for the grid this is 540x600, which leaves ~82 to the side and 200 on the bottom
-if there was 60x60 zoom on bottom, could fit 9x3 preview...
-hm, but eyeballing, previews only look good at at least 160x160, hm... a 5x5 would take the whole screen, and 3x3 would take 480x480
+legend for circle-display-state, numpad keys
 
-in-game minimap uses 30x30 (6x6 grid of 5x5 pixels) abstract map, could maybe use that?
-aside: skurry is at 10,10 where upper-left is 1,1
-
-I think we need to go to the "so what it it's modal" view...
-
-What if we just show (most of) a 5x5 zoom with coords while you are taking screenshots, but then also have a map view which is either screenshot of in-game abstract map
-or inscrutable screenshots?
-
-OK:
-
-inscrutable 32x32 would take 576x640, leaves room for interior grid, coordinates, keyboard help, etc
-same for in-game map
-then the zoom could be ... the 80x80 pixel blocks at 16x16 at 5x5, so 1/5 scale is totally crisp 128x128, so a 5x5 grid would be 640x640, which doesn't quite fit width-wise, but
-leaves the same bottom 160 for coords, keyboard help, etc
-and I should save the screenshots on disk at the reduced size 128x128
-
-play game with keyboard left-hand
-global hotkey the numpad to run the map/screenshot thingy with right hand
+undo (accidentally take screenshot wrong place, accidentally overwrite old screenshot)
+ - maybe have two SS for each room, and a button to toggle between them? (or a history of all SS and indexes, or... what is decent UI/function likely to be sufficient?)
 
 *)
