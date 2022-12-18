@@ -115,38 +115,25 @@ type GridCanvasCursor(rows,cols,rowH,colW,borderThickness) =
     let h = rows*rowH + (rows+1)*borderThickness
     let c = new Canvas(Width=float w, Height=float h)
     // cursor highlight
-    let fill = new SolidColorBrush(Colors.White)
-    let top = new Rectangle(Width=float(colW+2*borderThickness), Height=float(borderThickness), Fill=fill, Opacity=0.)
-    let bottom = new Rectangle(Width=float(colW+2*borderThickness), Height=float(borderThickness), Fill=fill, Opacity=0.)
-    let left = new Rectangle(Width=float(borderThickness), Height=float(rowH+2*borderThickness), Fill=fill, Opacity=0.)
-    let right = new Rectangle(Width=float(borderThickness), Height=float(rowH+2*borderThickness), Fill=fill, Opacity=0.)
+    let fill = new SolidColorBrush()
+    let all = new Rectangle(Width=float(colW+2*borderThickness), Height=float(rowH+2*borderThickness), Stroke=fill, StrokeThickness=float borderThickness, Opacity=0.)
     do 
-        c.Children.Add(top) |> ignore
-        c.Children.Add(bottom) |> ignore
-        c.Children.Add(left) |> ignore
-        c.Children.Add(right) |> ignore
+        c.Children.Add(all) |> ignore
         let ca = System.Windows.Media.Animation.ColorAnimation()
-        ca.From <- Colors.White
-        ca.To <- Colors.Black
+        ca.From <- Colors.LightGray
+        ca.To <- Colors.Transparent
         ca.AutoReverse <- true
+        ca.EasingFunction <- System.Windows.Media.Animation.PowerEase(Power=3.0, EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut)
         ca.Duration <- System.Windows.Duration(System.TimeSpan.FromSeconds(0.5))
         ca.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
         fill.BeginAnimation(SolidColorBrush.ColorProperty, ca)
     member this.Canvas = c
     member this.Highlight(x,y) =
-        Canvas.SetLeft(top, float(x*(colW+borderThickness)))
-        Canvas.SetTop(top, float(y*(rowH+borderThickness)))
-        Canvas.SetLeft(bottom, float(x*(colW+borderThickness)))
-        Canvas.SetTop(bottom, float((y+1)*(rowH+borderThickness)))
-        Canvas.SetLeft(left, float(x*(colW+borderThickness)))
-        Canvas.SetTop(left, float(y*(rowH+borderThickness)))
-        Canvas.SetLeft(right, float((x+1)*(colW+borderThickness)))
-        Canvas.SetTop(right, float(y*(rowH+borderThickness)))
-        for e in [top;bottom;left;right] do
-            e.Opacity <- 1.0
+        Canvas.SetLeft(all, float(x*(colW+borderThickness)))
+        Canvas.SetTop(all, float(y*(rowH+borderThickness)))
+        all.Opacity <- 1.0
     member this.Unhighlight() =
-        for e in [top;bottom;left;right] do
-            e.Opacity <- 0.0
+        all.Opacity <- 0.0
 
 let CIRCLES_JSON_FILENAME = "CIRCLES.json"
 [<AllowNullLiteral>]
@@ -263,23 +250,40 @@ type MyWindow() as this =
     let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)      // screenshots
     let circlesc = new GridCanvasCircles(ROWS,COLS,SIZE,SIZE,BORDER,[|Brushes.Red;Brushes.Yellow;Brushes.Lime;Brushes.Cyan|],BORDER)  // circles
     let mutable circleState = 0 // 0 = show all, 1 = hide middle opacity, 2 = hide all
+    let circleStateTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                    Width=float (8*SIZE), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let updateCircleStateLegend() = 
+        if circleState = 0 then circleStateTB.Text <- "Circles: Show All"
+        elif circleState = 1 then circleStateTB.Text <- "Circles: Hide Some"
+        elif circleState = 2 then circleStateTB.Text <- "Circles: Hide All"
     let gccursor = new GridCanvasCursor(ROWS,COLS,SIZE,SIZE,BORDER)       // cursor
     let screenshots = Array2D.zeroCreate COLS ROWS
     let screenNames = Array2D.zeroCreate COLS ROWS
     let bottomLeftPreview = new Canvas(Width=float(SIZE*16), Height=float(SIZE*3))
     let updateBottomLeftPreview() =
         bottomLeftPreview.Children.Clear()
+        let BUFF = 8
+        // coords
         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf "%d,%d" (curX+1) (curY+1), BorderThickness=Thickness(0.), 
                                 Foreground=Brushes.Black, Background=Brushes.LightGray,
                                 Width=float SIZE, Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
-        let BUFF = 8
         Utils.canvasAdd(bottomLeftPreview, tb, float(BUFF), 0.) |> ignore
+        // circle state
+        updateCircleStateLegend()
+        Utils.canvasAdd(bottomLeftPreview, circleStateTB, float(BUFF+SIZE*3/2), 0.) |> ignore
+        // key legend
+        let tb = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                Width=float(5*SIZE), Height=float(SIZE*3), HorizontalContentAlignment=HorizontalAlignment.Left, VerticalContentAlignment=VerticalAlignment.Center)
+        tb.Text <- "Numpad Controls\n2468\tmove cursor\n0\treplace screenshot\n7\ttoggle zoom\n9\tcycle circle display\n+-*/\ttoggle circle"
+        Utils.canvasAdd(bottomLeftPreview, tb, float(SIZE*13+4*BUFF), 0.) |> ignore
         if screenNames.[curX,curY] <> null then
+            // screen name
             let i = Utils.BMPtoImage screenNames.[curX,curY]
             i.Height <- float (2*SIZE)
             i.Width <- float (10*SIZE)
             RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.NearestNeighbor)
             Utils.canvasAdd(bottomLeftPreview, i, float(BUFF), float(SIZE))
+            // screenshot
             let i = Utils.BMPtoImage screenshots.[curX,curY]
             i.Height <- float (3*SIZE)
             i.Width <- float (3*SIZE)
@@ -329,7 +333,7 @@ type MyWindow() as this =
         for x = 0 to 17 do
             for y = 0 to 19 do
                 let tb = new TextBox(IsReadOnly=true, FontSize=10., Text=sprintf "%d,%d" (x+1) (y+1), BorderThickness=Thickness(0.), 
-                                        Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                        Foreground=Brushes.Black, Background=Brushes.Gray,
                                         Width=float SIZE, Height=float SIZE, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
                 gc.Put(x,y,tb)
         c.Children.Add(gc.Canvas) |> ignore
@@ -410,7 +414,7 @@ type MyWindow() as this =
                         curY <- curY + 1
                         gccursor.Highlight(curX,curY)
                         update()
-                if key = VK_NUMPAD5 then
+                if key = VK_NUMPAD0 then
                     let ss,name = Screenshot.getScreenInfo()
                     screenshots.[curX,curY] <- ss
                     screenNames.[curX,curY] <- name
@@ -452,12 +456,13 @@ type MyWindow() as this =
                         circleState <- 0
                         circlesc.Canvas.Opacity <- 1.0
                         circlesc.UnhideMiddleOpacity()
+                    updateCircleStateLegend()
         IntPtr.Zero
 
 (*
 TODO
 
-legend for circle-display-state, numpad keys
+maybe need to be in Show All circle state to cycle any circles? error feedback if not?
 
 undo (accidentally take screenshot wrong place, accidentally overwrite old screenshot)
  - maybe have two SS for each room, and a button to toggle between them? (or a history of all SS and indexes, or... what is decent UI/function likely to be sufficient?)
