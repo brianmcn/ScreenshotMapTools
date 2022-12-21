@@ -143,11 +143,16 @@ type GridCanvasCircles(rows,cols,rowH,colW,borderThickness,colors:_[],circleThic
     // canvas
     let w = cols*colW + (cols+1)*borderThickness
     let h = rows*rowH + (rows+1)*borderThickness
-    let c = new Canvas(Width=float w, Height=float h)
+    let root = new Canvas(Width=float w, Height=float h)
+    let fcc = new Canvas(Width=float w, Height=float h)  // fixed circle canvas
+    let acc = new Canvas(Width=float w, Height=float h)  // animated circle canvas
+    let mutable allHidden = false
     // elements
     let a = Array.init colors.Length (fun _ -> Array2D.zeroCreate cols rows)
     let MIDDLE_OPACITY = 0.5
     do
+        root.Children.Add(fcc) |> ignore
+        root.Children.Add(acc) |> ignore
         try
             let json = System.IO.File.ReadAllText(CIRCLES_JSON_FILENAME)
             let data = System.Text.Json.JsonSerializer.Deserialize<CirclesJson>(json)
@@ -162,26 +167,53 @@ type GridCanvasCircles(rows,cols,rowH,colW,borderThickness,colors:_[],circleThic
                             this.Cycle(x,y,i)
         with e ->
             printfn "failed to open %s: %s" CIRCLES_JSON_FILENAME (e.ToString())
-    member this.Canvas = c
+    member this.Canvas = root
     member this.Cycle(x, y, colorIndex) =
         if a.[colorIndex].[x,y] = null then
             let n = colorIndex-3
             let e = new System.Windows.Shapes.Ellipse(Stroke=colors.[colorIndex], StrokeThickness=float circleThickness, Width=float(colW-n*2*circleThickness), Height=float(rowH-n*2*circleThickness))
-            Utils.canvasAdd(c, e, float(borderThickness+x*(colW+borderThickness)+n*circleThickness), float(borderThickness+y*(rowH+borderThickness)+n*circleThickness))
+            Utils.canvasAdd(fcc, e, float(borderThickness+x*(colW+borderThickness)+n*circleThickness), float(borderThickness+y*(rowH+borderThickness)+n*circleThickness))
             a.[colorIndex].[x,y] <- e
         elif a.[colorIndex].[x,y].Opacity = 1.0 then
             a.[colorIndex].[x,y].Opacity <- MIDDLE_OPACITY
         else
-            c.Children.Remove(a.[colorIndex].[x,y])
+            fcc.Children.Remove(a.[colorIndex].[x,y])
             a.[colorIndex].[x,y] <- null
-    member this.HideMiddleOpacity() =
-        for e in c.Children do
+    member this.HideAll() =
+        fcc.Opacity <- 0.0
+        allHidden <- true
+    member this.ShowSome() =
+        fcc.Opacity <- 1.0
+        allHidden <- false
+        for e in fcc.Children do
             if e.Opacity <> 1.0 then
                 e.Opacity <- 0.0
-    member this.UnhideMiddleOpacity() =
-        for e in c.Children do
+    member this.ShowAll() =
+        fcc.Opacity <- 1.0
+        allHidden <- false
+        for e in fcc.Children do
             if e.Opacity <> 1.0 then
                 e.Opacity <- MIDDLE_OPACITY
+    member this.StartAnimateColors(which) =
+        fcc.Opacity <- 0.0
+        acc.Children.Clear()
+        for x in fcc.Children do
+            let e = x :?> System.Windows.Shapes.Ellipse
+            for ci in which do
+                if obj.ReferenceEquals(colors.[ci], e.Stroke) then
+                    let z = new System.Windows.Shapes.Ellipse(Stroke=e.Stroke, StrokeThickness=e.StrokeThickness, Width=e.Width, Height=e.Height, Opacity=if e.Opacity=0.0 then MIDDLE_OPACITY else e.Opacity)
+                    Utils.canvasAdd(acc, z, Canvas.GetLeft(e), Canvas.GetTop(e))
+                    let a = System.Windows.Media.Animation.DoubleAnimation()
+                    a.From <- e.StrokeThickness
+                    a.To <- e.StrokeThickness*3.0
+                    a.AutoReverse <- true
+                    a.EasingFunction <- System.Windows.Media.Animation.PowerEase(Power=1.0, EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut)
+                    a.Duration <- System.Windows.Duration(System.TimeSpan.FromSeconds(0.5))
+                    a.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
+                    z.BeginAnimation(System.Windows.Shapes.Ellipse.StrokeThicknessProperty, a)
+    member this.EndAnimateColors() =
+        fcc.Opacity <- if allHidden then 0.0 else 1.0
+        acc.Children.Clear()
     member this.AsJsonLines() =
         (*
         { Circles: [
@@ -250,12 +282,27 @@ type MyWindow() as this =
     let ssc = new GridCanvas(ROWS,COLS,SIZE,SIZE,BORDER)      // screenshots
     let circlesc = new GridCanvasCircles(ROWS,COLS,SIZE,SIZE,BORDER,[|Brushes.Red;Brushes.Yellow;Brushes.Lime;Brushes.Cyan|],BORDER)  // circles
     let mutable circleState = 0 // 0 = show all, 1 = hide middle opacity, 2 = hide all
-    let circleStateTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
-                                    Width=float (8*SIZE), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let circleStateTBBackground = new SolidColorBrush(Colors.LightGray)
+    let circleStateTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=circleStateTBBackground,
+                                    Width=float (4*SIZE), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let hoverTargetB = new TextBox(IsReadOnly=true, FontSize=12., Text="B", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                    Width=float (SIZE*3/4), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let hoverTargetR = new TextBox(IsReadOnly=true, FontSize=12., Text="R", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                    Width=float (SIZE*3/4), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let hoverTargetG = new TextBox(IsReadOnly=true, FontSize=12., Text="G", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                    Width=float (SIZE*3/4), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+    let hoverTargetY = new TextBox(IsReadOnly=true, FontSize=12., Text="Y", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                    Width=float (SIZE*3/4), Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
     let updateCircleStateLegend() = 
         if circleState = 0 then circleStateTB.Text <- "Circles: Show All"
         elif circleState = 1 then circleStateTB.Text <- "Circles: Hide Some"
         elif circleState = 2 then circleStateTB.Text <- "Circles: Hide All"
+        let ca = System.Windows.Media.Animation.ColorAnimation()
+        ca.From <- Colors.Red
+        ca.To <- Colors.LightGray
+        ca.EasingFunction <- System.Windows.Media.Animation.PowerEase(Power=3.0, EasingMode=System.Windows.Media.Animation.EasingMode.EaseIn)
+        ca.Duration <- System.Windows.Duration(System.TimeSpan.FromSeconds(0.5))
+        circleStateTBBackground.BeginAnimation(SolidColorBrush.ColorProperty, ca)
     let gccursor = new GridCanvasCursor(ROWS,COLS,SIZE,SIZE,BORDER)       // cursor
     let screenshots = Array2D.zeroCreate COLS ROWS
     let screenNames = Array2D.zeroCreate COLS ROWS
@@ -269,8 +316,11 @@ type MyWindow() as this =
                                 Width=float SIZE, Height=float(SIZE*3/4), HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         Utils.canvasAdd(bottomLeftPreview, tb, float(BUFF), 0.) |> ignore
         // circle state
-        updateCircleStateLegend()
         Utils.canvasAdd(bottomLeftPreview, circleStateTB, float(BUFF+SIZE*3/2), 0.) |> ignore
+        Utils.canvasAdd(bottomLeftPreview, hoverTargetB, float(BUFF+SIZE*4+SIZE*3/2+SIZE/4), 0.) |> ignore
+        Utils.canvasAdd(bottomLeftPreview, hoverTargetR, float(BUFF+SIZE*5+SIZE*3/2+SIZE/4), 0.) |> ignore
+        Utils.canvasAdd(bottomLeftPreview, hoverTargetG, float(BUFF+SIZE*6+SIZE*3/2+SIZE/4), 0.) |> ignore
+        Utils.canvasAdd(bottomLeftPreview, hoverTargetY, float(BUFF+SIZE*7+SIZE*3/2+SIZE/4), 0.) |> ignore
         // key legend
         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
                                 Width=float(5*SIZE), Height=float(SIZE*3), HorizontalContentAlignment=HorizontalAlignment.Left, VerticalContentAlignment=VerticalAlignment.Center)
@@ -327,6 +377,8 @@ type MyWindow() as this =
                     let bytes = System.IO.File.ReadAllBytes(snf)
                     let name = new System.Drawing.Bitmap(new System.IO.MemoryStream(bytes))
                     screenNames.[i,j] <- name
+        // init other elements
+        updateCircleStateLegend()
         // top layout
         let topc = new Canvas(Width=gc.Canvas.Width, Height=gc.Canvas.Height)
         topc.ClipToBounds <- true
@@ -363,6 +415,10 @@ type MyWindow() as this =
             let handle = Winterop.GetConsoleWindow()
             Winterop.ShowWindow(handle, Winterop.SW_MINIMIZE) |> ignore
             update()
+            // hover reactions
+            for ht,n,b in [hoverTargetB,3,Brushes.LightCyan; hoverTargetR,0,Brushes.Pink; hoverTargetG,2,Brushes.LightGreen; hoverTargetY,1,Brushes.LightGoldenrodYellow] do
+                ht.MouseEnter.Add(fun _ -> circlesc.StartAnimateColors([n]); ht.Background <- b)
+                ht.MouseLeave.Add(fun _ -> circlesc.EndAnimateColors(); ht.Background <- Brushes.LightGray)
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)
@@ -433,36 +489,35 @@ type MyWindow() as this =
                     else
                         c.RenderTransform <- null
                 let saveJson() = System.IO.File.WriteAllLines(CIRCLES_JSON_FILENAME, circlesc.AsJsonLines())
-                if key = VK_MULTIPLY then
-                    circlesc.Cycle(curX, curY, 0)
-                    saveJson()
-                if key = VK_ADD then
-                    circlesc.Cycle(curX, curY, 1)
-                    saveJson()
-                if key = VK_SUBTRACT then
-                    circlesc.Cycle(curX, curY, 2)
-                    saveJson()
-                if key = VK_DIVIDE then
-                    circlesc.Cycle(curX, curY, 3)
-                    saveJson()
+                let showAllCircles() = 
+                    circleState <- 0
+                    circlesc.ShowAll()
+                for k,n in [VK_MULTIPLY,0; VK_ADD,1; VK_SUBTRACT,2; VK_DIVIDE,3] do
+                    if key = k then
+                        if circleState=0 then
+                            circlesc.Cycle(curX, curY, n)
+                            saveJson()
+                        else
+                            showAllCircles()
+                            updateCircleStateLegend()
                 if key = VK_NUMPAD9 then
                     if circleState=0 then
                         circleState <- 1
-                        circlesc.HideMiddleOpacity()
+                        circlesc.ShowSome()
                     elif circleState=1 then
                         circleState <- 2
-                        circlesc.Canvas.Opacity <- 0.0
+                        circlesc.HideAll()
                     else
-                        circleState <- 0
-                        circlesc.Canvas.Opacity <- 1.0
-                        circlesc.UnhideMiddleOpacity()
+                        showAllCircles()
                     updateCircleStateLegend()
         IntPtr.Zero
 
 (*
 TODO
 
-maybe need to be in Show All circle state to cycle any circles? error feedback if not?
+text notes area?
+
+show percentage of whole that is mapped
 
 undo (accidentally take screenshot wrong place, accidentally overwrite old screenshot)
  - maybe have two SS for each room, and a button to toggle between them? (or a history of all SS and indexes, or... what is decent UI/function likely to be sufficient?)
