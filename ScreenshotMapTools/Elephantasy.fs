@@ -252,8 +252,9 @@ type MyWindow() as this =
     inherit Window()
     // for hotkeys
     let mutable source = null
-    let VK_F5 = 0x74
-    let VK_F10 = 0x79
+    let VK_RETURN = 0x0D
+    //let VK_F5 = 0x74
+    //let VK_F10 = 0x79
     let VK_NUMPAD0 = 0x60
     let VK_NUMPAD1 = 0x61
     let VK_NUMPAD2 = 0x62
@@ -266,13 +267,13 @@ type MyWindow() as this =
     let VK_NUMPAD9 = 0x69
     let VK_MULTIPLY = 0x6A
     let VK_ADD = 0x6B
-    let VK_SEPARATOR = 0x6C
+    //let VK_SEPARATOR = 0x6C
     let VK_SUBTRACT = 0x6D
     let VK_DECIMAL = 0x6E
     let VK_DIVIDE = 0x6F
     let MOD_NONE = 0u
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
-                    VK_MULTIPLY; VK_ADD; VK_SEPARATOR; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE |]
+                    VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE; VK_RETURN |]
     // for app
     let mutable curX,curY = 9,9     // skurry at 10,10, but array is 0-based
     let SIZE = 32
@@ -324,7 +325,7 @@ type MyWindow() as this =
         // key legend
         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.LightGray,
                                 Width=float(5*SIZE), Height=float(SIZE*3), HorizontalContentAlignment=HorizontalAlignment.Left, VerticalContentAlignment=VerticalAlignment.Center)
-        tb.Text <- "Numpad Controls\n2468\tmove cursor\n0\treplace screenshot\n7\ttoggle zoom\n9\tcycle circle display\n+-*/\ttoggle circle"
+        tb.Text <- "enter\tcombine screenshot\n0\treplace screenshot\n2468\tmove cursor\n7\ttoggle zoom\n9\tcycle circle display\n+-*/\ttoggle circle"
         Utils.canvasAdd(bottomLeftPreview, tb, float(SIZE*13+4*BUFF), 0.) |> ignore
         if screenNames.[curX,curY] <> null then
             // screen name
@@ -470,8 +471,7 @@ type MyWindow() as this =
                         curY <- curY + 1
                         gccursor.Highlight(curX,curY)
                         update()
-                if key = VK_NUMPAD0 then
-                    let ss,name = Screenshot.getScreenInfo()
+                let updateSS(ss,name) =
                     screenshots.[curX,curY] <- ss
                     screenNames.[curX,curY] <- name
                     ss.Save(sprintf "SS-%02d-%02d.png" curX curY, System.Drawing.Imaging.ImageFormat.Png)
@@ -482,6 +482,31 @@ type MyWindow() as this =
                     RenderOptions.SetBitmapScalingMode(i, BitmapScalingMode.NearestNeighbor)
                     ssc.Put(curX, curY, i)
                     update()
+                if key = VK_NUMPAD0 then
+                    let ss,name = Screenshot.getScreenInfo()
+                    updateSS(ss,name)
+                if key = VK_RETURN then
+                    let ss,name = Screenshot.getScreenInfo()
+                    if screenNames.[curX,curY] = null then
+                        updateSS(ss,name)
+                    else
+                        // verify same name screen before merge
+                        let oldName = screenNames.[curX,curY]
+                        let mutable ok = true
+                        for x = 0 to name.Width-1 do
+                            for y = 0 to name.Height-1 do
+                                if name.GetPixel(x,y).ToArgb() <> oldName.GetPixel(x,y).ToArgb() then
+                                    ok <- false
+                        if not ok then
+                            System.Console.Beep()
+                        else
+                            // combine two screenshots
+                            let oldSS = screenshots.[curX,curY]
+                            for x = 0 to ss.Width-1 do
+                                for y = 0 to ss.Height-1 do
+                                    if ss.GetPixel(x,y).ToArgb() = System.Drawing.Color.Black.ToArgb() then
+                                        ss.SetPixel(x,y,oldSS.GetPixel(x,y))
+                            updateSS(ss,name)
                 if key = VK_NUMPAD7 then
                     isZoomed <- not isZoomed
                     if isZoomed then
