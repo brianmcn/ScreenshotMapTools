@@ -70,6 +70,13 @@ module Screenshot =
         let screenName = getScreenBitmap(400, 80, left, top-80)
         Utils.PerfectDownscale(gameArea, 5), Utils.PerfectDownscale(screenName, 5)
 
+    let allBlack(w:int,h:int) = 
+        let r = new System.Drawing.Bitmap(w,h)
+        for x = 0 to w-1 do
+            for y = 0 to h-1 do
+                r.SetPixel(x,y,Drawing.Color.Black)
+        r
+
     let testMain() =
         let bmp1,bmp2 = getScreenInfo()
         bmp1.Save("test1.png", System.Drawing.Imaging.ImageFormat.Png)
@@ -483,7 +490,12 @@ type MyWindow() as this =
                     ssc.Put(curX, curY, i)
                     update()
                 if key = VK_NUMPAD0 then
-                    let ss,name = Screenshot.getScreenInfo()
+                    let ss,name = 
+                        try
+                            Screenshot.getScreenInfo()
+                        with _ ->
+                            printfn "screenshot failed, using all black"
+                            Screenshot.allBlack(640/5, 640/5), Screenshot.allBlack(400/5, 80/5)
                     updateSS(ss,name)
                 if key = VK_RETURN then
                     let ss,name = Screenshot.getScreenInfo()
@@ -546,5 +558,20 @@ show percentage of whole that is mapped
 
 undo (accidentally take screenshot wrong place, accidentally overwrite old screenshot)
  - maybe have two SS for each room, and a button to toggle between them? (or a history of all SS and indexes, or... what is decent UI/function likely to be sufficient?)
+
+based on errors I have made, perhaps
+ - delete one screen
+ - cut and paste one screen
+ - GRAB to move a segment, like z-tracker
+
+fidgety controls:
+ - I sometimes replace when I forgot to move cursor
+ - I sometimes replace when I meant to combine
+ - Maybe replace should be a different button from take-screenshot (on empty screen) to make it explicit and fewer errors
+
+thinking about e.g. using on ESA
+ - no size limit, just two zoom sizes, always centered
+ - zero-based or one-based coords
+ - abstracting the screenshot protocol (wouldn't be room names, would need to save more size/detail)
 
 *)
