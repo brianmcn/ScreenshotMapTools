@@ -24,6 +24,18 @@ let makeGrid(nc, nr, cw, rh) =
         let h = if rh = -1 then GridLength.Auto else GridLength(float rh)
         grid.RowDefinitions.Add(new RowDefinition(Height=h))
     grid
+let mutable aModalDialogIsOpen = false
+let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) =
+    let w = new Window()
+    w.Title <- title
+    w.Content <- element
+    w.SizeToContent <- SizeToContent.WidthAndHeight
+    w.Owner <- parentWindow
+    w.WindowStartupLocation <- WindowStartupLocation.CenterOwner
+    close.Add(fun _ -> w.Close())
+    aModalDialogIsOpen <- true
+    w.Closed.Add(fun _ -> aModalDialogIsOpen <- false)
+    w.ShowDialog() |> ignore
 let BMPtoImage(bmp:System.Drawing.Bitmap) =
     let ms = new System.IO.MemoryStream()
     bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png)  // must be png (not bmp) to save transparency info

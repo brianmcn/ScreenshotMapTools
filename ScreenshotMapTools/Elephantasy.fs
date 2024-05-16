@@ -86,6 +86,26 @@ module Winterop =
     open System
     open System.Runtime.InteropServices
     // hotkeys
+    let VK_RETURN = 0x0D
+    //let VK_F5 = 0x74
+    //let VK_F10 = 0x79
+    let VK_NUMPAD0 = 0x60
+    let VK_NUMPAD1 = 0x61
+    let VK_NUMPAD2 = 0x62
+    let VK_NUMPAD3 = 0x63
+    let VK_NUMPAD4 = 0x64
+    let VK_NUMPAD5 = 0x65
+    let VK_NUMPAD6 = 0x66
+    let VK_NUMPAD7 = 0x67
+    let VK_NUMPAD8 = 0x68
+    let VK_NUMPAD9 = 0x69
+    let VK_MULTIPLY = 0x6A
+    let VK_ADD = 0x6B
+    //let VK_SEPARATOR = 0x6C
+    let VK_SUBTRACT = 0x6D
+    let VK_DECIMAL = 0x6E
+    let VK_DIVIDE = 0x6F
+    let MOD_NONE = 0u
     [<DllImport("User32.dll")>]
     extern bool RegisterHotKey(IntPtr hWnd,int id,uint32 fsModifiers,uint32 vk)
     [<DllImport("User32.dll")>]
@@ -253,32 +273,13 @@ type GridCanvasCircles(rows,cols,rowH,colW,borderThickness,colors:_[],circleThic
             |]
         lines
         
+open Winterop
 open System
 open System.Windows
 type MyWindow() as this = 
     inherit Window()
     // for hotkeys
     let mutable source = null
-    let VK_RETURN = 0x0D
-    //let VK_F5 = 0x74
-    //let VK_F10 = 0x79
-    let VK_NUMPAD0 = 0x60
-    let VK_NUMPAD1 = 0x61
-    let VK_NUMPAD2 = 0x62
-    let VK_NUMPAD3 = 0x63
-    let VK_NUMPAD4 = 0x64
-    let VK_NUMPAD5 = 0x65
-    let VK_NUMPAD6 = 0x66
-    let VK_NUMPAD7 = 0x67
-    let VK_NUMPAD8 = 0x68
-    let VK_NUMPAD9 = 0x69
-    let VK_MULTIPLY = 0x6A
-    let VK_ADD = 0x6B
-    //let VK_SEPARATOR = 0x6C
-    let VK_SUBTRACT = 0x6D
-    let VK_DECIMAL = 0x6E
-    let VK_DIVIDE = 0x6F
-    let MOD_NONE = 0u
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE; VK_RETURN |]
     // for app
@@ -563,6 +564,7 @@ based on errors I have made, perhaps
  - delete one screen
  - cut and paste one screen
  - GRAB to move a segment, like z-tracker
+ - idea of taking a screenshot every second, just keeping a back catalog, and indexing into catalog for screenshot uses, if have memory and disk to deal with that
 
 fidgety controls:
  - I sometimes replace when I forgot to move cursor
@@ -573,5 +575,9 @@ thinking about e.g. using on ESA
  - no size limit, just two zoom sizes, always centered
  - zero-based or one-based coords
  - abstracting the screenshot protocol (wouldn't be room names, would need to save more size/detail)
+ - rather than just color circles, maybe like color asterisks that also carry text, and hovering shows the text or whatnot... and maybe text can refer to other locations
+   so that when there's a warp from here to (12,23) you could click the text or something?  the circles got too noisy and also didn't carry enough info, need an arbitrary 
+   'category set' and also arbitrary extra data ideally, hm
+
 
 *)

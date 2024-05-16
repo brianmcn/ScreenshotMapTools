@@ -1,0 +1,345 @@
+﻿module Generic
+
+let AAppend(a:_[],x) =
+    if a=null then
+        [|x|]
+    else
+        Array.init (a.Length+1) (fun i -> if i<a.Length then a.[i] else x)
+(*
+
+screenshots all go to a folder named each by timestamp - added, never deleted
+
+each map tile keeps a list of all prior screenshots (timestamp names)
+
+taking a screenshot just appends that timestamp to the current tile's list
+
+key to delete-and-cut most recent screenshot, key to paste (to help with user errors)
+
+-------------------
+
+whole map is like 100x100 and starts you at 50,50
+
+data is big JSON array of bools? if anything exist here
+
+each map tile has its own file on disk of own JSON, something like
+ - screenshots: [ TS1, TS2, ... TSN ]
+ - note: (text note)
+ - meta: [ metas ]
+
+where metas are like a list of things of form
+    Meta01: [ {TS1,true}, {TS2,false} ]
+
+And there's some master list of names of the meta categories, e.g.
+
+    Meta01: "Yellow Key"
+    Meta02: "Need double jump"
+
+and then some way to add categories.
+
+And then UI is like, defaults to Num5 takes a screenshot, but you can change modes:
+    Screenshot
+    Text Note
+    Meta01Name
+    Meta02Name
+and like the tiles with any data in that category get a highlight, and pressing Num5 will like
+    take screenshot
+    give place to edit the text note
+    toggle the meta flag
+and 'cut/delete' would like erase the last meta entry, so if you accidentally mark a Yellow Key where it's not you can erase it
+
+------------------
+
+And since everything is timestamped you can kinda 'go back in time' or see map evolve over time
+
+------------------
+
+TODO
+need a way to have multiple 'zones', so like a named layer atop all this
+maybe 'warp' could just be a meta category, with text note where warp to?
+
+(could imagine this working on VS if the player just made each 28 across be a zone)
+
+
+*)
+
+
+// root folder for a game:
+let GAME = "Void Stranger"   // recompile for different uses, for now
+let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
+let GetRootFolder() = System.IO.Path.Combine(GAME)
+
+[<AllowNullLiteral>]
+type Game() =   // e.g. Zelda
+    member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
+    member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
+
+// screenshots folder of yyyy-MM-dd-HH-mm-ss
+let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
+let SCREENSHOTS_FOLDER = "screenshots"
+let VIEWX, VIEWY = 640, 360
+let ScreenshotFilenameFromTimestampId(id) =
+    System.IO.Path.Combine(GetRootFolder(), SCREENSHOTS_FOLDER, id+".png")
+let SaveScreenshot(bmp : System.Drawing.Bitmap) =
+    let now = System.DateTime.Now
+    let id = now.ToString(DATE_TIME_FORMAT)
+    let file = ScreenshotFilenameFromTimestampId(id)
+    System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
+    bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
+    let img = Utils.BMPtoImage bmp
+    img.Height <- float VIEWY
+    img.Width <- float VIEWX
+    System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.NearestNeighbor)
+    id, img
+// each zone has a folder:
+// with files MapTileXnnYmm where nn/mm range 00-99
+let mutable curZone = 0
+let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" curZone)
+
+[<AllowNullLiteral>]
+type Meta() =
+    member val Key : int = 0 with get,set              // index into Game.MetadataNames
+    member val Value: bool = false with get,set        // is this screen flagged with this metadata...
+    member val Timestamp : string = null with get,set  // at this timestamp
+
+[<AllowNullLiteral>]
+type MapTile() =   // e.g. 50,50
+    member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]
+    member val Note : string = null with get,set                  // e.g. "I spawned here at start"
+    member val Metadata : Meta[] = null with get,set
+let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
+
+let mutable curX,curY = 50,50
+let SIZEX, SIZEY = 1280, 720
+let TakeNewScreenshot() =
+    let bmp =
+        let mutable r = None
+        for KeyValue(hwnd,(title,rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+            if title = WINDOW_TITLE then
+                r <- Some(rect.left, rect.top)
+        match r with
+        | Some(left,top) ->
+            Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left, top)
+        | None -> failwith "window not found"
+    let id,img = SaveScreenshot(bmp)
+    // TODO append to MapTile
+    img, id
+
+//////////////////////////////////////////////////////////
+
+// wpf, imagine a big Grid of all the screenshot Images
+// can zoom/scroll it to desired on-screen portion
+// then can draw gridlines and cursor highlight at a certain thickness atop all that in window pixels
+
+(*
+interactions
+move cursor with Num2468 
+or with click
+
+dropdown change zone (save prompt)
+button rename current zone
+add new zone (in dropdown?)
+
+dropdown change type (screenshot/note/metaNN)   // better name for 'type' - mode?
+if meta
+    button rename current meta
+    add new meta (in dropdown?)
+
+Num5?Num0?NumEnter? 'add' a thingy (edits existing note)
+Num- delete/cut a thingy (need some kind of clipboard viz, and i guess a clipboard per 'type')
+    does cutting a screenshot mean taking the whole maptile and all its metadata with it? no
+Num+ paste
+
+Num79 zoom in/out (see 1x1/3x3/5x5/... plus a little edges)
+
+Num/ toggle full v zoom, if full, then fit all non-empty into screen area?
+
+state: cursor location, zoom level, isFull
+
+*)
+
+open System
+open System.Windows
+open System.Windows.Controls
+open System.Windows.Shapes
+open System.Windows.Media
+open Elephantasy.Winterop
+type MyWindow() as this = 
+    inherit Window()
+    // TODO fix key set
+    let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
+                    VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
+    let MAX = 100
+    let imgArray : Image[,] = Array2D.zeroCreate 100 100
+    let mapTiles = Array2D.create 100 100 (MapTile())
+    let MAPX,MAPY = 720,420
+    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let mutable curZoom = 2
+    let mutable hwndSource = null
+    // current editing focus (EF) combobox
+    let efOptions = System.Collections.ObjectModel.ObservableCollection<string>(["Screenshot";"Note";"Add category..."])
+    let efComboBox = new ComboBox(ItemsSource=efOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
+    let mutable efMode, efMeta = 0, 0
+    // summary of current selection
+    let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
+                                    Height=80., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc
+        let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
+        let scale = float(2*(level-1)+1)
+        mapCanvas.Children.Clear()
+        let W,H = float(VIEWX)/scale,float(VIEWY)/scale
+        for i = ci-level to ci+level do
+            for j = cj-level to cj+level do
+                if i>=0 && i<MAX && j>=0 && j<MAX && imgArray.[i,j] <> null then
+                    let img = imgArray.[i,j]
+                    img.Width <- W
+                    img.Height <- H
+                    Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                else
+                    let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.LightGray,
+                                            Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+                    Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+        let RT = 4.
+        let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
+        Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
+        let cmt = mapTiles.[ci,cj]
+        summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+    do
+        this.Title <- "Generic Screenshot Mapper"
+        this.Left <- 950.
+        this.Top <- 10.
+        //this.Topmost <- true
+        this.SizeToContent <- SizeToContent.Manual
+        this.Width <- 720. + 16.
+        this.Height <- 600. + 16. + 20.
+        // ensure directories
+        let zoneFolder = GetZoneFolder()
+        System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
+        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
+        // load map tile data and screenshots from disk
+        for i = 0 to MAX-1 do
+            for j = 0 to MAX-1 do
+                let file = MapTileFilename(i,j)
+                if System.IO.File.Exists(file) then
+                    let json = System.IO.File.ReadAllText(file)
+                    let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
+                    mapTiles.[i,j] <- data
+                    if data.Screenshots <> null && data.Screenshots.Length > 0 then
+                        let ts = data.Screenshots.[data.Screenshots.Length-1]
+                        let ssFile = ScreenshotFilenameFromTimestampId(ts)
+                        let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                        imgArray.[i,j] <- Utils.BMPtoImage bmp
+        // ef changes
+        efComboBox.SelectionChanged.Add(fun _ ->
+            match efComboBox.SelectedIndex with
+            | 0 -> efMode <- 0
+            | 1 -> efMode <- 1
+            | 2 -> failwith "TODO Addcat"
+            | _ -> failwith "TODO meta/oob"
+            )
+        // TODO layout
+        let all = new StackPanel(Orientation=Orientation.Vertical)
+        all.Children.Add(efComboBox) |> ignore
+        all.Children.Add(mapCanvas) |> ignore
+        all.Children.Add(summaryTB) |> ignore
+        all.UseLayoutRounding <- true
+        this.Content <- all
+        this.Loaded.Add(fun _ ->
+            let handle = Elephantasy.Winterop.GetConsoleWindow()
+            Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
+            zoom(50,50,2)
+            )
+    override this.OnSourceInitialized(e) =
+        base.OnSourceInitialized(e)
+        let helper = new System.Windows.Interop.WindowInteropHelper(this)
+        hwndSource <- System.Windows.Interop.HwndSource.FromHwnd(helper.Handle)
+        hwndSource.AddHook(System.Windows.Interop.HwndSourceHook(fun a b c d e -> this.HwndHook(a,b,c,d,&e)))
+        this.RegisterHotKey()
+    override this.OnClosed(e) =
+        if hwndSource <> null then
+            hwndSource.RemoveHook(System.Windows.Interop.HwndSourceHook(fun a b c d e -> this.HwndHook(a,b,c,d,&e)))
+        hwndSource <- null
+        this.UnregisterHotKey()
+        base.OnClosed(e)
+    member this.RegisterHotKey() =
+        let helper = new System.Windows.Interop.WindowInteropHelper(this);
+        for k in KEYS do
+            if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID, MOD_NONE, uint32 k))) then
+                failwithf "could not register hotkey %A" k
+    member this.UnregisterHotKey() =
+        let helper = new System.Windows.Interop.WindowInteropHelper(this)
+        Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore
+    member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
+        if Utils.aModalDialogIsOpen then IntPtr.Zero else
+        let WM_HOTKEY = 0x0312
+        if msg = WM_HOTKEY then
+            if wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
+                //let ctrl_bits = lParam.ToInt32() &&& 0xF  // see WM_HOTKEY docs
+                let key = lParam.ToInt32() >>> 16
+                if false then
+                    for k in KEYS do
+                        if key = k then
+                            printfn "key %A was pressed" k
+                if key = VK_NUMPAD4 then
+                    if curX >= 0 then
+                        curX <- curX - 1
+                        zoom(curX, curY, curZoom)
+                if key = VK_NUMPAD6 then
+                    if curX <= 99 then
+                        curX <- curX + 1
+                        zoom(curX, curY, curZoom)
+                if key = VK_NUMPAD8 then
+                    if curY >= 0 then
+                        curY <- curY - 1
+                        zoom(curX, curY, curZoom)
+                if key = VK_NUMPAD2 then
+                    if curY <= 99 then
+                        curY <- curY + 1
+                        zoom(curX, curY, curZoom)
+                if key = VK_NUMPAD0 then
+                    match efMode with
+                    | 0 ->
+                        let img,id = TakeNewScreenshot()
+                        imgArray.[curX,curY] <- img
+                        mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, id)
+                        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
+                        System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                        zoom(curX, curY, curZoom)
+                    | 1 ->
+                        let orig = mapTiles.[curX,curY].Note
+                        let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
+                                                Foreground=Brushes.Black, Background=Brushes.White,
+                                                Width=float(VIEWX/2), Height=float(VIEWY/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                                                VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
+                        let closeEv = new Event<unit>()
+                        let mutable save = false
+                        let cb = new Button(Content="Cancel")
+                        let sb = new Button(Content="Save")
+                        cb.Click.Add(fun _ -> closeEv.Trigger())
+                        sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+                        let dp = new DockPanel(LastChildFill=true)
+                        dp.Children.Add(cb) |> ignore
+                        dp.Children.Add(sb) |> ignore
+                        dp.Children.Add(new DockPanel()) |> ignore
+                        DockPanel.SetDock(cb, Dock.Left)
+                        DockPanel.SetDock(sb, Dock.Right)
+                        let sp = new StackPanel(Orientation=Orientation.Vertical)
+                        sp.Children.Add(tb) |> ignore
+                        sp.Children.Add(dp) |> ignore
+                        tb.Loaded.Add(fun _ ->
+                            System.Windows.Input.Keyboard.Focus(tb) |> ignore
+                            )
+                        Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
+                        if save then
+                            mapTiles.[curX,curY].Note <- tb.Text
+                            let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
+                            System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                    | _ -> failwith "TODO mode"
+                if key = VK_NUMPAD7 then
+                    if curZoom > 1 then
+                        curZoom <- curZoom - 1
+                        zoom(curX, curY, curZoom)
+                if key = VK_NUMPAD9 then
+                    if curZoom < MAX/2 then
+                        curZoom <- curZoom + 1
+                        zoom(curX, curY, curZoom)
+        IntPtr.Zero

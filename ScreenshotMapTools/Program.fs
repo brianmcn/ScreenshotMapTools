@@ -22,6 +22,7 @@ let main argv =
     //Elephantasy.Screenshot.testMain()
 
     let app = new Application()
-    app.Run(new Elephantasy.MyWindow())
+    //app.Run(new Elephantasy.MyWindow())
+    app.Run(new Generic.MyWindow())
 
     //0
