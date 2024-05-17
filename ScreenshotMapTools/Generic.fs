@@ -5,6 +5,13 @@ let AAppend(a:_[],x) =
         [|x|]
     else
         Array.init (a.Length+1) (fun i -> if i<a.Length then a.[i] else x)
+let ACut(a:_[]) =
+    if a=null || a.Length=0 then
+        failwith "array cut"
+    elif a.Length=1 then
+        [||]
+    else
+        Array.init (a.Length-1) (fun i -> a.[i])
 (*
 
 screenshots all go to a folder named each by timestamp - added, never deleted
@@ -182,6 +189,15 @@ type MyWindow() as this =
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
                                     Height=80., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    // clipboard display
+    let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(4.))
+    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWY/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange)
+    let clipDP = 
+        let r = new DockPanel(LastChildFill=true)
+        r.Children.Add(clipTB) |> ignore
+        DockPanel.SetDock(clipTB, Dock.Top)
+        r.Children.Add(clipView) |> ignore
+        r
     let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
         let scale = float(2*(level-1)+1)
@@ -203,6 +219,7 @@ type MyWindow() as this =
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
         summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+    let mutable clipboard = ""
     do
         this.Title <- "Generic Screenshot Mapper"
         this.Left <- 950.
@@ -236,11 +253,17 @@ type MyWindow() as this =
             | 2 -> failwith "TODO Addcat"
             | _ -> failwith "TODO meta/oob"
             )
-        // TODO layout
+        // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         all.Children.Add(efComboBox) |> ignore
         all.Children.Add(mapCanvas) |> ignore
-        all.Children.Add(summaryTB) |> ignore
+        let bottom =
+            let r = new DockPanel(LastChildFill=true)
+            r.Children.Add(clipDP) |> ignore
+            DockPanel.SetDock(clipDP, Dock.Right)
+            r.Children.Add(summaryTB) |> ignore
+            r
+        all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
         this.Content <- all
         this.Loaded.Add(fun _ ->
@@ -279,6 +302,37 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed" k
+                if key = VK_SUBTRACT && efMode=0 && imgArray.[curX,curY]<>null then
+                    // remove the data and img
+                    let img,id = imgArray.[curX,curY], mapTiles.[curX,curY].Screenshots |> Array.last
+                    mapTiles.[curX,curY].Screenshots <- ACut(mapTiles.[curX,curY].Screenshots)
+                    clipboard <- id
+                    // update current tile view
+                    if mapTiles.[curX,curY].Screenshots.Length > 0 then
+                        let newId = mapTiles.[curX,curY].Screenshots |> Array.last
+                        let ssFile = ScreenshotFilenameFromTimestampId(newId)
+                        let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                        imgArray.[curX,curY] <- Utils.BMPtoImage bmp
+                    else
+                        imgArray.[curX,curY] <- null
+                    zoom(curX, curY, curZoom)
+                    // update disk
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
+                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                    // update the clipboard view
+                    Utils.deparent(img)
+                    img.Stretch <- Stretch.Uniform
+                    clipView.Child <- img
+                    clipTB.Text <- id
+                if key = VK_ADD && efMode=0 && not(System.String.IsNullOrEmpty(clipboard)) then
+                    let ssFile = ScreenshotFilenameFromTimestampId(clipboard)
+                    let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                    let img = Utils.BMPtoImage bmp
+                    imgArray.[curX,curY] <- img
+                    mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, clipboard)
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
+                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                    zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD4 then
                     if curX >= 0 then
                         curX <- curX - 1

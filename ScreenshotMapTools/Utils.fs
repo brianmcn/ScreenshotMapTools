@@ -24,6 +24,11 @@ let makeGrid(nc, nr, cw, rh) =
         let h = if rh = -1 then GridLength.Auto else GridLength(float rh)
         grid.RowDefinitions.Add(new RowDefinition(Height=h))
     grid
+let deparent(e:FrameworkElement) =
+    match e.Parent with
+    | null -> ()
+    | :? Panel as p -> p.Children.Remove(e)
+    | _ -> ()
 let mutable aModalDialogIsOpen = false
 let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) =
     let w = new Window()
