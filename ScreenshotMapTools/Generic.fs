@@ -13,9 +13,39 @@ let ACut(a:_[]) =
     else
         Array.init (a.Length-1) (fun i -> a.[i])
 
+module Win32 =
+    [<System.Runtime.InteropServices.DllImport("User32.dll")>]
+    extern bool PrintWindow(System.IntPtr hwnd, nativeint hdcBlt, uint32 nFlags)
+
+let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
+    let bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    let gfxBmp = System.Drawing.Graphics.FromImage(bmp)
+    let hdcBitmap = gfxBmp.GetHdc()
+    let PW_CLIENTONLY = 1u
+    let PW_RENDERFULLCONTENT = 2u
+    let succeeded = Win32.PrintWindow(hwnd, hdcBitmap, PW_RENDERFULLCONTENT ||| PW_CLIENTONLY)   // theoretically might run faster if topmost, but in practice, I didn't see difference, and this is not the bottleneck
+    gfxBmp.ReleaseHdc(hdcBitmap)
+    if not succeeded then
+        gfxBmp.FillRectangle(new System.Drawing.SolidBrush(System.Drawing.Color.Black), new System.Drawing.Rectangle(System.Drawing.Point.Empty, bmp.Size))
+    (*
+    let hRgn = Win32.CreateRectRgn(0, 0, 0, 0)
+    Win32.GetWindowRgn(hwnd, hRgn) |> ignore
+    let region = Region.FromHrgn(hRgn)
+    if not(region.IsEmpty(gfxBmp)) then
+        gfxBmp.ExcludeClip(region)
+        gfxBmp.Clear(Color.Transparent)
+    Win32.DeleteObject(hRgn) |> ignore
+    *)
+    gfxBmp.Dispose()
+    bmp
+
+
 // root folder for a game:
-let GAME = "Void Stranger"   // recompile for different uses, for now
-let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
+//let GAME = "Void Stranger"   // recompile for different uses, for now
+//let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
+let GAME = "Leafs Odyssey"   // recompile for different uses, for now
+let WINDOW_TITLE = "Leaf's Odyssey"
+
 let GetRootFolder() = System.IO.Path.Combine(GAME)
 
 [<AllowNullLiteral>]
@@ -36,6 +66,7 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
     System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
     let img = Utils.BMPtoImage bmp
+// TODO
     img.Height <- float VIEWY
     img.Width <- float VIEWX
     System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.NearestNeighbor)
@@ -59,16 +90,20 @@ type MapTile() =   // e.g. 50,50
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
 let mutable curX,curY = 50,50
-let SIZEX, SIZEY = 1280, 720
+//let SIZEX, SIZEY = 1280, 720
+let SIZEX, SIZEY = 1440, 809
 let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
         for KeyValue(hwnd,(title,rect)) in Elephantasy.Screenshot.GetOpenWindows() do
             if title = WINDOW_TITLE then
-                r <- Some(rect.left, rect.top)
+                r <- Some hwnd //Some(rect.left, rect.top)
         match r with
-        | Some(left,top) ->
-            Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left, top)
+        //| Some(left,top) ->
+        | Some(hwnd) ->
+            //Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left, top)
+            //Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left+1, top+32)    // often titlebar is 32 tall and 1 pixel surround for window frame
+            GetWindowScreenshot(hwnd, SIZEX, SIZEY)
         | None -> failwith "window not found"
     let id,img = SaveScreenshot(bmp)
     // TODO append to MapTile

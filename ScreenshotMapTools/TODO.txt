@@ -5,7 +5,33 @@ zones
 
 root directory for games (debug v release, change games, catalogue? app data folders?)
 
+
+Leaf's odysssey also has
+ - left HUD
+ - screen names like elephantasy
+so I probably want to 
+ - capture whole screenshot
+ - have a projection mechanism to toggle whole versus just map area
+ - have a way to capture metadata from a projection and display it too (e.g. grid of screen names, or screen name in summary area)
+and I'll be playing/capturing 2x or 3x resolution, so want to downscale screenshots/images like Elephantasy to save disk/processing/etc
+
+so
+ - hardcode how to get native 1x screenshot bmps
+ - hardcode (for now) the various projections I want (full game, play area, screen name)
+ - make VIEWX be 630 (multiple of 1/3/5/7/9) and app width be like 630+20+20
+ - make VIEWY be dynamic, adjusting to aspect ratio of current projection, so we always fit e.g. a 5x5 map plus some edges at a zoom level, but the height varies with aspect ratio
+ - have a way to select what projection to see now
+ - maybe always show curx/cury full screenshot in the bottom metadata area 
+
+
+for YT, do I want a minimap projection thingy?
+I guess separate OBS scene layout I can toggle is simpler, occasionally do it and break flow
+
+
 something making mode clearer (screenshot vs note), user errors
+ - maybe double-click a tile can be shortcut to edit note, or something, then not toggling dropdown so much/fiddly
+ - e.g. get rid of the 'mode', always screenshot mode, with other interactions to do other-editing, e.g. dropdown meta03 lets you edit that but then return to screenshot
+
 
 time travel/review
 
