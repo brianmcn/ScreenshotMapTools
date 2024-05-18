@@ -12,63 +12,6 @@ let ACut(a:_[]) =
         [||]
     else
         Array.init (a.Length-1) (fun i -> a.[i])
-(*
-
-screenshots all go to a folder named each by timestamp - added, never deleted
-
-each map tile keeps a list of all prior screenshots (timestamp names)
-
-taking a screenshot just appends that timestamp to the current tile's list
-
-key to delete-and-cut most recent screenshot, key to paste (to help with user errors)
-
--------------------
-
-whole map is like 100x100 and starts you at 50,50
-
-data is big JSON array of bools? if anything exist here
-
-each map tile has its own file on disk of own JSON, something like
- - screenshots: [ TS1, TS2, ... TSN ]
- - note: (text note)
- - meta: [ metas ]
-
-where metas are like a list of things of form
-    Meta01: [ {TS1,true}, {TS2,false} ]
-
-And there's some master list of names of the meta categories, e.g.
-
-    Meta01: "Yellow Key"
-    Meta02: "Need double jump"
-
-and then some way to add categories.
-
-And then UI is like, defaults to Num5 takes a screenshot, but you can change modes:
-    Screenshot
-    Text Note
-    Meta01Name
-    Meta02Name
-and like the tiles with any data in that category get a highlight, and pressing Num5 will like
-    take screenshot
-    give place to edit the text note
-    toggle the meta flag
-and 'cut/delete' would like erase the last meta entry, so if you accidentally mark a Yellow Key where it's not you can erase it
-
-------------------
-
-And since everything is timestamped you can kinda 'go back in time' or see map evolve over time
-
-------------------
-
-TODO
-need a way to have multiple 'zones', so like a named layer atop all this
-maybe 'warp' could just be a meta category, with text note where warp to?
-
-(could imagine this working on VS if the player just made each 28 across be a zone)
-
-
-*)
-
 
 // root folder for a game:
 let GAME = "Void Stranger"   // recompile for different uses, for now
@@ -133,36 +76,6 @@ let TakeNewScreenshot() =
 
 //////////////////////////////////////////////////////////
 
-// wpf, imagine a big Grid of all the screenshot Images
-// can zoom/scroll it to desired on-screen portion
-// then can draw gridlines and cursor highlight at a certain thickness atop all that in window pixels
-
-(*
-interactions
-move cursor with Num2468 
-or with click
-
-dropdown change zone (save prompt)
-button rename current zone
-add new zone (in dropdown?)
-
-dropdown change type (screenshot/note/metaNN)   // better name for 'type' - mode?
-if meta
-    button rename current meta
-    add new meta (in dropdown?)
-
-Num5?Num0?NumEnter? 'add' a thingy (edits existing note)
-Num- delete/cut a thingy (need some kind of clipboard viz, and i guess a clipboard per 'type')
-    does cutting a screenshot mean taking the whole maptile and all its metadata with it? no
-Num+ paste
-
-Num79 zoom in/out (see 1x1/3x3/5x5/... plus a little edges)
-
-Num/ toggle full v zoom, if full, then fit all non-empty into screen area?
-
-state: cursor location, zoom level, isFull
-
-*)
 
 open System
 open System.Windows
@@ -205,15 +118,19 @@ type MyWindow() as this =
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
         for i = ci-level to ci+level do
             for j = cj-level to cj+level do
-                if i>=0 && i<MAX && j>=0 && j<MAX && imgArray.[i,j] <> null then
-                    let img = imgArray.[i,j]
-                    img.Width <- W
-                    img.Height <- H
-                    Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                if i>=0 && i<MAX && j>=0 && j<MAX then
+                    if imgArray.[i,j] <> null then
+                        let img = imgArray.[i,j]
+                        img.Width <- W
+                        img.Height <- H
+                        Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                    else
+                        let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
+                                                Background=(if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray),
+                                                Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+                        Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
-                    let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.LightGray,
-                                            Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
-                    Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                    Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
         let RT = 4.
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
@@ -334,19 +251,19 @@ type MyWindow() as this =
                     System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
                     zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD4 then
-                    if curX >= 0 then
+                    if curX > 0 then
                         curX <- curX - 1
                         zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD6 then
-                    if curX <= 99 then
+                    if curX < 99 then
                         curX <- curX + 1
                         zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD8 then
-                    if curY >= 0 then
+                    if curY > 0 then
                         curY <- curY - 1
                         zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD2 then
-                    if curY <= 99 then
+                    if curY < 99 then
                         curY <- curY + 1
                         zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD0 then
@@ -366,8 +283,8 @@ type MyWindow() as this =
                                                 VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
                         let closeEv = new Event<unit>()
                         let mutable save = false
-                        let cb = new Button(Content="Cancel")
-                        let sb = new Button(Content="Save")
+                        let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
+                        let sb = new Button(Content=" Save ", Margin=Thickness(4.))
                         cb.Click.Add(fun _ -> closeEv.Trigger())
                         sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
                         let dp = new DockPanel(LastChildFill=true)
@@ -387,6 +304,7 @@ type MyWindow() as this =
                             mapTiles.[curX,curY].Note <- tb.Text
                             let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
                             System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                            zoom(curX, curY, curZoom)   // redraw note preview in summary area
                     | _ -> failwith "TODO mode"
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then

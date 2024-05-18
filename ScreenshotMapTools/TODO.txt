@@ -1,0 +1,95 @@
+﻿
+test note C&P
+
+zones
+
+root directory for games (debug v release, change games, catalogue? app data folders?)
+
+something making mode clearer (screenshot vs note), user errors
+
+time travel/review
+
+metadata
+
+metadata map-viz
+
+see-whole-map (auto zoom, cursor without centering)
+
+map connectivity? (can you go N-S here)
+
+
+
+
+
+
+(*
+
+-------------------
+
+whole map is like 100x100 and starts you at 50,50
+
+data is big JSON array of bools? if anything exist here
+
+each map tile has its own file on disk of own JSON, something like
+ - screenshots: [ TS1, TS2, ... TSN ]
+ - note: (text note)
+ - meta: [ metas ]
+
+where metas are like a list of things of form
+    Meta01: [ {TS1,true}, {TS2,false} ]
+
+And there's some master list of names of the meta categories, e.g.
+
+    Meta01: "Yellow Key"
+    Meta02: "Need double jump"
+
+and then some way to add categories.
+
+And then UI is like, defaults to Num5 takes a screenshot, but you can change modes:
+    Screenshot
+    Text Note
+    Meta01Name
+    Meta02Name
+and like the tiles with any data in that category get a highlight, and pressing Num5 will like
+    take screenshot
+    give place to edit the text note
+    toggle the meta flag
+and 'cut/delete' would like erase the last meta entry, so if you accidentally mark a Yellow Key where it's not you can erase it
+
+------------------
+
+And since everything is timestamped you can kinda 'go back in time' or see map evolve over time
+*)
+
+
+
+// wpf, imagine a big Grid of all the screenshot Images
+// can zoom/scroll it to desired on-screen portion
+// then can draw gridlines and cursor highlight at a certain thickness atop all that in window pixels
+
+(*
+interactions
+move cursor with Num2468 
+or with click
+
+dropdown change zone (save prompt)
+button rename current zone
+add new zone (in dropdown?)
+
+dropdown change type (screenshot/note/metaNN)   // better name for 'type' - mode?
+if meta
+    button rename current meta
+    add new meta (in dropdown?)
+
+Num5?Num0?NumEnter? 'add' a thingy (edits existing note)
+Num- delete/cut a thingy (need some kind of clipboard viz, and i guess a clipboard per 'type')
+    does cutting a screenshot mean taking the whole maptile and all its metadata with it? no
+Num+ paste
+
+Num79 zoom in/out (see 1x1/3x3/5x5/... plus a little edges)
+
+Num/ toggle full v zoom, if full, then fit all non-empty into screen area?
+
+state: cursor location, zoom level, isFull
+
+*)
