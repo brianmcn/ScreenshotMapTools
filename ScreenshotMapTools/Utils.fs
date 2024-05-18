@@ -65,6 +65,11 @@ let BMPtoBitmapImage(bmp:System.Drawing.Bitmap) =  // can be done on background 
     bmimage.EndInit()
     bmimage.Freeze()  // makes threadsafe
     bmimage
+let ImageProjection(img:System.Windows.Controls.Image,(x,y,w,h)) =
+    let src = img.Source :?> System.Windows.Media.Imaging.BitmapSource
+    let crop = new System.Windows.Media.Imaging.CroppedBitmap(src, System.Windows.Int32Rect(x,y,w,h))
+    let r = new System.Windows.Controls.Image(Source=crop)
+    r
 open System.Drawing
 open System.Drawing.Imaging
 open System.Drawing.Drawing2D

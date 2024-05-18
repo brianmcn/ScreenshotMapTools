@@ -45,6 +45,15 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
 //let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
 let GAME = "Leafs Odyssey"   // recompile for different uses, for now
 let WINDOW_TITLE = "Leaf's Odyssey"
+let GAMESCREENW, GAMESCREENH = 960, 540
+let NATIVE_FACTOR = 2
+let GAMENATIVEW, GAMENATIVEH = GAMESCREENW/NATIVE_FACTOR, GAMESCREENH/NATIVE_FACTOR
+let GAMEASPECT = float(GAMENATIVEW) / float(GAMENATIVEH)
+let VIEWX = 630   // multiple of 9, 7, 5 so that we can so various zooms well onscreen
+let MapArea  =  96, 14, 384, 256         // x,y,w,h
+let MetaArea = 200,  0, 170,  14
+
+
 
 let GetRootFolder() = System.IO.Path.Combine(GAME)
 
@@ -56,7 +65,6 @@ type Game() =   // e.g. Zelda
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
 let SCREENSHOTS_FOLDER = "screenshots"
-let VIEWX, VIEWY = 640, 360
 let ScreenshotFilenameFromTimestampId(id) =
     System.IO.Path.Combine(GetRootFolder(), SCREENSHOTS_FOLDER, id+".png")
 let SaveScreenshot(bmp : System.Drawing.Bitmap) =
@@ -66,10 +74,8 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
     System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
     let img = Utils.BMPtoImage bmp
-// TODO
-    img.Height <- float VIEWY
-    img.Width <- float VIEWX
-    System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.NearestNeighbor)
+    img.Stretch <- System.Windows.Media.Stretch.Fill
+    //System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.NearestNeighbor)
     id, img
 // each zone has a folder:
 // with files MapTileXnnYmm where nn/mm range 00-99
@@ -90,27 +96,24 @@ type MapTile() =   // e.g. 50,50
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
 let mutable curX,curY = 50,50
-//let SIZEX, SIZEY = 1280, 720
-let SIZEX, SIZEY = 1440, 809
 let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
         for KeyValue(hwnd,(title,rect)) in Elephantasy.Screenshot.GetOpenWindows() do
             if title = WINDOW_TITLE then
-                r <- Some hwnd //Some(rect.left, rect.top)
+                r <- Some hwnd
         match r with
-        //| Some(left,top) ->
-        | Some(hwnd) ->
-            //Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left, top)
-            //Elephantasy.Screenshot.getScreenBitmap(SIZEX, SIZEY, left+1, top+32)    // often titlebar is 32 tall and 1 pixel surround for window frame
-            GetWindowScreenshot(hwnd, SIZEX, SIZEY)
+        | Some(hwnd) -> GetWindowScreenshot(hwnd, GAMESCREENW, GAMESCREENH)
         | None -> failwith "window not found"
-    let id,img = SaveScreenshot(bmp)
+    let nativeBmp = new System.Drawing.Bitmap(GAMENATIVEW, GAMENATIVEH)
+    for i = 0 to GAMENATIVEW-1 do
+        for j = 0 to GAMENATIVEH-1 do
+            nativeBmp.SetPixel(i, j, bmp.GetPixel(i*NATIVE_FACTOR, j*NATIVE_FACTOR))
+    let id,img = SaveScreenshot(nativeBmp)
     // TODO append to MapTile
     img, id
 
 //////////////////////////////////////////////////////////
-
 
 open System
 open System.Windows
@@ -136,17 +139,39 @@ type MyWindow() as this =
     let mutable efMode, efMeta = 0, 0
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
-                                    Height=80., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+                                    Height=120., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(4.))
-    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWY/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange)
+    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWX/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange)
     let clipDP = 
         let r = new DockPanel(LastChildFill=true)
         r.Children.Add(clipTB) |> ignore
         DockPanel.SetDock(clipTB, Dock.Top)
         r.Children.Add(clipView) |> ignore
         r
+    // meta and full summary of current tile
+    let mfssp = new StackPanel(Orientation=Orientation.Vertical, Width=(let _,_,w,_ = MetaArea in float w))
+    let mfsRefresh() =
+        mfssp.Children.Clear()
+        if imgArray.[curX,curY] <> null then
+            mfssp.Children.Add(Utils.ImageProjection(imgArray.[curX,curY],MetaArea)) |> ignore
+            mfssp.Children.Add(Utils.ImageProjection(imgArray.[curX,curY],(0,0,GAMENATIVEW,GAMENATIVEH))) |> ignore
+    // zoom/refresh
+    let mutable curProjection = 0  // 0=full, 1=map, 2=meta
+    let project(img) =
+        match curProjection with
+        | 0 -> img
+        | 1 -> Utils.ImageProjection(img,MapArea)
+        | 2 -> Utils.ImageProjection(img,MetaArea)
+        | _ -> failwith "bad curProjection"
     let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc
+        let aspect = 
+            match curProjection with
+            | 0 -> GAMEASPECT
+            | 1 -> let _,_,w,h = MapArea in float w / float h
+            | 2 -> let _,_,w,h = MetaArea in float w / float h
+            | _ -> failwith "bad curProjection"
+        let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
         let scale = float(2*(level-1)+1)
         mapCanvas.Children.Clear()
@@ -155,9 +180,10 @@ type MyWindow() as this =
             for j = cj-level to cj+level do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     if imgArray.[i,j] <> null then
-                        let img = imgArray.[i,j]
+                        let img = project(imgArray.[i,j])
                         img.Width <- W
                         img.Height <- H
+                        img.Stretch <- System.Windows.Media.Stretch.Fill
                         Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                     else
                         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
@@ -171,6 +197,7 @@ type MyWindow() as this =
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
         summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+        mfsRefresh()
     let mutable clipboard = ""
     do
         this.Title <- "Generic Screenshot Mapper"
@@ -211,6 +238,8 @@ type MyWindow() as this =
         all.Children.Add(mapCanvas) |> ignore
         let bottom =
             let r = new DockPanel(LastChildFill=true)
+            r.Children.Add(mfssp) |> ignore
+            DockPanel.SetDock(mfssp, Dock.Left)
             r.Children.Add(clipDP) |> ignore
             DockPanel.SetDock(clipDP, Dock.Right)
             r.Children.Add(summaryTB) |> ignore
@@ -285,6 +314,11 @@ type MyWindow() as this =
                     let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
                     System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
                     zoom(curX, curY, curZoom)
+                if key = VK_MULTIPLY then
+                    curProjection <- curProjection + 1
+                    if curProjection >= 3 then
+                        curProjection <- 0
+                    zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD4 then
                     if curX > 0 then
                         curX <- curX - 1
@@ -314,7 +348,7 @@ type MyWindow() as this =
                         let orig = mapTiles.[curX,curY].Note
                         let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                                 Foreground=Brushes.Black, Background=Brushes.White,
-                                                Width=float(VIEWX/2), Height=float(VIEWY/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                                                Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
                                                 VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
                         let closeEv = new Event<unit>()
                         let mutable save = false
