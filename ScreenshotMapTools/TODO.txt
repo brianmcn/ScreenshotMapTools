@@ -1,7 +1,7 @@
 ﻿
 test note C&P
 
-zones
++ zones
 
 root directory for games (debug v release, change games, catalogue? app data folders?)
 
@@ -29,7 +29,7 @@ I guess separate OBS scene layout I can toggle is simpler, occasionally do it an
 
 
 something making mode clearer (screenshot vs note), user errors
- - maybe double-click a tile can be shortcut to edit note, or something, then not toggling dropdown so much/fiddly
+ + maybe NUM_DIVIDE can be shortcut to edit note, or something, then not toggling dropdown so much/fiddly
  - e.g. get rid of the 'mode', always screenshot mode, with other interactions to do other-editing, e.g. dropdown meta03 lets you edit that but then return to screenshot
 
 

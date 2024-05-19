@@ -62,6 +62,20 @@ type Game() =   // e.g. Zelda
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
     member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
 
+// load root game data
+let theGame = Game()
+let LoadRootGameData() =
+    let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
+    if not(System.IO.File.Exists(gameFile)) then
+        theGame.ZoneNames <- [| "zone00" |]
+        let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
+        System.IO.File.WriteAllText(gameFile, json)
+    else
+        let json = System.IO.File.ReadAllText(gameFile)
+        let data = System.Text.Json.JsonSerializer.Deserialize<Game>(json)
+        theGame.ZoneNames <- data.ZoneNames
+        theGame.MetadataNames <- theGame.MetadataNames
+
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
 let SCREENSHOTS_FOLDER = "screenshots"
@@ -81,6 +95,7 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
 // with files MapTileXnnYmm where nn/mm range 00-99
 let mutable curZone = 0
 let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" curZone)
+let GetZoneName(zoneNum) = sprintf "zone%02d" zoneNum  // TODO load names, support renaming
 
 [<AllowNullLiteral>]
 type Meta() =
@@ -133,10 +148,29 @@ type MyWindow() as this =
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
     let mutable curZoom = 2
     let mutable hwndSource = null
-    // current editing focus (EF) combobox
-    let efOptions = System.Collections.ObjectModel.ObservableCollection<string>(["Screenshot";"Note";"Add category..."])
-    let efComboBox = new ComboBox(ItemsSource=efOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
-    let mutable efMode, efMeta = 0, 0
+    let LoadZoneMapTiles() =
+        // load map tile data and screenshots from disk
+        for i = 0 to MAX-1 do
+            for j = 0 to MAX-1 do
+                let file = MapTileFilename(i,j)
+                if System.IO.File.Exists(file) then
+                    let json = System.IO.File.ReadAllText(file)
+                    let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
+                    mapTiles.[i,j] <- data
+                    if data.Screenshots <> null && data.Screenshots.Length > 0 then
+                        let ts = data.Screenshots.[data.Screenshots.Length-1]
+                        let ssFile = ScreenshotFilenameFromTimestampId(ts)
+                        let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                        imgArray.[i,j] <- Utils.BMPtoImage bmp
+                    else
+                        imgArray.[i,j] <- null
+                else
+                    mapTiles.[i,j] <- MapTile()
+                    imgArray.[i,j] <- null
+    // current zone combobox
+    let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
+    let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
+    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
                                     Height=120., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
@@ -200,6 +234,30 @@ type MyWindow() as this =
         mfsRefresh()
     let mutable clipboard = ""
     do
+        // init zones
+        LoadRootGameData()
+        for i = 0 to theGame.ZoneNames.Length-1 do
+            zoneOptions.Add(theGame.ZoneNames.[i])
+        zoneComboBox.ItemsSource <- zoneOptions
+        zoneComboBox.SelectedIndex <- 0
+        // zone changes
+        zoneComboBox.SelectionChanged.Add(fun _ ->
+            curZone <- zoneComboBox.SelectedIndex
+            LoadZoneMapTiles()
+            zoom(curX, curY, curZoom)
+            )
+        addNewZoneButton.Click.Add(fun _ ->
+            let n = theGame.ZoneNames.Length
+            theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
+            zoneOptions.Add(theGame.ZoneNames.[n])
+            let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
+            let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
+            System.IO.File.WriteAllText(gameFile, json)
+            zoneComboBox.SelectedIndex <- n
+            LoadZoneMapTiles()
+            zoom(curX, curY, curZoom)
+            )
+        // window
         this.Title <- "Generic Screenshot Mapper"
         this.Left <- 950.
         this.Top <- 10.
@@ -211,30 +269,15 @@ type MyWindow() as this =
         let zoneFolder = GetZoneFolder()
         System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
-        // load map tile data and screenshots from disk
-        for i = 0 to MAX-1 do
-            for j = 0 to MAX-1 do
-                let file = MapTileFilename(i,j)
-                if System.IO.File.Exists(file) then
-                    let json = System.IO.File.ReadAllText(file)
-                    let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
-                    mapTiles.[i,j] <- data
-                    if data.Screenshots <> null && data.Screenshots.Length > 0 then
-                        let ts = data.Screenshots.[data.Screenshots.Length-1]
-                        let ssFile = ScreenshotFilenameFromTimestampId(ts)
-                        let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                        imgArray.[i,j] <- Utils.BMPtoImage bmp
-        // ef changes
-        efComboBox.SelectionChanged.Add(fun _ ->
-            match efComboBox.SelectedIndex with
-            | 0 -> efMode <- 0
-            | 1 -> efMode <- 1
-            | 2 -> failwith "TODO Addcat"
-            | _ -> failwith "TODO meta/oob"
-            )
+        LoadZoneMapTiles()
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
-        all.Children.Add(efComboBox) |> ignore
+        let top =
+            let sp = new StackPanel(Orientation=Orientation.Horizontal)
+            sp.Children.Add(addNewZoneButton) |> ignore
+            sp.Children.Add(zoneComboBox) |> ignore
+            sp
+        all.Children.Add(top) |> ignore
         all.Children.Add(mapCanvas) |> ignore
         let bottom =
             let r = new DockPanel(LastChildFill=true)
@@ -283,7 +326,7 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed" k
-                if key = VK_SUBTRACT && efMode=0 && imgArray.[curX,curY]<>null then
+                if key = VK_SUBTRACT && imgArray.[curX,curY]<>null then
                     // remove the data and img
                     let img,id = imgArray.[curX,curY], mapTiles.[curX,curY].Screenshots |> Array.last
                     mapTiles.[curX,curY].Screenshots <- ACut(mapTiles.[curX,curY].Screenshots)
@@ -305,7 +348,7 @@ type MyWindow() as this =
                     img.Stretch <- Stretch.Uniform
                     clipView.Child <- img
                     clipTB.Text <- id
-                if key = VK_ADD && efMode=0 && not(System.String.IsNullOrEmpty(clipboard)) then
+                if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboard)) then
                     let ssFile = ScreenshotFilenameFromTimestampId(clipboard)
                     let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
                     let img = Utils.BMPtoImage bmp
@@ -336,45 +379,42 @@ type MyWindow() as this =
                         curY <- curY + 1
                         zoom(curX, curY, curZoom)
                 if key = VK_NUMPAD0 then
-                    match efMode with
-                    | 0 ->
-                        let img,id = TakeNewScreenshot()
-                        imgArray.[curX,curY] <- img
-                        mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, id)
+                    let img,id = TakeNewScreenshot()
+                    imgArray.[curX,curY] <- img
+                    mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, id)
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
+                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                    zoom(curX, curY, curZoom)
+                if key = VK_DIVIDE then
+                    let orig = mapTiles.[curX,curY].Note
+                    let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
+                                            Foreground=Brushes.Black, Background=Brushes.White,
+                                            Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                                            VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
+                    let closeEv = new Event<unit>()
+                    let mutable save = false
+                    let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
+                    let sb = new Button(Content=" Save ", Margin=Thickness(4.))
+                    cb.Click.Add(fun _ -> closeEv.Trigger())
+                    sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+                    let dp = new DockPanel(LastChildFill=true)
+                    dp.Children.Add(cb) |> ignore
+                    dp.Children.Add(sb) |> ignore
+                    dp.Children.Add(new DockPanel()) |> ignore
+                    DockPanel.SetDock(cb, Dock.Left)
+                    DockPanel.SetDock(sb, Dock.Right)
+                    let sp = new StackPanel(Orientation=Orientation.Vertical)
+                    sp.Children.Add(tb) |> ignore
+                    sp.Children.Add(dp) |> ignore
+                    tb.Loaded.Add(fun _ ->
+                        System.Windows.Input.Keyboard.Focus(tb) |> ignore
+                        )
+                    Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
+                    if save then
+                        mapTiles.[curX,curY].Note <- tb.Text
                         let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
                         System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
-                        zoom(curX, curY, curZoom)
-                    | 1 ->
-                        let orig = mapTiles.[curX,curY].Note
-                        let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
-                                                Foreground=Brushes.Black, Background=Brushes.White,
-                                                Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
-                                                VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
-                        let closeEv = new Event<unit>()
-                        let mutable save = false
-                        let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
-                        let sb = new Button(Content=" Save ", Margin=Thickness(4.))
-                        cb.Click.Add(fun _ -> closeEv.Trigger())
-                        sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-                        let dp = new DockPanel(LastChildFill=true)
-                        dp.Children.Add(cb) |> ignore
-                        dp.Children.Add(sb) |> ignore
-                        dp.Children.Add(new DockPanel()) |> ignore
-                        DockPanel.SetDock(cb, Dock.Left)
-                        DockPanel.SetDock(sb, Dock.Right)
-                        let sp = new StackPanel(Orientation=Orientation.Vertical)
-                        sp.Children.Add(tb) |> ignore
-                        sp.Children.Add(dp) |> ignore
-                        tb.Loaded.Add(fun _ ->
-                            System.Windows.Input.Keyboard.Focus(tb) |> ignore
-                            )
-                        Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
-                        if save then
-                            mapTiles.[curX,curY].Note <- tb.Text
-                            let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
-                            System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
-                            zoom(curX, curY, curZoom)   // redraw note preview in summary area
-                    | _ -> failwith "TODO mode"
+                        zoom(curX, curY, curZoom)   // redraw note preview in summary area
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then
                         curZoom <- curZoom - 1
