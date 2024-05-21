@@ -98,16 +98,9 @@ let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d"
 let GetZoneName(zoneNum) = sprintf "zone%02d" zoneNum  // TODO load names, support renaming
 
 [<AllowNullLiteral>]
-type Meta() =
-    member val Key : int = 0 with get,set              // index into Game.MetadataNames
-    member val Value: bool = false with get,set        // is this screen flagged with this metadata...
-    member val Timestamp : string = null with get,set  // at this timestamp
-
-[<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50
     member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"
-    //member val Metadata : Meta[] = null with get,set
     member this.IsEmpty = (this.Screenshots = null || this.Screenshots.Length=0) && (this.Note = null || this.Note="")
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
@@ -145,11 +138,13 @@ type MyWindow() as this =
     let MAX = 100
     let imgArray : Image[,] = Array2D.zeroCreate 100 100
     let mapTiles = Array2D.create 100 100 (MapTile())
+    let metadataStore = GenericMetadata.MetadataStore()
+    let mutable curKey = null
     let MAPX,MAPY = 720,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
     let mutable curZoom = 2
     let mutable hwndSource = null
-    let LoadZoneMapTiles() =
+    let LoadZoneMapTiles(alsoLoadImages) =
         // load map tile data and screenshots from disk
         for i = 0 to MAX-1 do
             for j = 0 to MAX-1 do
@@ -158,7 +153,8 @@ type MyWindow() as this =
                     let json = System.IO.File.ReadAllText(file)
                     let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
                     mapTiles.[i,j] <- data
-                    if data.Screenshots <> null && data.Screenshots.Length > 0 then
+                    metadataStore.ChangeNote(GenericMetadata.Location(curZone,i,j), "", data.Note)
+                    if alsoLoadImages && data.Screenshots <> null && data.Screenshots.Length > 0 then
                         let ts = data.Screenshots.[data.Screenshots.Length-1]
                         let ssFile = ScreenshotFilenameFromTimestampId(ts)
                         let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
@@ -177,7 +173,7 @@ type MyWindow() as this =
                                     Height=120., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(4.))
-    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWX/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange)
+    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWX/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange, Margin=Thickness(4.))
     let clipDP = 
         let r = new DockPanel(LastChildFill=true)
         r.Children.Add(clipTB) |> ignore
@@ -185,7 +181,14 @@ type MyWindow() as this =
         r.Children.Add(clipView) |> ignore
         r
     // meta and full summary of current tile
-    let mfssp = new StackPanel(Orientation=Orientation.Vertical, Width=(let _,_,w,_ = MetaArea in float w))
+    let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
+    let refreshMetadataKeys() =
+        //printfn "called refreshMetadataKeys()"
+        metadataKeys.Clear()
+        metadataKeys.Add("(no highlight)")
+        for s in metadataStore.AllKeys() |> Array.sort do
+            metadataKeys.Add(s)
+    let mfssp = new StackPanel(Orientation=Orientation.Vertical, Width=(let _,_,w,_ = MetaArea in float w * 1.5), Margin=Thickness(4.))
     let mfsRefresh() =
         mfssp.Children.Clear()
         if imgArray.[curX,curY] <> null then
@@ -200,6 +203,7 @@ type MyWindow() as this =
         | 2 -> Utils.ImageProjection(img,MetaArea)
         | _ -> failwith "bad curProjection"
     let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc
+        //printfn "called zoom(%d,%d,%d)" ci cj level
         let aspect = 
             match curProjection with
             | 0 -> GAMEASPECT
@@ -211,6 +215,7 @@ type MyWindow() as this =
         let scale = float(2*(level-1)+1)
         mapCanvas.Children.Clear()
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
+        let toHighlight = if curKey <> null then metadataStore.LocationsForKey(curKey) else System.Collections.Generic.HashSet()
         for i = ci-level to ci+level do
             for j = cj-level to cj+level do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
@@ -227,6 +232,8 @@ type MyWindow() as this =
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                if toHighlight.Contains(GenericMetadata.Location(curZone,i,j)) then
+                    Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
         let RT = 4.
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
@@ -235,16 +242,26 @@ type MyWindow() as this =
         mfsRefresh()
     let mutable clipboard = ""
     do
-        // init zones
+        // init zones and ensure directories
         LoadRootGameData()
+        let zoneFolder = GetZoneFolder()
+        System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
+        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
         for i = 0 to theGame.ZoneNames.Length-1 do
+            // populate zone names for combobox
             zoneOptions.Add(theGame.ZoneNames.[i])
+            // populate key metdata from all notes
+            curZone <- i
+            LoadZoneMapTiles(false)
+        // populate images for initial map
+        curZone <- 0
+        LoadZoneMapTiles(true)
         zoneComboBox.ItemsSource <- zoneOptions
         zoneComboBox.SelectedIndex <- 0
         // zone changes
         zoneComboBox.SelectionChanged.Add(fun _ ->
             curZone <- zoneComboBox.SelectedIndex
-            LoadZoneMapTiles()
+            LoadZoneMapTiles(true)
             zoom(curX, curY, curZoom)
             )
         addNewZoneButton.Click.Add(fun _ ->
@@ -255,7 +272,7 @@ type MyWindow() as this =
             let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
             System.IO.File.WriteAllText(gameFile, json)
             zoneComboBox.SelectedIndex <- n
-            LoadZoneMapTiles()
+            LoadZoneMapTiles(true)
             zoom(curX, curY, curZoom)
             )
         // window
@@ -265,12 +282,7 @@ type MyWindow() as this =
         //this.Topmost <- true
         this.SizeToContent <- SizeToContent.Manual
         this.Width <- 720. + 16.
-        this.Height <- 600. + 16. + 20.
-        // ensure directories
-        let zoneFolder = GetZoneFolder()
-        System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
-        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
-        LoadZoneMapTiles()
+        this.Height <- 800. + 16. + 20.
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let top =
@@ -282,11 +294,30 @@ type MyWindow() as this =
         all.Children.Add(mapCanvas) |> ignore
         let bottom =
             let r = new DockPanel(LastChildFill=true)
-            r.Children.Add(mfssp) |> ignore
+            refreshMetadataKeys()
+            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=150., Margin=Thickness(4.))
+            r.Children.Add(keysListBox) |> ignore
+            DockPanel.SetDock(keysListBox, Dock.Right)
+            keysListBox.SelectionChanged.Add(fun _ -> 
+                curKey <- if keysListBox.SelectedIndex <= 0 || metadataKeys.Count=0 then null else metadataKeys.Item(keysListBox.SelectedIndex)
+                printfn "curKey is '%s'" curKey
+                zoom(curX, curY, curZoom)
+                )
+
+            let left = new DockPanel(LastChildFill=true)
+            let bot = new DockPanel(LastChildFill=true)
+            left.Children.Add(bot) |> ignore
+            DockPanel.SetDock(bot, Dock.Bottom)
+
+            bot.Children.Add(mfssp) |> ignore
             DockPanel.SetDock(mfssp, Dock.Left)
-            r.Children.Add(clipDP) |> ignore
+            bot.Children.Add(clipDP) |> ignore
             DockPanel.SetDock(clipDP, Dock.Right)
-            r.Children.Add(summaryTB) |> ignore
+            bot.Children.Add(new DockPanel()) |> ignore
+
+            left.Children.Add(summaryTB) |> ignore
+
+            r.Children.Add(left) |> ignore
             r
         all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
@@ -415,6 +446,8 @@ type MyWindow() as this =
                         mapTiles.[curX,curY].Note <- tb.Text
                         let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
                         System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                        metadataStore.ChangeNote(GenericMetadata.Location(curZone,curX,curY), orig, tb.Text)
+                        refreshMetadataKeys()
                         zoom(curX, curY, curZoom)   // redraw note preview in summary area
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then
