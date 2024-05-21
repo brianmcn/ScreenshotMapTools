@@ -107,7 +107,8 @@ type Meta() =
 type MapTile() =   // e.g. 50,50
     member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"
-    member val Metadata : Meta[] = null with get,set
+    //member val Metadata : Meta[] = null with get,set
+    member this.IsEmpty = (this.Screenshots = null || this.Screenshots.Length=0) && (this.Note = null || this.Note="")
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
 let mutable curX,curY = 50,50
@@ -221,7 +222,7 @@ type MyWindow() as this =
                         Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                     else
                         let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
-                                                Background=(if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray),
+                                                Background=(if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue),
                                                 Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
