@@ -13,6 +13,11 @@ let ACut(a:_[]) =
     else
         Array.init (a.Length-1) (fun i -> a.[i])
 
+let WriteAllText(filename, text) =
+    let dir = System.IO.Path.GetDirectoryName(filename)
+    System.IO.Directory.CreateDirectory(dir) |> ignore   // ensure directory exists
+    System.IO.File.WriteAllText(filename, text)
+
 module Win32 =
     [<System.Runtime.InteropServices.DllImport("User32.dll")>]
     extern bool PrintWindow(System.IntPtr hwnd, nativeint hdcBlt, uint32 nFlags)
@@ -46,7 +51,7 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
 let GAME = "Leafs Odyssey"   // recompile for different uses, for now
 let WINDOW_TITLE = "Leaf's Odyssey"
 let GAMESCREENW, GAMESCREENH = 960, 540
-let NATIVE_FACTOR = 2
+let NATIVE_FACTOR = 2         // e.g. I am running it at 2x native pixel size
 let GAMENATIVEW, GAMENATIVEH = GAMESCREENW/NATIVE_FACTOR, GAMESCREENH/NATIVE_FACTOR
 let GAMEASPECT = float(GAMENATIVEW) / float(GAMENATIVEH)
 let VIEWX = 630   // multiple of 9, 7, 5 so that we can so various zooms well onscreen
@@ -61,6 +66,8 @@ let GetRootFolder() = System.IO.Path.Combine(GAME)
 type Game() =   // e.g. Zelda
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
     member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
+    member val CurX : int = 50 with get,set
+    member val CurY : int = 50 with get,set
 
 // load root game data
 let theGame = Game()
@@ -69,12 +76,14 @@ let LoadRootGameData() =
     if not(System.IO.File.Exists(gameFile)) then
         theGame.ZoneNames <- [| "zone00" |]
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
-        System.IO.File.WriteAllText(gameFile, json)
+        WriteAllText(gameFile, json)
     else
         let json = System.IO.File.ReadAllText(gameFile)
         let data = System.Text.Json.JsonSerializer.Deserialize<Game>(json)
         theGame.ZoneNames <- data.ZoneNames
         theGame.MetadataNames <- theGame.MetadataNames
+        theGame.CurX <- data.CurX
+        theGame.CurY <- data.CurY
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
@@ -104,7 +113,6 @@ type MapTile() =   // e.g. 50,50
     member this.IsEmpty = (this.Screenshots = null || this.Screenshots.Length=0) && (this.Note = null || this.Note="")
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
-let mutable curX,curY = 50,50
 let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
@@ -142,7 +150,7 @@ type MyWindow() as this =
     let mutable curKey = null
     let MAPX,MAPY = 720,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
-    let mutable curZoom = 2
+    let mutable curZoom = 3
     let mutable hwndSource = null
     let LoadZoneMapTiles(alsoLoadImages) =
         // load map tile data and screenshots from disk
@@ -170,7 +178,7 @@ type MyWindow() as this =
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
-                                    Height=120., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+                                    Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(4.))
     let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWX/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange, Margin=Thickness(4.))
@@ -188,14 +196,16 @@ type MyWindow() as this =
         metadataKeys.Add("(no highlight)")
         for s in metadataStore.AllKeys() |> Array.sort do
             metadataKeys.Add(s)
-    let mfssp = new StackPanel(Orientation=Orientation.Vertical, Width=(let _,_,w,_ = MetaArea in float w * 1.5), Margin=Thickness(4.))
+    let mfssp = new DockPanel(Margin=Thickness(4.), Width=440., LastChildFill=true)
     let mfsRefresh() =
         mfssp.Children.Clear()
-        if imgArray.[curX,curY] <> null then
-            mfssp.Children.Add(Utils.ImageProjection(imgArray.[curX,curY],MetaArea)) |> ignore
-            mfssp.Children.Add(Utils.ImageProjection(imgArray.[curX,curY],(0,0,GAMENATIVEW,GAMENATIVEH))) |> ignore
+        if imgArray.[theGame.CurX,theGame.CurY] <> null then
+            let top = Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],MetaArea)
+            mfssp.Children.Add(top) |> ignore
+            DockPanel.SetDock(top, Dock.Top)
+            mfssp.Children.Add(Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))) |> ignore
     // zoom/refresh
-    let mutable curProjection = 0  // 0=full, 1=map, 2=meta
+    let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     let project(img) =
         match curProjection with
         | 0 -> img
@@ -241,6 +251,10 @@ type MyWindow() as this =
         summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
         mfsRefresh()
     let mutable clipboard = ""
+    let UpdateGameFile() =
+        let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
+        let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
+        WriteAllText(gameFile, json)
     do
         // init zones and ensure directories
         LoadRootGameData()
@@ -262,27 +276,25 @@ type MyWindow() as this =
         zoneComboBox.SelectionChanged.Add(fun _ ->
             curZone <- zoneComboBox.SelectedIndex
             LoadZoneMapTiles(true)
-            zoom(curX, curY, curZoom)
+            zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         addNewZoneButton.Click.Add(fun _ ->
             let n = theGame.ZoneNames.Length
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
             zoneOptions.Add(theGame.ZoneNames.[n])
-            let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
-            let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
-            System.IO.File.WriteAllText(gameFile, json)
+            UpdateGameFile()
             zoneComboBox.SelectedIndex <- n
             LoadZoneMapTiles(true)
-            zoom(curX, curY, curZoom)
+            zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         // window
         this.Title <- "Generic Screenshot Mapper"
-        this.Left <- 950.
+        this.Left <- 1170.
         this.Top <- 10.
         //this.Topmost <- true
         this.SizeToContent <- SizeToContent.Manual
         this.Width <- 720. + 16.
-        this.Height <- 800. + 16. + 20.
+        this.Height <- 980. + 16. + 20.
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let top =
@@ -301,7 +313,7 @@ type MyWindow() as this =
             keysListBox.SelectionChanged.Add(fun _ -> 
                 curKey <- if keysListBox.SelectedIndex <= 0 || metadataKeys.Count=0 then null else metadataKeys.Item(keysListBox.SelectedIndex)
                 printfn "curKey is '%s'" curKey
-                zoom(curX, curY, curZoom)
+                zoom(theGame.CurX, theGame.CurY, curZoom)
                 )
 
             let left = new DockPanel(LastChildFill=true)
@@ -312,8 +324,6 @@ type MyWindow() as this =
             bot.Children.Add(mfssp) |> ignore
             DockPanel.SetDock(mfssp, Dock.Left)
             bot.Children.Add(clipDP) |> ignore
-            DockPanel.SetDock(clipDP, Dock.Right)
-            bot.Children.Add(new DockPanel()) |> ignore
 
             left.Children.Add(summaryTB) |> ignore
 
@@ -325,7 +335,7 @@ type MyWindow() as this =
         this.Loaded.Add(fun _ ->
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
-            zoom(50,50,2)
+            zoom(theGame.CurX,theGame.CurY,curZoom)
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)
@@ -358,23 +368,23 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed" k
-                if key = VK_SUBTRACT && imgArray.[curX,curY]<>null then
+                if key = VK_SUBTRACT && imgArray.[theGame.CurX,theGame.CurY]<>null then
                     // remove the data and img
-                    let img,id = imgArray.[curX,curY], mapTiles.[curX,curY].Screenshots |> Array.last
-                    mapTiles.[curX,curY].Screenshots <- ACut(mapTiles.[curX,curY].Screenshots)
+                    let img,id = imgArray.[theGame.CurX,theGame.CurY], mapTiles.[theGame.CurX,theGame.CurY].Screenshots |> Array.last
+                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- ACut(mapTiles.[theGame.CurX,theGame.CurY].Screenshots)
                     clipboard <- id
                     // update current tile view
-                    if mapTiles.[curX,curY].Screenshots.Length > 0 then
-                        let newId = mapTiles.[curX,curY].Screenshots |> Array.last
+                    if mapTiles.[theGame.CurX,theGame.CurY].Screenshots.Length > 0 then
+                        let newId = mapTiles.[theGame.CurX,theGame.CurY].Screenshots |> Array.last
                         let ssFile = ScreenshotFilenameFromTimestampId(newId)
                         let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                        imgArray.[curX,curY] <- Utils.BMPtoImage bmp
+                        imgArray.[theGame.CurX,theGame.CurY] <- Utils.BMPtoImage bmp
                     else
-                        imgArray.[curX,curY] <- null
-                    zoom(curX, curY, curZoom)
+                        imgArray.[theGame.CurX,theGame.CurY] <- null
+                    zoom(theGame.CurX,theGame.CurY, curZoom)
                     // update disk
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
-                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
+                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
                     // update the clipboard view
                     Utils.deparent(img)
                     img.Stretch <- Stretch.Uniform
@@ -384,41 +394,45 @@ type MyWindow() as this =
                     let ssFile = ScreenshotFilenameFromTimestampId(clipboard)
                     let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
                     let img = Utils.BMPtoImage bmp
-                    imgArray.[curX,curY] <- img
-                    mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, clipboard)
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
-                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
-                    zoom(curX, curY, curZoom)
+                    imgArray.[theGame.CurX,theGame.CurY] <- img
+                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, clipboard)
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
+                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                    zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_MULTIPLY then
                     curProjection <- curProjection + 1
                     if curProjection >= 3 then
                         curProjection <- 0
-                    zoom(curX, curY, curZoom)
+                    zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD4 then
-                    if curX > 0 then
-                        curX <- curX - 1
-                        zoom(curX, curY, curZoom)
+                    if theGame.CurX > 0 then
+                        theGame.CurX <- theGame.CurX - 1
+                        UpdateGameFile()
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD6 then
-                    if curX < 99 then
-                        curX <- curX + 1
-                        zoom(curX, curY, curZoom)
+                    if theGame.CurX < 99 then
+                        theGame.CurX <- theGame.CurX + 1
+                        UpdateGameFile()
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD8 then
-                    if curY > 0 then
-                        curY <- curY - 1
-                        zoom(curX, curY, curZoom)
+                    if theGame.CurY > 0 then
+                        theGame.CurY <- theGame.CurY - 1
+                        UpdateGameFile()
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD2 then
-                    if curY < 99 then
-                        curY <- curY + 1
-                        zoom(curX, curY, curZoom)
+                    if theGame.CurY < 99 then
+                        theGame.CurY <- theGame.CurY + 1
+                        UpdateGameFile()
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD0 then
                     let img,id = TakeNewScreenshot()
-                    imgArray.[curX,curY] <- img
-                    mapTiles.[curX,curY].Screenshots <- AAppend(mapTiles.[curX,curY].Screenshots, id)
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
-                    System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
-                    zoom(curX, curY, curZoom)
+                    imgArray.[theGame.CurX,theGame.CurY] <- img
+                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, id)
+                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
+                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                    zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_DIVIDE then
-                    let orig = mapTiles.[curX,curY].Note
+                    let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                             Foreground=Brushes.Black, Background=Brushes.White,
                                             Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
@@ -443,18 +457,18 @@ type MyWindow() as this =
                         )
                     Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
                     if save then
-                        mapTiles.[curX,curY].Note <- tb.Text
-                        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[curX,curY])
-                        System.IO.File.WriteAllText(MapTileFilename(curX,curY), json)
-                        metadataStore.ChangeNote(GenericMetadata.Location(curZone,curX,curY), orig, tb.Text)
+                        mapTiles.[theGame.CurX,theGame.CurY].Note <- tb.Text
+                        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
+                        WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                        metadataStore.ChangeNote(GenericMetadata.Location(curZone,theGame.CurX,theGame.CurY), orig, tb.Text)
                         refreshMetadataKeys()
-                        zoom(curX, curY, curZoom)   // redraw note preview in summary area
+                        zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then
                         curZoom <- curZoom - 1
-                        zoom(curX, curY, curZoom)
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD9 then
                     if curZoom < MAX/2 then
                         curZoom <- curZoom + 1
-                        zoom(curX, curY, curZoom)
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
         IntPtr.Zero

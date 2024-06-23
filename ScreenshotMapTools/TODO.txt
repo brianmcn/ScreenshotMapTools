@@ -23,6 +23,8 @@ but also mousing for infrequent stuff (e.g. key search/highlight) is fine
 
 test note C&P
 
+removing (last instance of) tag doesn't remove from tag list (until reload)
+
 + zones
 
 root directory for games (debug v release, change games, catalogue? app data folders?)
