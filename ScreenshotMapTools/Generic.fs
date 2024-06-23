@@ -56,7 +56,7 @@ let GAMENATIVEW, GAMENATIVEH = GAMESCREENW/NATIVE_FACTOR, GAMESCREENH/NATIVE_FAC
 let GAMEASPECT = float(GAMENATIVEW) / float(GAMENATIVEH)
 let VIEWX = 630   // multiple of 9, 7, 5 so that we can so various zooms well onscreen
 let MapArea  =  96, 14, 384, 256         // x,y,w,h
-let MetaArea = 200,  0, 170,  14
+let MetaArea = 230,  0, 120,  14
 
 
 
@@ -176,6 +176,7 @@ type MyWindow() as this =
     let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
+    let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
@@ -212,13 +213,13 @@ type MyWindow() as this =
         | 1 -> Utils.ImageProjection(img,MapArea)
         | 2 -> Utils.ImageProjection(img,MetaArea)
         | _ -> failwith "bad curProjection"
-    let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc
+    let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
-        let aspect = 
+        let aspect,kludge = 
             match curProjection with
-            | 0 -> GAMEASPECT
-            | 1 -> let _,_,w,h = MapArea in float w / float h
-            | 2 -> let _,_,w,h = MetaArea in float w / float h
+            | 0 -> GAMEASPECT, 0
+            | 1 -> let _,_,w,h = MapArea in float w / float h, 0
+            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9
             | _ -> failwith "bad curProjection"
         let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
@@ -227,7 +228,7 @@ type MyWindow() as this =
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
         let toHighlight = if curKey <> null then metadataStore.LocationsForKey(curKey) else System.Collections.Generic.HashSet()
         for i = ci-level to ci+level do
-            for j = cj-level to cj+level do
+            for j = cj-level-kludge to cj+level+kludge do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     if imgArray.[i,j] <> null then
                         let img = project(imgArray.[i,j])
@@ -240,10 +241,10 @@ type MyWindow() as this =
                                                 Background=(if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue),
                                                 Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                    if toHighlight.Contains(GenericMetadata.Location(curZone,i,j)) then
+                        Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                if toHighlight.Contains(GenericMetadata.Location(curZone,i,j)) then
-                    Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
         let RT = 4.
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
@@ -287,6 +288,40 @@ type MyWindow() as this =
             LoadZoneMapTiles(true)
             zoom(theGame.CurX, theGame.CurY, curZoom)
             )
+        printCurrentZoneButton.Click.Add(fun _ ->
+            // load full screenshots from disk
+            let bmps = Array2D.zeroCreate 100 100
+            let mutable minx,miny,maxx,maxy = 100,100,0,0
+            for i = 0 to MAX-1 do
+                for j = 0 to MAX-1 do
+                    let file = MapTileFilename(i,j)
+                    if System.IO.File.Exists(file) then
+                        let json = System.IO.File.ReadAllText(file)
+                        let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
+                        if data.Screenshots <> null && data.Screenshots.Length > 0 then
+                            let ts = data.Screenshots.[data.Screenshots.Length-1]
+                            let ssFile = ScreenshotFilenameFromTimestampId(ts)
+                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                            bmps.[i,j] <- bmp
+                            minx <- min minx i
+                            miny <- min miny j
+                            maxx <- max maxx i
+                            maxy <- max maxy j
+            if maxx >= minx then // there was at least one screenshot
+                for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
+                    let mx,my,mw,mh = ma
+                    let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
+                    for i = minx to maxx do
+                        for j = miny to maxy do
+                            let bmp = bmps.[i,j]
+                            if bmp <> null then
+                                for x = 0 to mw-1 do
+                                    for y = 0 to mh-1 do
+                                        r.SetPixel(mw*(i-minx) + x, mh*(j-miny) + y, bmp.GetPixel(mx+x,my+y))
+                    r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
+            else
+                printfn "no screenshots to print"
+            )
         // window
         this.Title <- "Generic Screenshot Mapper"
         this.Left <- 1170.
@@ -301,6 +336,7 @@ type MyWindow() as this =
             let sp = new StackPanel(Orientation=Orientation.Horizontal)
             sp.Children.Add(addNewZoneButton) |> ignore
             sp.Children.Add(zoneComboBox) |> ignore
+            sp.Children.Add(printCurrentZoneButton) |> ignore
             sp
         all.Children.Add(top) |> ignore
         all.Children.Add(mapCanvas) |> ignore
