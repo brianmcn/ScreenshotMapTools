@@ -68,6 +68,7 @@ type Game() =   // e.g. Zelda
     member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
     member val CurX : int = 50 with get,set
     member val CurY : int = 50 with get,set
+    member val CurZone : int = 0 with get,set
 
 // load root game data
 let theGame = Game()
@@ -84,6 +85,7 @@ let LoadRootGameData() =
         theGame.MetadataNames <- theGame.MetadataNames
         theGame.CurX <- data.CurX
         theGame.CurY <- data.CurY
+        theGame.CurZone <- data.CurZone
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
@@ -102,8 +104,7 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
     id, img
 // each zone has a folder:
 // with files MapTileXnnYmm where nn/mm range 00-99
-let mutable curZone = 0
-let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" curZone)
+let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" theGame.CurZone)
 let GetZoneName(zoneNum) = sprintf "zone%02d" zoneNum  // TODO load names, support renaming
 
 [<AllowNullLiteral>]
@@ -161,7 +162,7 @@ type MyWindow() as this =
                     let json = System.IO.File.ReadAllText(file)
                     let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
                     mapTiles.[i,j] <- data
-                    metadataStore.ChangeNote(GenericMetadata.Location(curZone,i,j), "", data.Note)
+                    metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
                     if alsoLoadImages && data.Screenshots <> null && data.Screenshots.Length > 0 then
                         let ts = data.Screenshots.[data.Screenshots.Length-1]
                         let ssFile = ScreenshotFilenameFromTimestampId(ts)
@@ -241,7 +242,7 @@ type MyWindow() as this =
                                                 Background=(if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue),
                                                 Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                    if toHighlight.Contains(GenericMetadata.Location(curZone,i,j)) then
+                    if toHighlight.Contains(GenericMetadata.Location(theGame.CurZone,i,j)) then
                         Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
@@ -262,20 +263,22 @@ type MyWindow() as this =
         let zoneFolder = GetZoneFolder()
         System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
+        let temp = theGame.CurZone
         for i = 0 to theGame.ZoneNames.Length-1 do
             // populate zone names for combobox
             zoneOptions.Add(theGame.ZoneNames.[i])
             // populate key metdata from all notes
-            curZone <- i
+            theGame.CurZone <- i
             LoadZoneMapTiles(false)
+        theGame.CurZone <- temp
         // populate images for initial map
-        curZone <- 0
         LoadZoneMapTiles(true)
         zoneComboBox.ItemsSource <- zoneOptions
         zoneComboBox.SelectedIndex <- 0
         // zone changes
         zoneComboBox.SelectionChanged.Add(fun _ ->
-            curZone <- zoneComboBox.SelectedIndex
+            theGame.CurZone <- zoneComboBox.SelectedIndex
+            UpdateGameFile()
             LoadZoneMapTiles(true)
             zoom(theGame.CurX, theGame.CurY, curZoom)
             )
@@ -496,7 +499,7 @@ type MyWindow() as this =
                         mapTiles.[theGame.CurX,theGame.CurY].Note <- tb.Text
                         let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
                         WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
-                        metadataStore.ChangeNote(GenericMetadata.Location(curZone,theGame.CurX,theGame.CurY), orig, tb.Text)
+                        metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), orig, tb.Text)
                         refreshMetadataKeys()
                         zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
                 if key = VK_NUMPAD7 then
