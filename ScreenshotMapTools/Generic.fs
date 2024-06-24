@@ -263,18 +263,18 @@ type MyWindow() as this =
         let zoneFolder = GetZoneFolder()
         System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
-        let temp = theGame.CurZone
+        let savedZone = theGame.CurZone
         for i = 0 to theGame.ZoneNames.Length-1 do
             // populate zone names for combobox
             zoneOptions.Add(theGame.ZoneNames.[i])
             // populate key metdata from all notes
             theGame.CurZone <- i
             LoadZoneMapTiles(false)
-        theGame.CurZone <- temp
+        theGame.CurZone <- savedZone
         // populate images for initial map
         LoadZoneMapTiles(true)
         zoneComboBox.ItemsSource <- zoneOptions
-        zoneComboBox.SelectedIndex <- 0
+        zoneComboBox.SelectedIndex <- savedZone
         // zone changes
         zoneComboBox.SelectionChanged.Add(fun _ ->
             theGame.CurZone <- zoneComboBox.SelectedIndex
