@@ -1,26 +1,11 @@
 ﻿
 
-for animal well
-
-cut 90 pixels of width
-start it against right edge of screen
-
-factor out what things need to change for a new app
-
-
-------------------------------------------
-
-
-
-
+meybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 
 
 naming zones
 
 printing to game folder, all zones, by name, maybe in a date folder
-
-
-
 
 
 ------------------------------------------

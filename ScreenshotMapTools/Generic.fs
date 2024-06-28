@@ -45,6 +45,12 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
     bmp
 
 open GameSpecific
+let GAMENATIVEW, GAMENATIVEH = GAMESCREENW/NATIVE_FACTOR, GAMESCREENH/NATIVE_FACTOR
+let GAMEASPECT = float(GAMENATIVEW) / float(GAMENATIVEH)
+
+let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
+let KEYS_LIST_BOX_WIDTH = 150
+let VIEWX = APP_WIDTH
 
 let GetRootFolder() = System.IO.Path.Combine(GAME)
 
@@ -135,7 +141,7 @@ type MyWindow() as this =
     let mapTiles = Array2D.create 100 100 (MapTile())
     let metadataStore = GenericMetadata.MetadataStore()
     let mutable curKey = null
-    let MAPX,MAPY = 720,420
+    let MAPX,MAPY = VIEWX,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
     let mutable curZoom = 3
     let mutable hwndSource = null
@@ -165,11 +171,12 @@ type MyWindow() as this =
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
-    let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White,
+    let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, 
+                                    HorizontalAlignment=HorizontalAlignment.Stretch,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
-    let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(4.))
-    let clipView = new Border(Width=float(VIEWX/6), Height=float(VIEWX/6), BorderThickness=Thickness(4.), BorderBrush=Brushes.Orange, Margin=Thickness(4.))
+    let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
+    let clipView = new Border(Width=float(VIEWX/5), Height=float(VIEWX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
     let clipDP = 
         let r = new DockPanel(LastChildFill=true)
         r.Children.Add(clipTB) |> ignore
@@ -184,14 +191,16 @@ type MyWindow() as this =
         metadataKeys.Add("(no highlight)")
         for s in metadataStore.AllKeys() |> Array.sort do
             metadataKeys.Add(s)
-    let mfssp = new DockPanel(Margin=Thickness(4.), Width=440., LastChildFill=true)
+    let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mfsRefresh() =
-        mfssp.Children.Clear()
+        metaAndScreenshotPanel.Children.Clear()
         if imgArray.[theGame.CurX,theGame.CurY] <> null then
             let top = Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],MetaArea)
-            mfssp.Children.Add(top) |> ignore
+            metaAndScreenshotPanel.Children.Add(top) |> ignore
             DockPanel.SetDock(top, Dock.Top)
-            mfssp.Children.Add(Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))) |> ignore
+            metaAndScreenshotPanel.Children.Add(Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))) |> ignore
+        else
+            metaAndScreenshotPanel.Children.Add(new DockPanel(Background=Brushes.Gray)) |> ignore
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     let project(img) =
@@ -313,11 +322,11 @@ type MyWindow() as this =
             )
         // window
         this.Title <- "Generic Screenshot Mapper"
-        this.Left <- 1170.
-        this.Top <- 10.
+        this.Left <- 1290.
+        this.Top <- 4.
         //this.Topmost <- true
         this.SizeToContent <- SizeToContent.Manual
-        this.Width <- 720. + 16.
+        this.Width <- float APP_WIDTH
         this.Height <- 980. + 16. + 20.
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
@@ -332,27 +341,27 @@ type MyWindow() as this =
         let bottom =
             let r = new DockPanel(LastChildFill=true)
             refreshMetadataKeys()
-            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=150., Margin=Thickness(4.))
-            r.Children.Add(keysListBox) |> ignore
-            DockPanel.SetDock(keysListBox, Dock.Right)
+            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.))
             keysListBox.SelectionChanged.Add(fun _ -> 
                 curKey <- if keysListBox.SelectedIndex <= 0 || metadataKeys.Count=0 then null else metadataKeys.Item(keysListBox.SelectedIndex)
-                printfn "curKey is '%s'" curKey
+                //printfn "curKey is '%s'" curKey
                 zoom(theGame.CurX, theGame.CurY, curZoom)
                 )
-
-            let left = new DockPanel(LastChildFill=true)
-            let bot = new DockPanel(LastChildFill=true)
-            left.Children.Add(bot) |> ignore
-            DockPanel.SetDock(bot, Dock.Bottom)
-
-            bot.Children.Add(mfssp) |> ignore
-            DockPanel.SetDock(mfssp, Dock.Left)
-            bot.Children.Add(clipDP) |> ignore
-
-            left.Children.Add(summaryTB) |> ignore
-
-            r.Children.Add(left) |> ignore
+            let rightColumn =
+                let rc = new DockPanel(LastChildFill=true)
+                rc.Children.Add(clipDP) |> ignore
+                DockPanel.SetDock(clipDP, Dock.Bottom)
+                rc.Children.Add(keysListBox) |> ignore
+                rc
+            let leftColumn = 
+                let lc = new DockPanel(LastChildFill=true) //     , Background=Brushes.Yellow)          // layout debugging
+                DockPanel.SetDock(metaAndScreenshotPanel, Dock.Bottom)
+                lc.Children.Add(metaAndScreenshotPanel) |> ignore
+                lc.Children.Add(summaryTB) |> ignore
+                lc
+            r.Children.Add(rightColumn) |> ignore
+            DockPanel.SetDock(rightColumn, Dock.Right)
+            r.Children.Add(leftColumn) |> ignore
             r
         all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
@@ -412,8 +421,13 @@ type MyWindow() as this =
                     WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
                     // update the clipboard view
                     Utils.deparent(img)
-                    img.Stretch <- Stretch.Uniform
+                    //printfn "CV: %f, %f" clipView.Width clipView.ActualWidth
                     clipView.Child <- img
+                    //img.Stretch <- Stretch.Uniform
+                    //img.StretchDirection <- StretchDirection.Both
+                    // code below seems stupid but it works, as opposed to code above
+                    img.Width <- clipView.ActualWidth
+                    img.Height <- clipView.ActualHeight
                     clipTB.Text <- id
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboard)) then
                     let ssFile = ScreenshotFilenameFromTimestampId(clipboard)
