@@ -15,6 +15,7 @@
     <Compile Include="DeepRune.fs" />
     <Compile Include="Elephantasy.fs" />
     <Compile Include="GenericMetadata.fs" />
+    <Compile Include="GameSpecific.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Program.fs" />
