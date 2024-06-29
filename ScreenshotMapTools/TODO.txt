@@ -1,6 +1,10 @@
 ﻿
+deal with TODOs in code
 
-meybe turn off meta area (and NUMPAD_STAR cycles) when unused?
+Animal Well is dark, make zoomed out more discernable
+
+
+maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 
 
 naming zones

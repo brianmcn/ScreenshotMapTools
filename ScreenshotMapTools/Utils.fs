@@ -95,3 +95,24 @@ let PerfectDownscale(bmp:Bitmap, scale) =
         for y = 0 to r.Height-1 do
             r.SetPixel(x,y, bmp.GetPixel(x*scale, y*scale))
     r
+
+#nowarn "9"
+let GetColorFromLockedFormat32BppArgb(x,y,bmd:BitmapData) =
+    let PixelSize = 4
+    let rowOffset = y * bmd.Stride
+    let colOffset = x * PixelSize
+    let ptr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt bmd.Scan0
+    let b = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 0)
+    let g = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 1)
+    let r = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 2)
+    let a = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 3)
+    Color.FromArgb(int a, int r, int g, int b)
+let SetColorFromLockedFormat32BppArgb(x,y,bmd:BitmapData,c:Color) =
+    let PixelSize = 4
+    let rowOffset = y * bmd.Stride
+    let colOffset = x * PixelSize
+    let ptr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt bmd.Scan0
+    NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 0) c.B
+    NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 1) c.G
+    NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 2) c.R
+    NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 3) c.A

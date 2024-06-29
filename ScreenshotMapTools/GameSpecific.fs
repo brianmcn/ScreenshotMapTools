@@ -26,5 +26,10 @@ let MetaArea = 0, 0, 100, 1
 
 #endif
 
+//////////////////////////////////////////////////////////////////////////
+// common computations
+
+let GAMENATIVEW, GAMENATIVEH = GAMESCREENW/NATIVE_FACTOR, GAMESCREENH/NATIVE_FACTOR
+let GAMEASPECT = float(GAMENATIVEW) / float(GAMENATIVEH)
 
 

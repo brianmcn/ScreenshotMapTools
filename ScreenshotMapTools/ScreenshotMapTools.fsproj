@@ -16,6 +16,9 @@
     <Compile Include="Elephantasy.fs" />
     <Compile Include="GenericMetadata.fs" />
     <Compile Include="GameSpecific.fs" />
+    <Compile Include="BackingStoreData.fs" />
+    <Compile Include="MultipleScreenshotForOneScreen.fs" />
+    <Compile Include="InMemoryStore.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Program.fs" />
