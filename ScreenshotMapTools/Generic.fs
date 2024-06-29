@@ -121,7 +121,7 @@ type MyWindow() as this =
         metadataKeys.Clear()
         metadataKeys.Add("(no highlight)")
         for s in metadataStore.AllKeys() |> Array.sort do
-            metadataKeys.Add(s)
+            metadataKeys.Add(s)                   // TODO consider displaying count
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
@@ -190,6 +190,13 @@ type MyWindow() as this =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
         WriteAllText(gameFile, json)
+    let UpdateCurrentNote(origNote, newNote) =
+        mapTiles.[theGame.CurX,theGame.CurY].Note <- newNote
+        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
+        WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+        metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
+        refreshMetadataKeys()
+        zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
     do
         doZoom <- zoom
         // init zones and ensure directories
@@ -404,6 +411,14 @@ type MyWindow() as this =
                     WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
                     imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
+                if key = VK_NUMPAD7 then
+                    if curZoom > 1 then
+                        curZoom <- curZoom - 1
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                if key = VK_NUMPAD9 then
+                    if curZoom < MAX/2 then
+                        curZoom <- curZoom + 1
+                        zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_DIVIDE then
                     let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
@@ -426,22 +441,16 @@ type MyWindow() as this =
                     sp.Children.Add(tb) |> ignore
                     sp.Children.Add(dp) |> ignore
                     tb.Loaded.Add(fun _ ->
+                        tb.Select(tb.Text.Length, 0)   // position the cursor at the end
                         System.Windows.Input.Keyboard.Focus(tb) |> ignore
                         )
                     Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
                     if save then
-                        mapTiles.[theGame.CurX,theGame.CurY].Note <- tb.Text
-                        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
-                        WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
-                        metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), orig, tb.Text)
-                        refreshMetadataKeys()
-                        zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
-                if key = VK_NUMPAD7 then
-                    if curZoom > 1 then
-                        curZoom <- curZoom - 1
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
-                if key = VK_NUMPAD9 then
-                    if curZoom < MAX/2 then
-                        curZoom <- curZoom + 1
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                        UpdateCurrentNote(orig, tb.Text)
+                if key = VK_DECIMAL then
+                    let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
+                    if orig.EndsWith("#TODO") then
+                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-5))
+                    else
+                        UpdateCurrentNote(orig, orig+"\n#TODO")
         IntPtr.Zero

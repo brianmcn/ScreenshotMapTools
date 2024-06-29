@@ -13,20 +13,6 @@ printing to game folder, all zones, by name, maybe in a date folder
 ------------------------------------------
 
 
-
-
-
-
-
-
-seems like 'focused on room x,y but all known map visible' zoom level would be useful as output for clicking a search destination
-I can imagine a key toggle that is 'all visible' versus either 'current zoom' or '5x5' or something, and thing in status area saying FULL or 1x1/3x3/5x5/7x7/etc
-
-hm, and sometimes an in-game minimap or hint tells you something is 4 north of X, but you might not been there yet, but want to leave note, and ideally would also
-have screenshot, so, uh, need like a default ? screenshot to display for any non-null entries that lack screenshots, hm
- - DONE, cornflower blue background rather than typical grays
-
-
 and I'm already forgetting keys, need cheatsheet
  2468   move
  0      screenshot
@@ -34,17 +20,14 @@ and I'm already forgetting keys, need cheatsheet
  *      change projection (full screen, map area, metadata area)
  /      edit note
  79     change zoom
+ .      toggle #TODO note (e.g. take better notes after this recording session)
 num 13 only things left really...
 but also mousing for infrequent stuff (e.g. key search/highlight) is fine
  
 
 
 
-test note C&P
-
-removing (last instance of) tag doesn't remove from tag list (until reload)
-
-+ zones
+test manual note C&P
 
 root directory for games (debug v release, change games, catalogue? app data folders?)
 
@@ -70,10 +53,6 @@ so
 for YT, do I want a minimap projection thingy?
 I guess separate OBS scene layout I can toggle is simpler, occasionally do it and break flow
 
-
-something making mode clearer (screenshot vs note), user errors
- + maybe NUM_DIVIDE can be shortcut to edit note, or something, then not toggling dropdown so much/fiddly
- - e.g. get rid of the 'mode', always screenshot mode, with other interactions to do other-editing, e.g. dropdown meta03 lets you edit that but then return to screenshot
 
 
 time travel/review

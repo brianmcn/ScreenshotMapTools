@@ -67,7 +67,7 @@ type MetadataStore() =
         match data.TryGetValue(k) with
         | false, _ -> System.Collections.Generic.HashSet()
         | true, hs -> System.Collections.Generic.HashSet(hs)
-    member this.AllKeys() = [| for z in data.Keys do yield z |]
+    member this.AllKeys() = [| for z in data.Keys do if data.[z].Count > 0 then yield z |]
         
 
 
