@@ -116,3 +116,38 @@ let SetColorFromLockedFormat32BppArgb(x,y,bmd:BitmapData,c:Color) =
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 1) c.G
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 2) c.R
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 3) c.A
+
+//////////////////////////////////////////////////////////////////////
+
+// https://stackoverflow.com/questions/1335426/is-there-a-built-in-c-net-system-api-for-hsv-to-rgb
+let ColorToHSV(color:Color) =
+    let max = System.Math.Max(color.R, System.Math.Max(color.G, color.B))
+    let min = System.Math.Min(color.R, System.Math.Min(color.G, color.B))
+    //let hue = (float(color.GetHue()) + 180.) % 360.
+    let hue = float(color.GetHue())
+    let saturation = if (max = 0uy) then 0. else 1. - (1. * float min / float max)
+    let value = float max / 255.
+    hue, saturation, value
+
+let ColorFromHSV(hue, saturation, value) =
+    let hi = System.Convert.ToInt32(System.Math.Floor(hue / 60.)) % 6
+    let f = hue / 60. - System.Math.Floor(hue / 60.)
+
+    let value = value * 255.
+    let v = System.Convert.ToInt32(value);
+    let p = System.Convert.ToInt32(value * (1. - saturation))
+    let q = System.Convert.ToInt32(value * (1. - f * saturation))
+    let t = System.Convert.ToInt32(value * (1. - (1. - f) * saturation))
+
+    if (hi = 0) then
+        Color.FromArgb(255, v, t, p)
+    elif (hi = 1) then
+        Color.FromArgb(255, q, v, p)
+    elif (hi = 2) then
+        Color.FromArgb(255, p, v, t)
+    elif (hi = 3) then
+        Color.FromArgb(255, p, q, v)
+    elif (hi = 4) then
+        Color.FromArgb(255, t, p, v)
+    else
+        Color.FromArgb(255, v, p, q)
