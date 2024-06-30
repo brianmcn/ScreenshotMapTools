@@ -33,6 +33,10 @@ open InMemoryStore
 let mutable clipboardSSID = ""
 let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugly tangle
 
+let SerializeMapTile(x,y) = 
+    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[x,y])
+    WriteAllText(MapTileFilename(x,y), json)
+
 let broadcastHotKeyEv = new Event<int*IntPtr*IntPtr>()
 
 let DoScreenshotDisplayWindow(x,y,parent:Window) = 
@@ -79,8 +83,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
                         imgArray.[x,y] <- RecomputeImage(x,y)
                         //zoom(...) will be called when the window closes
                         // update disk
-                        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[x,y])
-                        WriteAllText(MapTileFilename(x,y), json)
+                        SerializeMapTile(x,y)
                         //printfn "closing..."
                         closeEv.Trigger()
                         //printfn "closed"
@@ -102,8 +105,8 @@ type MyWindow() as this =
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
-    let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, 
-                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold,
+    let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
                                     HorizontalAlignment=HorizontalAlignment.Stretch,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
@@ -193,8 +196,7 @@ type MyWindow() as this =
         WriteAllText(gameFile, json)
     let UpdateCurrentNote(origNote, newNote) =
         mapTiles.[theGame.CurX,theGame.CurY].Note <- newNote
-        let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
-        WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+        SerializeMapTile(theGame.CurX,theGame.CurY)
         metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
         refreshMetadataKeys()
         zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
@@ -385,12 +387,10 @@ type MyWindow() as this =
                     imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                     // update disk
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
-                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                    SerializeMapTile(theGame.CurX,theGame.CurY)
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
                     mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, clipboardSSID)
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
-                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                    SerializeMapTile(theGame.CurX,theGame.CurY)
                     imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_MULTIPLY then
@@ -422,8 +422,7 @@ type MyWindow() as this =
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
                     mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, id)
-                    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
-                    WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
+                    SerializeMapTile(theGame.CurX,theGame.CurY)
                     imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD7 then
