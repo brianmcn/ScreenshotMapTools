@@ -96,7 +96,7 @@ let TakeNewScreenshot() =
         for j = 0 to GAMENATIVEH-1 do
             nativeBmp.SetPixel(i, j, bmp.GetPixel(i*NATIVE_FACTOR, j*NATIVE_FACTOR))
     let id,img = SaveScreenshot(nativeBmp)
-    img, id
+    img, nativeBmp, id
 
 [<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50

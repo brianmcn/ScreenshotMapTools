@@ -94,7 +94,7 @@ type MyWindow() as this =
     let mutable curKey = null
     let MAPX,MAPY = VIEWX,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
-    let mutable curZoom = 3
+    let mutable curZoom = 4
     let mutable hwndSource = null
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
@@ -102,7 +102,8 @@ type MyWindow() as this =
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
-    let summaryTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, 
+    let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, 
+                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold,
                                     HorizontalAlignment=HorizontalAlignment.Stretch,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     // clipboard display
@@ -285,21 +286,34 @@ type MyWindow() as this =
         this.Left <- 1290.
         this.Top <- 4.
         //this.Topmost <- true
-        this.SizeToContent <- SizeToContent.Manual
-        this.Width <- float APP_WIDTH
-        this.Height <- float APP_HEIGHT
+        this.SizeToContent <- SizeToContent.WidthAndHeight
+        //this.SizeToContent <- SizeToContent.Manual
+        //this.Width <- float APP_WIDTH
+        //this.Height <- float APP_HEIGHT
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
-        let top =
+        let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
+        let topBar =
             let sp = new StackPanel(Orientation=Orientation.Horizontal)
             sp.Children.Add(addNewZoneButton) |> ignore
             sp.Children.Add(zoneComboBox) |> ignore
             sp.Children.Add(printCurrentZoneButton) |> ignore
+            let toggleLayoutButton = new Button(Content="Toggle layout", Margin=Thickness(4.))
+            toggleLayoutButton.Click.Add(fun _ ->
+                if all.Orientation = Orientation.Vertical then
+                    all.Orientation <- Orientation.Horizontal
+                    this.Left <- this.Left - float APP_WIDTH
+                else
+                    all.Orientation <- Orientation.Vertical
+                    this.Left <- this.Left + float APP_WIDTH
+                )
+            sp.Children.Add(toggleLayoutButton) |> ignore
             sp
-        all.Children.Add(top) |> ignore
-        all.Children.Add(mapCanvas) |> ignore
+        mapPortion.Children.Add(topBar) |> ignore
+        mapPortion.Children.Add(mapCanvas) |> ignore
+        all.Children.Add(mapPortion) |> ignore
         let bottom =
-            let r = new DockPanel(LastChildFill=true)
+            let r = new DockPanel(LastChildFill=true, Width=float APP_WIDTH)
             refreshMetadataKeys()
             let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.))
             keysListBox.SelectionChanged.Add(fun _ -> 
@@ -405,7 +419,8 @@ type MyWindow() as this =
                         UpdateGameFile()
                         zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD0 then
-                    let img,id = TakeNewScreenshot()
+                    let img,bmp,id = TakeNewScreenshot()
+                    bmpDict.Add(id, bmp)
                     mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, id)
                     let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[theGame.CurX,theGame.CurY])
                     WriteAllText(MapTileFilename(theGame.CurX,theGame.CurY), json)
@@ -449,6 +464,7 @@ type MyWindow() as this =
                         UpdateCurrentNote(orig, tb.Text)
                 if key = VK_DECIMAL then
                     let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
+                    let orig = if orig = null then "" else orig
                     if orig.EndsWith("#TODO") then
                         UpdateCurrentNote(orig, orig.Substring(0,orig.Length-5))
                     else

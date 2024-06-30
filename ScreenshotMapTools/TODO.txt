@@ -1,6 +1,9 @@
 ﻿
 deal with TODOs in code
 
+going back to save location?
+
+always highlighting certain things in certain colors?
 
 maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 
