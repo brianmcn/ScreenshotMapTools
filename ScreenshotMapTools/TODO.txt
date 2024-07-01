@@ -25,16 +25,16 @@ printing to game folder, all zones, by name, maybe in a date folder
 
 
 and I'm already forgetting keys, need cheatsheet
- 2468   move
- 0      screenshot
- +-     paste cut
- *      change projection (full screen, map area, metadata area)
- /      edit note
- 79     change zoom
- .      toggle #TODO note (e.g. take better notes after this recording session)
-num 13 only things left really...
-but also mousing for infrequent stuff (e.g. key search/highlight) is fine
- 
+    2468   move
+    0      screenshot
+    +-     paste cut
+    *      change projection (full screen, map area, metadata area)
+    /      edit note
+    79     change zoom
+    .      toggle #TODO note (e.g. take better notes after this recording session)
+    13     unused
+mousing: hover shows cell, click to move cursor to that cell
+also mousing for infrequent stuff (e.g. key search/highlight)
 
 
 

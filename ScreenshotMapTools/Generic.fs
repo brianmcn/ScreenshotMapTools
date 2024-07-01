@@ -15,6 +15,7 @@ let ACut(a:_[]) =
 
 let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
 let APP_HEIGHT = 980. + 16. + 20.
+let BOTTOM_HEIGHT = 480.
 let KEYS_LIST_BOX_WIDTH = 150
 let VIEWX = APP_WIDTH
 
@@ -97,7 +98,12 @@ type MyWindow() as this =
     let mutable curKey = null
     let MAPX,MAPY = VIEWX,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
-    let mutable curZoom = 4
+    let RT = 4.
+    let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2.)
+    let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
+    let mutable mapCanvasMouseMoveFunc = fun _ -> ()
+    let mutable mapCanvasMouseDownFunc = fun _ -> ()
+    let mutable curZoom = 7
     let mutable hwndSource = null
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
@@ -106,6 +112,10 @@ type MyWindow() as this =
     let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
+                                    HorizontalAlignment=HorizontalAlignment.Stretch,
+                                    Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    let floatSummaryTB = new TextBox(IsReadOnly=true, FontSize=18., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                     FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
                                     HorizontalAlignment=HorizontalAlignment.Stretch,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
@@ -122,10 +132,13 @@ type MyWindow() as this =
     let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
     let refreshMetadataKeys() =
         //printfn "called refreshMetadataKeys()"
-        metadataKeys.Clear()
-        metadataKeys.Add("(no highlight)")
-        for s in metadataStore.AllKeys() |> Array.sort do
-            metadataKeys.Add(s)                   // TODO consider displaying count
+        let newKeys = metadataStore.AllKeys() |> Array.sort
+        let oldKeys = if metadataKeys.Count=0 then [||] else metadataKeys |> Seq.skip 1 |> Seq.toArray   // skip 1 to ignore the 'no highlight'
+        if oldKeys <> newKeys then
+            metadataKeys.Clear()
+            metadataKeys.Add("(no highlight)")
+            for s in newKeys do
+                metadataKeys.Add(s)                   // TODO consider displaying count
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
@@ -152,7 +165,11 @@ type MyWindow() as this =
         | 1 -> Utils.ImageProjection(img,MapArea)
         | 2 -> Utils.ImageProjection(img,MetaArea)
         | _ -> failwith "bad curProjection"
-    let zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
+    let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
+        new TextBox(IsReadOnly=true, IsHitTestVisible=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
+                    HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+        )
+    let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
         let aspect,kludge = 
             match curProjection with
@@ -176,21 +193,58 @@ type MyWindow() as this =
                         img.Stretch <- System.Windows.Media.Stretch.Fill
                         Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                     else
-                        let tb = new TextBox(IsReadOnly=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
-                                                Background=(if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue),
-                                                Width=W, Height=H, HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
+                        let tb = zoomTextboxes.[i,j]
+                        Utils.deparent(tb)
+                        tb.Background <- (if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue)
+                        tb.Width <- W
+                        tb.Height<- H
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                     if toHighlight.Contains(GenericMetadata.Location(theGame.CurZone,i,j)) then
                         Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-        let RT = 4.
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
         summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
         mfsRefresh()
-    let UpdateGameFile() =
+        do
+            mouseCursor.Width <- W + RT
+            mouseCursor.Height <- H + RT
+            mapCanvas.Children.Add(mouseCursor) |> ignore
+            mapCanvasMouseMoveFunc <- (fun (x,y) ->
+                // compute which index we are over
+                let i = (ci - level) + int((x - DX + W)/W)
+                let j = (cj - level) + int((y - DY + H)/H)
+                //printfn "mousemove (%6.2f,%6.2f,%2d,%2d)" x y i j
+                // draw mouse cursor
+                Canvas.SetLeft(mouseCursor, DX-W+float(i-ci+level)*W-RT/2.)
+                Canvas.SetTop(mouseCursor, DY-H+float(j-cj+level)*H-RT/2.)
+                mouseCursor.Stroke <- Brushes.Cyan
+                // draw quick hover data
+                bottomFloat.Children.Clear()
+                if i>=0 && i<MAX && j>=0 && j<MAX && imgArray.[i,j] <> null then
+                    let largeImage = Utils.ImageProjection(imgArray.[i,j],(0,0,GAMENATIVEW,GAMENATIVEH))
+                    let cmt = mapTiles.[i,j]
+                    floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+                    let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 30., Height=BOTTOM_HEIGHT - 10., Background=Brushes.Cyan, LastChildFill=true)
+                    DockPanel.SetDock(largeImage, Dock.Bottom)
+                    dp.Children.Add(largeImage) |> ignore
+                    Utils.deparent(floatSummaryTB)
+                    dp.Children.Add(floatSummaryTB) |> ignore
+                    Utils.canvasAdd(bottomFloat, new Border(Child=dp, BorderBrush=Brushes.Cyan, BorderThickness=Thickness(4.)), 0., 0.)
+                )
+            mapCanvasMouseDownFunc <- (fun (x,y) ->
+                // compute which index we are over
+                let i = (ci - level) + int((x - DX + W)/W)
+                let j = (cj - level) + int((y - DY + H)/H)
+                if i>=0 && i<MAX && j>=0 && j<MAX then
+                    theGame.CurX <- i
+                    theGame.CurY <- j
+                    UpdateGameFile()
+                    zoom(theGame.CurX,theGame.CurY, curZoom)
+                )
+    and UpdateGameFile() =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
         WriteAllText(gameFile, json)
@@ -202,6 +256,9 @@ type MyWindow() as this =
         zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
     do
         doZoom <- zoom
+        mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
+        mapCanvas.MouseLeave.Add(fun _ -> mouseCursor.Stroke <- Brushes.Transparent; bottomFloat.Children.Clear())
+        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(p.X, p.Y))
         // init zones and ensure directories
         LoadRootGameData()
         let zoneFolder = GetZoneFolder()
@@ -315,7 +372,7 @@ type MyWindow() as this =
         mapPortion.Children.Add(mapCanvas) |> ignore
         all.Children.Add(mapPortion) |> ignore
         let bottom =
-            let r = new DockPanel(LastChildFill=true, Width=float APP_WIDTH)
+            let dp = new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             refreshMetadataKeys()
             let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), MaxHeight=350.)
             keysListBox.SelectionChanged.Add(fun _ -> 
@@ -330,14 +387,17 @@ type MyWindow() as this =
                 rc.Children.Add(keysListBox) |> ignore
                 rc
             let leftColumn = 
-                let lc = new DockPanel(LastChildFill=true) //     , Background=Brushes.Yellow)          // layout debugging
+                let lc = new DockPanel(LastChildFill=true, Background=Brushes.Yellow)
                 DockPanel.SetDock(metaAndScreenshotPanel, Dock.Bottom)
                 lc.Children.Add(metaAndScreenshotPanel) |> ignore
                 lc.Children.Add(summaryTB) |> ignore
                 lc
-            r.Children.Add(rightColumn) |> ignore
+            dp.Children.Add(rightColumn) |> ignore
             DockPanel.SetDock(rightColumn, Dock.Right)
-            r.Children.Add(leftColumn) |> ignore
+            dp.Children.Add(leftColumn) |> ignore
+            let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
+            r.Children.Add(dp) |> ignore
+            r.Children.Add(bottomFloat) |> ignore
             r
         all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
