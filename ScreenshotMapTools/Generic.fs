@@ -156,7 +156,9 @@ type MyWindow() as this =
                     doZoom(theGame.CurX, theGame.CurY, curZoom)
                 )
         else
-            metaAndScreenshotPanel.Children.Add(new DockPanel(Background=Brushes.Gray)) |> ignore
+            let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
+            let h = w / 16. * 9.
+            metaAndScreenshotPanel.Children.Add(new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)) |> ignore
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     let project(img) =
