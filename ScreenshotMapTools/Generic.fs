@@ -317,7 +317,7 @@ type MyWindow() as this =
         let bottom =
             let r = new DockPanel(LastChildFill=true, Width=float APP_WIDTH)
             refreshMetadataKeys()
-            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.))
+            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), MaxHeight=350.)
             keysListBox.SelectionChanged.Add(fun _ -> 
                 curKey <- if keysListBox.SelectedIndex <= 0 || metadataKeys.Count=0 then null else metadataKeys.Item(keysListBox.SelectedIndex)
                 //printfn "curKey is '%s'" curKey

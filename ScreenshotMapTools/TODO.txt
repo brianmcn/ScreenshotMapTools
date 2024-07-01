@@ -1,14 +1,22 @@
 ﻿
 deal with TODOs in code
 
+
 going back to save location?
 
-always highlighting certain things in certain colors?
+
+always highlighting certain things in certain colors? 
+or a hover target to show all hashtags in random colors?
+hovering any tag temp highlights it?
+
 
 maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 
 
+
+
 naming zones
+
 
 printing to game folder, all zones, by name, maybe in a date folder
 
