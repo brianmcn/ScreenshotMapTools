@@ -102,7 +102,7 @@ type MyWindow() as this =
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2.)
     let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
-    let mutable mapCanvasMouseDownFunc = fun _ -> ()
+    let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
     let mutable curZoom = 7
     let mutable hwndSource = null
     // current zone combobox
@@ -236,7 +236,7 @@ type MyWindow() as this =
                     dp.Children.Add(floatSummaryTB) |> ignore
                     Utils.canvasAdd(bottomFloat, new Border(Child=dp, BorderBrush=Brushes.Cyan, BorderThickness=Thickness(4.)), 0., 0.)
                 )
-            mapCanvasMouseDownFunc <- (fun (x,y) ->
+            mapCanvasMouseDownFunc <- (fun (me,x,y) ->
                 // compute which index we are over
                 let i = (ci - level) + int((x - DX + W)/W)
                 let j = (cj - level) + int((y - DY + H)/H)
@@ -245,6 +245,8 @@ type MyWindow() as this =
                     theGame.CurY <- j
                     UpdateGameFile()
                     zoom(theGame.CurX,theGame.CurY, curZoom)
+                    if me.RightButton = Input.MouseButtonState.Pressed then
+                        Utils.DoModalDialog(this, imgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                 )
     and UpdateGameFile() =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
@@ -260,7 +262,7 @@ type MyWindow() as this =
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
         mapCanvas.MouseLeave.Add(fun _ -> mouseCursor.Stroke <- Brushes.Transparent; bottomFloat.Children.Clear())
-        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(p.X, p.Y))
+        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
         // init zones and ensure directories
         LoadRootGameData()
         let zoneFolder = GetZoneFolder()

@@ -1,6 +1,4 @@
 ﻿
-right click for fullsize image window?
-
 
 deal with TODOs in code
 

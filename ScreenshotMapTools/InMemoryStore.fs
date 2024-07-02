@@ -26,6 +26,12 @@ type ImgArrayCache() =
         if writeToDisk then
             CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
+    member this.GetCopyOfBmp(x,y) =
+        let file = GetCacheFilename(x,y)
+        if System.IO.File.Exists(file) then
+            new System.Drawing.Bitmap(file)
+        else
+            null
 
 // this is all for the current loaded zone
 let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
@@ -62,9 +68,10 @@ let LoadZoneMapTiles(alsoLoadImages) =
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
                 if alsoLoadImages && data.Screenshots <> null && data.Screenshots.Length > 0 then
                     for ts in data.Screenshots do
-                        let ssFile = ScreenshotFilenameFromTimestampId(ts)
-                        let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                        bmpDict.Add(ts, bmp)
+                        if not(bmpDict.ContainsKey(ts)) then
+                            let ssFile = ScreenshotFilenameFromTimestampId(ts)
+                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                            bmpDict.Add(ts, bmp)
                     imgArray.TryReadFromDisk(i,j)
                     if imgArray.[i,j] = null then
                         bgWork.Add((i,j))
