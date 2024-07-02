@@ -81,7 +81,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
                         updateClipboardView()
                         mapTiles.[x,y].Screenshots <- mapTiles.[x,y].Screenshots |> Array.filter (fun s -> s <> ssid)
                         // update current tile view
-                        imgArray.[x,y] <- RecomputeImage(x,y)
+                        RecomputeImage(x,y)
                         //zoom(...) will be called when the window closes
                         // update disk
                         SerializeMapTile(x,y)
@@ -446,14 +446,14 @@ type MyWindow() as this =
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
-                    imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
+                    RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                     // update disk
                     SerializeMapTile(theGame.CurX,theGame.CurY)
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
                     mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, clipboardSSID)
                     SerializeMapTile(theGame.CurX,theGame.CurY)
-                    imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
+                    RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_MULTIPLY then
                     curProjection <- curProjection + 1
@@ -485,7 +485,7 @@ type MyWindow() as this =
                     bmpDict.Add(id, bmp)
                     mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, id)
                     SerializeMapTile(theGame.CurX,theGame.CurY)
-                    imgArray.[theGame.CurX,theGame.CurY] <- RecomputeImage(theGame.CurX,theGame.CurY)
+                    RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then
