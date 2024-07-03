@@ -16,7 +16,7 @@ let ACut(a:_[]) =
 let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
 let APP_HEIGHT = 980. + 16. + 20.
 let BOTTOM_HEIGHT = 480.
-let KEYS_LIST_BOX_WIDTH = 150
+let KEYS_LIST_BOX_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH
 let VIEWX = APP_WIDTH
 
 //////////////////////////////////////////////////////////
@@ -95,9 +95,16 @@ type MyWindow() as this =
     inherit Window()
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
-    let mutable curKey = null
     let MAPX,MAPY = VIEWX,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let wholeMapCanvas =
+        let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+        r.Children.Add(mapCanvas) |> ignore
+        r.Children.Add(mapIconCanvas) |> ignore
+        r.Children.Add(mapIconHoverCanvas) |> ignore
+        r
     let RT = 4.
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2.)
     let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
@@ -130,15 +137,14 @@ type MyWindow() as this =
         r
     // meta and full summary of current tile
     let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
-    let refreshMetadataKeys() =
-        //printfn "called refreshMetadataKeys()"
+    let refreshMetadataKeys() =   // TODO can clean this up
         let newKeys = metadataStore.AllKeys() |> Array.sort
-        let oldKeys = if metadataKeys.Count=0 then [||] else metadataKeys |> Seq.skip 1 |> Seq.toArray   // skip 1 to ignore the 'no highlight'
+        let oldKeys = if metadataKeys.Count=0 then [||] else metadataKeys |> Seq.toArray
         if oldKeys <> newKeys then
+            MapIcons.redrawPanelEv.Trigger()
             metadataKeys.Clear()
-            metadataKeys.Add("(no highlight)")
             for s in newKeys do
-                metadataKeys.Add(s)                   // TODO consider displaying count
+                metadataKeys.Add(s)
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
@@ -171,6 +177,8 @@ type MyWindow() as this =
         new TextBox(IsReadOnly=true, IsHitTestVisible=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
                     HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         )
+    let mutable mapIconRedraw = fun _ -> ()
+    let mutable mapIconHoverRedraw = fun _ -> ()
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
         let aspect,kludge = 
@@ -183,8 +191,9 @@ type MyWindow() as this =
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
         let scale = float(2*(level-1)+1)
         mapCanvas.Children.Clear()
+        mapIconCanvas.Children.Clear()
+        mapIconHoverCanvas.Children.Clear()
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
-        let toHighlight = if curKey <> null then metadataStore.LocationsForKey(curKey) else System.Collections.Generic.HashSet()
         for i = ci-level to ci+level do
             for j = cj-level-kludge to cj+level+kludge do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
@@ -201,10 +210,30 @@ type MyWindow() as this =
                         tb.Width <- W
                         tb.Height<- H
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                    if toHighlight.Contains(GenericMetadata.Location(theGame.CurZone,i,j)) then
-                        Utils.canvasAdd(mapCanvas, new Shapes.Ellipse(Stroke=Brushes.Lime, Width=W, Height=H, StrokeThickness=3.), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+        mapIconRedraw <- (fun f ->
+            for i = ci-level to ci+level do
+                for j = cj-level-kludge to cj+level+kludge do
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                        let makeCanvas() =
+                            let c = new Canvas(Width=W, Height=H)
+                            Utils.canvasAdd(mapIconCanvas, c, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                            c
+                        f(loc, makeCanvas)
+            )
+        mapIconHoverRedraw <- (fun f ->
+            for i = ci-level to ci+level do
+                for j = cj-level-kludge to cj+level+kludge do
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                        let makeCanvas() =
+                            let c = new Canvas(Width=W, Height=H)
+                            Utils.canvasAdd(mapIconHoverCanvas, c, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                            c
+                        f(loc, makeCanvas)
+            )
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
@@ -214,6 +243,29 @@ type MyWindow() as this =
             mouseCursor.Width <- W + RT
             mouseCursor.Height <- H + RT
             mapCanvas.Children.Add(mouseCursor) |> ignore
+            do
+                // map icons
+                MapIcons.redrawMapIconsEv.Publish.Add(fun _ ->
+                    mapIconCanvas.Children.Clear()    
+                    if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
+                        let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
+                        for k in keys do
+                            let locs = metadataStore.LocationsForKey(k)
+                            mapIconRedraw(fun (loc, mkCanvas) ->
+                                if locs.Contains(loc) then
+                                    let c = mkCanvas()
+                                    MapIcons.keyDrawFuncs.[k](c, c.Width, c.Height)
+                                )
+                    )
+                MapIcons.redrawMapIconHoverOnly.Publish.Add(fun _ ->
+                    mapIconHoverCanvas.Children.Clear()    
+                    if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
+                        mapIconHoverRedraw(fun (loc, mkCanvas) ->
+                            if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
+                                let c = mkCanvas()
+                                MapIcons.drawHoverIcon(c, c.Width, c.Height)
+                            )
+                    )
             mapCanvasMouseMoveFunc <- (fun (x,y) ->
                 // compute which index we are over
                 let i = (ci - level) + int((x - DX + W)/W)
@@ -248,6 +300,8 @@ type MyWindow() as this =
                     if me.RightButton = Input.MouseButtonState.Pressed then
                         Utils.DoModalDialog(this, imgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                 )
+        MapIcons.redrawMapIconsEv.Trigger()
+        MapIcons.redrawMapIconHoverOnly.Trigger()
     and UpdateGameFile() =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
@@ -373,22 +427,22 @@ type MyWindow() as this =
             sp.Children.Add(toggleLayoutButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
-        mapPortion.Children.Add(mapCanvas) |> ignore
+        mapPortion.Children.Add(wholeMapCanvas) |> ignore
         all.Children.Add(mapPortion) |> ignore
         let bottom =
             let dp = new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             refreshMetadataKeys()
-            let keysListBox = new ListBox(ItemsSource=metadataKeys, MinWidth=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), MaxHeight=350.)
-            keysListBox.SelectionChanged.Add(fun _ -> 
-                curKey <- if keysListBox.SelectedIndex <= 0 || metadataKeys.Count=0 then null else metadataKeys.Item(keysListBox.SelectedIndex)
-                //printfn "curKey is '%s'" curKey
-                zoom(theGame.CurX, theGame.CurY, curZoom)
-                )
             let rightColumn =
                 let rc = new DockPanel(LastChildFill=true)
                 rc.Children.Add(clipDP) |> ignore
                 DockPanel.SetDock(clipDP, Dock.Bottom)
-                rc.Children.Add(keysListBox) |> ignore
+                let mutable iconKeys = MapIcons.MakeIconUI()
+                rc.Children.Add(iconKeys) |> ignore
+                MapIcons.redrawPanelEv.Publish.Add(fun _ ->
+                    rc.Children.Remove(iconKeys)
+                    iconKeys <- MapIcons.MakeIconUI()
+                    rc.Children.Add(iconKeys) |> ignore
+                    )
                 rc
             let leftColumn = 
                 let lc = new DockPanel(LastChildFill=true, Background=Brushes.Yellow)
