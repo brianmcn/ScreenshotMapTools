@@ -436,11 +436,11 @@ type MyWindow() as this =
                 let rc = new DockPanel(LastChildFill=true)
                 rc.Children.Add(clipDP) |> ignore
                 DockPanel.SetDock(clipDP, Dock.Bottom)
-                let mutable iconKeys = MapIcons.MakeIconUI()
+                let mutable iconKeys = MapIcons.MakeIconUI(this)
                 rc.Children.Add(iconKeys) |> ignore
                 MapIcons.redrawPanelEv.Publish.Add(fun _ ->
                     rc.Children.Remove(iconKeys)
-                    iconKeys <- MapIcons.MakeIconUI()
+                    iconKeys <- MapIcons.MakeIconUI(this)
                     rc.Children.Add(iconKeys) |> ignore
                     )
                 rc

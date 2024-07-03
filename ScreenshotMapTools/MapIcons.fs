@@ -27,6 +27,13 @@ type IconShape =
         IconShape.X 
         |]
     static member FromString(s) = DU.fromString<IconShape>(s)
+    member this.AsString() =
+        match this with
+        | IconShape.LargeOval -> "LargeOval"
+        | IconShape.SmallOval -> "SmallOval"
+        | IconShape.LargeBox -> "LargeBox"
+        | IconShape.SmallBox -> "SmallBox"
+        | IconShape.X -> "X"
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
@@ -57,6 +64,14 @@ type Icon() =
         not(System.String.IsNullOrEmpty(this.Hashtag))
         && this.HexColorRGB<>null && this.HexColorRGB.Length=6 && System.Text.RegularExpressions.Regex.IsMatch(this.HexColorRGB, "[0-9a-fA-F]*")
         && IconShape.FromString(this.Shape)<>None
+    member this.GetColor() = Icon.GetColor(this.HexColorRGB)
+    static member GetColor(hexColorRGB) = System.Windows.Media.ColorConverter.ConvertFromString("#FF" + hexColorRGB) :?> System.Windows.Media.Color
+
+let hexColorUniverse = new System.Collections.Generic.HashSet<_>()
+do
+    hexColorUniverse.Add("FF0000") |> ignore  // red
+    hexColorUniverse.Add("00FF00") |> ignore  // lime
+    hexColorUniverse.Add("FFFF00") |> ignore  // yellow
 
 let LoadMapIconData() =
     let iconFile = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
@@ -76,6 +91,7 @@ let LoadMapIconData() =
                 printfn "is being ignored."
             else
                 r.[i.Hashtag] <- i
+                hexColorUniverse.Add(i.HexColorRGB) |> ignore
         r
 
 open System.Windows
@@ -96,7 +112,7 @@ let mutable currentlyHoveredHashtagKey = null
 let CW, CH = 32., 18.
 let drawHoverIcon(c,w,h) = IconShape.SmallOval.AddToCanvas(c, Brushes.Cyan, w, h)
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,(Canvas*_*_->_)>()
-let MakeIconUI() =
+let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
     let g = Utils.makeGrid(1, keys.Length+1, KEYS_LIST_BOX_WIDTH, 20)
     let mkTxt(s) = new TextBox(IsReadOnly=true, FontSize=12., Text=s, BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.White, IsHitTestVisible=false)
@@ -122,7 +138,7 @@ let MakeIconUI() =
             | false, _ -> ()
             | true, icon ->
                 if icon.IsEnabled then
-                    let brush = new SolidColorBrush(ColorConverter.ConvertFromString("#FF" + icon.HexColorRGB) :?> Color)
+                    let brush = new SolidColorBrush(icon.GetColor())
                     let shape = IconShape.FromString(icon.Shape).Value
                     let draw(c,w,h) = 
                         shape.AddToCanvas(c, brush, w, h)
@@ -140,12 +156,83 @@ let MakeIconUI() =
             (fun _ -> currentlyHoveredHashtagKey <- null; redrawMapIconHoverOnly.Trigger())
             )
         b.MouseDown.Add(fun me ->
-            // TODO deeper UI on right click
-            match mapIconData.TryGetValue(k) with
-            | false, _ ->
-                mapIconData.[k] <- new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
-            | true, icon ->
-                icon.IsEnabled <- not icon.IsEnabled
+            if me.RightButton = Input.MouseButtonState.Pressed then
+                // dialog window to select color and shape
+                let cur = 
+                    match mapIconData.TryGetValue(k) with
+                    | false, _ ->
+                        let icon = new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
+                        mapIconData.[k] <- icon
+                        icon
+                    | true, icon ->
+                        icon.IsEnabled <- true
+                        icon
+
+                let dp = new DockPanel(MinWidth=200., MaxWidth=400., MaxHeight=400., LastChildFill=true)
+
+                // shapes
+                let mk() =
+                    let curBrush = new SolidColorBrush(cur.GetColor())
+                    let shapeSelector = Utils.makeGrid(1, IconShape.All.Length, 72, 44)
+                    let mutable i = 0
+                    let all = ResizeArray()
+                    for s in IconShape.All do
+                        let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
+                        s.AddToCanvas(c, curBrush, c.Width, c.Height)
+                        let b = new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                        Utils.gridAdd(shapeSelector, b, 0, i)
+                        i <- i + 1
+                        if cur.Shape = s.AsString() then
+                            b.BorderBrush <- Brushes.Cyan
+                        all.Add(b)
+                        b.MouseDown.Add(fun _ ->
+                            for x in all do
+                                x.BorderBrush <- Brushes.Transparent
+                                b.BorderBrush <- Brushes.Cyan
+                                cur.Shape <- s.AsString()
+                            )
+                    shapeSelector
+                
+                // colors
+                let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, 48, 48)
+                let mutable i = 0
+                let all = ResizeArray()
+                for c in hexColorUniverse do
+                    let col = Icon.GetColor(c)
+                    let swatch = new DockPanel(Width=40., Height=40., Background=new SolidColorBrush(col))
+                    let b = new Border(Child=swatch, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                    Utils.gridAdd(colorSelector, b, 0, i)
+                    i <- i + 1
+                    if cur.HexColorRGB = c then
+                        b.BorderBrush <- Brushes.Cyan
+                    all.Add(b)
+                    b.MouseDown.Add(fun _ ->
+                        for x in all do
+                            x.BorderBrush <- Brushes.Transparent
+                            b.BorderBrush <- Brushes.Cyan
+                            cur.HexColorRGB <- c
+                            dp.Children.RemoveAt(dp.Children.Count-1)
+                            dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                        )
+
+                dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                let closeEv = new Event<unit>()
+                let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.))
+                let doneButton = new Button(Content="Done", MaxWidth=150., Margin=Thickness(4.))
+                doneButton.Click.Add(fun _ -> closeEv.Trigger())
+                DockPanel.SetDock(doneButton, Dock.Bottom)
+                total.Children.Add(doneButton) |> ignore
+                total.Children.Add(dp) |> ignore
+                Utils.DoModalDialog(parentWindow, total, "Choose appearance", closeEv.Publish)
+                mapIconData.[k] <- cur
+            else
+                // just toggle enable on left click (and initialize if no default yet)
+                match mapIconData.TryGetValue(k) with
+                | false, _ ->
+                    mapIconData.[k] <- new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
+                | true, icon ->
+                    icon.IsEnabled <- not icon.IsEnabled
             eval()
             redrawMapIconsEv.Trigger()
             )
