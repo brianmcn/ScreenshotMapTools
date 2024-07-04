@@ -96,7 +96,7 @@ type MyWindow() as this =
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let MAPX,MAPY = VIEWX,420
-    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.White)
     let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
@@ -174,7 +174,7 @@ type MyWindow() as this =
         | 2 -> Utils.ImageProjection(img,MetaArea)
         | _ -> failwith "bad curProjection"
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
-        new TextBox(IsReadOnly=true, IsHitTestVisible=true, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black, 
+        new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black,
                     HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         )
     let mutable mapIconRedraw = fun _ -> ()
