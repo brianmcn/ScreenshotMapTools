@@ -3,21 +3,7 @@
 deal with TODOs in code
 
 
-going back to save location?
-
-
 it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup
-
-
-always highlighting certain things in certain colors? 
-or a hover target to show all hashtags in random colors?
-hovering any tag temp highlights it?
-what about:
- - green oval, yellow inner oval, red outer box, none
- - each hashtag has a preferred color (default none)
- - clicking brings up selector tool
- - hovering shows temp highlight of magenta inner box or something
- - json save format has like ("hashtag","RRGGBB") pairs (so could manual edit other colors)
 
 
 are hashtags per zone or global? (should be global?) do testing
@@ -33,6 +19,8 @@ watching dwarf play VS: would wnt multiple screenshots per room (e.g. B029 floor
 maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 
 
+
+dwarf idea about partial screenshot (e.g. alien font, VS mural square) mapping to letters, how to deal with
 
 
 naming zones
@@ -57,8 +45,6 @@ mousing: hover shows cell, click to move cursor to that cell
 also mousing for infrequent stuff (e.g. key search/highlight)
 
 
-
-test manual note C&P
 
 root directory for games (debug v release, change games, catalogue? app data folders?)
 
