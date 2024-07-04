@@ -1,5 +1,18 @@
 ﻿module Utils
 
+//////////////////////////////////////////////////////
+
+// note https://stackoverflow.com/questions/20444735/issue-with-setforegroundwindow-in-net
+
+module Win32 =
+    open System
+    open System.Runtime.InteropServices
+    [<DllImport("USER32.DLL")>]
+    extern bool SetForegroundWindow(IntPtr hwnd)
+
+//////////////////////////////////////////////////////
+
+
 open System.Windows
 open System.Windows.Controls
 
@@ -151,3 +164,4 @@ let ColorFromHSV(hue, saturation, value) =
         Color.FromArgb(255, t, p, v)
     else
         Color.FromArgb(255, v, p, q)
+

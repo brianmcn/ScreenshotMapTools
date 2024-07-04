@@ -552,6 +552,7 @@ type MyWindow() as this =
                         curZoom <- curZoom + 1
                         zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_DIVIDE then
+                    Utils.Win32.SetForegroundWindow(_hwnd) |> ignore
                     let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                             Foreground=Brushes.Black, Background=Brushes.White,
