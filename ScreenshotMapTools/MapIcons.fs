@@ -12,6 +12,9 @@ module DU =
         |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
         |_ -> None
 
+let IST(w,h) = 
+    let m = min w h
+    if m > 30. then 3. else 2.
 [<RequireQualifiedAccess>]
 type IconShape =
     | LargeOval
@@ -37,21 +40,21 @@ type IconShape =
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
-            let s = new System.Windows.Shapes.Ellipse(Width=w, Height=h, Stroke=brush, StrokeThickness=3.)
+            let s = new System.Windows.Shapes.Ellipse(Width=w, Height=h, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
         | IconShape.SmallOval ->
-            let s = new System.Windows.Shapes.Ellipse(Width=w*0.6, Height=h*0.6, Stroke=brush, StrokeThickness=3.)
+            let s = new System.Windows.Shapes.Ellipse(Width=w*0.6, Height=h*0.6, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, w*0.2, h*0.2)
         | IconShape.LargeBox -> 
-            let s = new System.Windows.Shapes.Rectangle(Width=w*0.9, Height=h*0.9, Stroke=brush, StrokeThickness=3.)
+            let s = new System.Windows.Shapes.Rectangle(Width=w*0.9, Height=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, w*0.05, h*0.05)
         | IconShape.SmallBox -> 
-            let s = new System.Windows.Shapes.Rectangle(Width=w*0.5, Height=h*0.5, Stroke=brush, StrokeThickness=3.)
-            Utils.canvasAdd(c, s, w*0.25, h*0.25)
+            let s = new System.Windows.Shapes.Rectangle(Width=w*0.5, Height=h*0.7, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.25, h*0.15)
         | IconShape.X -> 
-            let s = new System.Windows.Shapes.Line(X1=w*0.1, X2=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=3.)
+            let s = new System.Windows.Shapes.Line(X1=w*0.1, X2=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
-            let s = new System.Windows.Shapes.Line(X2=w*0.1, X1=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=3.)
+            let s = new System.Windows.Shapes.Line(X2=w*0.1, X1=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
         
 [<AllowNullLiteral>]
@@ -73,8 +76,9 @@ do
     hexColorUniverse.Add("00FF00") |> ignore  // lime
     hexColorUniverse.Add("FFFF00") |> ignore  // yellow
 
+let GetIconFilename() = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
 let LoadMapIconData() =
-    let iconFile = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
+    let iconFile = GetIconFilename()
     if not(System.IO.File.Exists(iconFile)) then
         let sample = new Icon(Hashtag="thisIsASample", HexColorRGB="00aaFF", Shape="LargeOval", IsEnabled=true)
         let json = System.Text.Json.JsonSerializer.Serialize<Icon[]>( [|sample|] )
@@ -107,10 +111,17 @@ let allIconsDisabledCheckbox = new CheckBox(IsChecked=false, Margin=Thickness(0.
 do
     allIconsDisabledCheckbox.Checked.Add(fun _ -> redrawMapIconsEv.Trigger())
     allIconsDisabledCheckbox.Unchecked.Add(fun _ -> redrawMapIconsEv.Trigger())
-let mutable mapIconData = LoadMapIconData()  // TODO writing it back to disk
+let mutable mapIconData = LoadMapIconData()
+let SaveMapIconData() =
+    let file = GetIconFilename()
+    let icons = [| for k in mapIconData.Keys do yield mapIconData.[k] |] |> Array.sortBy (fun i -> i.Hashtag)
+    let json = System.Text.Json.JsonSerializer.Serialize<Icon[]>(icons)
+    BackingStoreData.WriteAllText(file, json)
 let mutable currentlyHoveredHashtagKey = null
 let CW, CH = 32., 18.
-let drawHoverIcon(c,w,h) = IconShape.SmallOval.AddToCanvas(c, Brushes.Cyan, w, h)
+let drawHoverIcon(c,w,h) =
+    let s = new System.Windows.Shapes.Ellipse(Width=w*0.4, Height=h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(w,h))
+    Utils.canvasAdd(c, s, w*0.3, h*0.1)
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,(Canvas*_*_->_)>()
 let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
@@ -235,6 +246,7 @@ let MakeIconUI(parentWindow) =
                     icon.IsEnabled <- not icon.IsEnabled
             eval()
             redrawMapIconsEv.Trigger()
+            SaveMapIconData()
             )
     let sv = new ScrollViewer(Width=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), MaxHeight=350., Content=g,
                                 VerticalScrollBarVisibility=ScrollBarVisibility.Auto, HorizontalScrollBarVisibility=ScrollBarVisibility.Auto)

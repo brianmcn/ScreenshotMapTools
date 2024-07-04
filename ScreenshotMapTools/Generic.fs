@@ -97,8 +97,8 @@ type MyWindow() as this =
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let MAPX,MAPY = VIEWX,420
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
-    let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
-    let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+    let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
+    let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
         r.Children.Add(mapCanvas) |> ignore
@@ -110,7 +110,7 @@ type MyWindow() as this =
     let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
-    let mutable curZoom = 7
+    let mutable curZoom = 10
     let mutable hwndSource = null
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
