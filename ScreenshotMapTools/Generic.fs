@@ -179,6 +179,7 @@ type MyWindow() as this =
         )
     let mutable mapIconRedraw = fun _ -> ()
     let mutable mapIconHoverRedraw = fun _ -> ()
+    // TODO if I like redid this as a full canvas and just changed the viewport bounds, then moving would not require redrawing map icons (only changing zoom level would)
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
         let aspect,kludge = 
@@ -352,6 +353,7 @@ type MyWindow() as this =
             )
         printCurrentZoneButton.Click.Add(fun _ ->
             // TODO
+#if OLD
             // load full screenshots from disk
             let bmps = Array2D.zeroCreate 100 100
             let mutable minx,miny,maxx,maxy = 100,100,0,0
@@ -371,17 +373,42 @@ type MyWindow() as this =
                             miny <- min miny j
                             maxx <- max maxx i
                             maxy <- max maxy j
+#else
+            let bmps = Array2D.zeroCreate 100 100
+            let mutable minx,miny,maxx,maxy = 100,100,0,0
+            for i = 0 to MAX-1 do
+                for j = 0 to MAX-1 do
+                    let bmp = imgArray.GetCopyOfBmp(i,j)
+                    if bmp <> null then
+                        bmps.[i,j] <- bmp
+                        minx <- min minx i
+                        miny <- min miny j
+                        maxx <- max maxx i
+                        maxy <- max maxy j
+#endif
             if maxx >= minx then // there was at least one screenshot
-                for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
+                //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
+                for ma,fn in [MapArea,"printed_map.png"] do
                     let mx,my,mw,mh = ma
                     let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
+                    let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                    //System.Diagnostics.Debugger.Break()
                     for i = minx to maxx do
+                        printfn "[%d..%d] - %d" minx maxx i
                         for j = miny to maxy do
                             let bmp = bmps.[i,j]
                             if bmp <> null then
+                                let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
                                 for x = 0 to mw-1 do
                                     for y = 0 to mh-1 do
-                                        r.SetPixel(mw*(i-minx) + x, mh*(j-miny) + y, bmp.GetPixel(mx+x,my+y))
+                                        //let color = bmp.GetPixel(mx+x,my+y)
+                                        //let color = Utils.GetColorFromLockedFormat32BppArgb(mx+x,my+y,data)
+                                        //r.SetPixel(mw*(i-minx) + x, mh*(j-miny) + y, color)
+                                        //Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData,color)
+                                        Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData,
+                                                                                        mx+x, my+y, data)
+                                bmp.UnlockBits(data)
+                    r.UnlockBits(rData)
                     r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
             else
                 printfn "no screenshots to print"

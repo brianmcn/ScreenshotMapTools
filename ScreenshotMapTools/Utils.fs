@@ -129,6 +129,22 @@ let SetColorFromLockedFormat32BppArgb(x,y,bmd:BitmapData,c:Color) =
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 1) c.G
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 2) c.R
     NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 3) c.A
+let SetAndGetColorFromLockedFormat32BppArgb(rx,ry,rbmd:BitmapData,x,y,bmd:BitmapData) =   // r is result
+    let PixelSize = 4
+    let rowOffset = y * bmd.Stride
+    let colOffset = x * PixelSize
+    let ptr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt bmd.Scan0
+    let b = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 0)
+    let g = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 1)
+    let r = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 2)
+    let a = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 3)
+    let rrowOffset = ry * rbmd.Stride
+    let rcolOffset = rx * PixelSize
+    let rptr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt rbmd.Scan0
+    NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 0) b
+    NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 1) g
+    NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 2) r
+    NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 3) a
 
 //////////////////////////////////////////////////////////////////////
 

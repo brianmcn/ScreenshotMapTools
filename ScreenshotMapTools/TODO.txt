@@ -1,4 +1,10 @@
 ﻿
+improve perf of moving focused tile
+
+
+feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
+(all connectivity? like up left down right exits too?)
+
 
 deal with TODOs in code
 
