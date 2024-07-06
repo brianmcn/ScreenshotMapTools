@@ -15,9 +15,6 @@ it's awkward that clicking shifts the view and then mouse cursor is now hovering
 are hashtags per zone or global? (should be global?) do testing
 
 
-have way to type in a text search, to do like #hashtag but for any word or regex or whatever
-
-
 watching dwarf play VS: would wnt multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposited to AnimalWell-compositing)
  - or maybe in AW I will also want 'auxilary screenshots' as well as compositing?
 

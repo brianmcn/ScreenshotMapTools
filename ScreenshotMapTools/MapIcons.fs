@@ -111,6 +111,11 @@ let allIconsDisabledCheckbox = new CheckBox(IsChecked=false, Margin=Thickness(0.
 do
     allIconsDisabledCheckbox.Checked.Add(fun _ -> redrawMapIconsEv.Trigger())
     allIconsDisabledCheckbox.Unchecked.Add(fun _ -> redrawMapIconsEv.Trigger())
+///////////////////////////
+// text box search
+let REGEX_DUMMY = "AAAAA"    // TODO a bit of a kludgy way to shoehorn it in
+let mutable userRegex = ""   // use this instead of key for k=REGEX_DUMMY in mapIconData.[k]
+///////////////////////////
 let mutable mapIconData = LoadMapIconData()
 let SaveMapIconData() =
     let file = GetIconFilename()
@@ -122,7 +127,7 @@ let CW, CH = 32., 18.
 let drawHoverIcon(c,w,h) =
     let s = new System.Windows.Shapes.Ellipse(Width=w*0.4, Height=h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(w,h))
     Utils.canvasAdd(c, s, w*0.3, h*0.1)
-let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,(Canvas*_*_->_)>()
+let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,option<(Canvas*_*_->_)> >()
 let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
     let g = Utils.makeGrid(1, keys.Length+1, KEYS_LIST_BOX_WIDTH, 20)
@@ -139,12 +144,12 @@ let MakeIconUI(parentWindow) =
         let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, 0)
     let mutable i = 1
-    for k in keys do
+    for k in Seq.append [REGEX_DUMMY] keys do
         let dp = new DockPanel(LastChildFill=true)
         let c = new Canvas(Width=CW, Height=CH, Margin=Thickness(0.,0.,4.,0.), Background=Brushes.Black)
         let eval() =
             c.Children.Clear()
-            keyDrawFuncs.[k] <- fun _ -> ()
+            keyDrawFuncs.[k] <- None
             match mapIconData.TryGetValue(k) with
             | false, _ -> ()
             | true, icon ->
@@ -154,11 +159,40 @@ let MakeIconUI(parentWindow) =
                     let draw(c,w,h) = 
                         shape.AddToCanvas(c, brush, w, h)
                     draw(c, CW, CH)
-                    keyDrawFuncs.[k] <- draw
+                    keyDrawFuncs.[k] <- Some draw
         eval()
         DockPanel.SetDock(c, Dock.Left)
         dp.Children.Add(c) |> ignore
-        dp.Children.Add(mkTxt(k)) |> ignore                    // TODO consider displaying count
+        if k = REGEX_DUMMY then
+            let regexButton = new Button()
+            let refreshButton() =
+                regexButton.Content <- (let tb = mkTxt(if userRegex="" then "(click here)" else userRegex) in tb.FontSize<-8. ; tb)
+            refreshButton()
+            regexButton.Click.Add(fun _ ->
+                let label = mkTxt("Type a regex")
+                label.Margin <- Thickness(2.)
+                let edit = new TextBox(IsReadOnly=false, FontSize=12., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Text=userRegex, Margin=Thickness(2.))
+                let closeEv = new Event<unit>()
+                let closeButton = new Button(Content="Done", Margin=Thickness(2.))
+                closeButton.Click.Add(fun _ -> closeEv.Trigger())
+                let dp = new DockPanel(LastChildFill=true)
+                DockPanel.SetDock(label, Dock.Top)
+                DockPanel.SetDock(closeButton, Dock.Bottom)
+                dp.Children.Add(label) |> ignore
+                dp.Children.Add(closeButton) |> ignore
+                dp.Children.Add(edit) |> ignore
+                Utils.DoModalDialog(parentWindow, dp, "Change user regex", closeEv.Publish)
+                userRegex <- edit.Text
+                refreshButton()
+                )
+            let but = new DockPanel(LastChildFill=false)
+            let desc = mkTxt("RE: ")
+            DockPanel.SetDock(desc, Dock.Left)
+            but.Children.Add(desc) |> ignore
+            but.Children.Add(regexButton) |> ignore
+            dp.Children.Add(but) |> ignore
+        else
+            dp.Children.Add(mkTxt(k)) |> ignore                    // TODO consider displaying count
         let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, i)
         i <- i + 1

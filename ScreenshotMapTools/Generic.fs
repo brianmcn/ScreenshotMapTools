@@ -195,9 +195,11 @@ type MyWindow() as this =
         mapIconCanvas.Children.Clear()
         mapIconHoverCanvas.Children.Clear()
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
+        let drawnLocations = ResizeArray()
         for i = ci-level to ci+level do
             for j = cj-level-kludge to cj+level+kludge do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
+                    drawnLocations.Add(i,j)
                     if imgArray.[i,j] <> null then
                         let img = project(imgArray.[i,j])
                         img.Width <- W
@@ -249,18 +251,34 @@ type MyWindow() as this =
                 MapIcons.redrawMapIconsEv.Publish.Add(fun _ ->
                     mapIconCanvas.Children.Clear()    
                     if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
+                        do
+                            // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
+                            if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
+                                let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
+                                for i,j in drawnLocations do
+                                    let note = mapTiles.[i,j].Note
+                                    if note <> null && re.IsMatch(note) then
+                                        mapIconRedraw(fun (loc, mkCanvas) ->
+                                            if loc.X=i && loc.Y=j then
+                                                let c = mkCanvas()
+                                                MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].Value(c, c.Width, c.Height)
+                                            )
                         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
                         for k in keys do
                             let locs = metadataStore.LocationsForKey(k)
                             mapIconRedraw(fun (loc, mkCanvas) ->
                                 if locs.Contains(loc) then
-                                    let c = mkCanvas()
-                                    MapIcons.keyDrawFuncs.[k](c, c.Width, c.Height)
+                                    match MapIcons.keyDrawFuncs.[k] with
+                                    | Some f ->
+                                        let c = mkCanvas()
+                                        f(c, c.Width, c.Height)
+                                    | _ -> ()
                                 )
                     )
                 MapIcons.redrawMapIconHoverOnly.Publish.Add(fun _ ->
                     mapIconHoverCanvas.Children.Clear()    
                     if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
+                        // TODO consider hover for userRegex
                         mapIconHoverRedraw(fun (loc, mkCanvas) ->
                             if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
                                 let c = mkCanvas()
@@ -610,8 +628,10 @@ type MyWindow() as this =
                 if key = VK_DECIMAL then
                     let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
                     let orig = if orig = null then "" else orig
-                    if orig.EndsWith("#TODO") then
-                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-5))
+                    //let special = "#TODO"
+                    let special = "#UV"
+                    if orig.EndsWith(special) then
+                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length))
                     else
-                        UpdateCurrentNote(orig, orig+"\n#TODO")
+                        UpdateCurrentNote(orig, orig+"\n"+special)
         IntPtr.Zero
