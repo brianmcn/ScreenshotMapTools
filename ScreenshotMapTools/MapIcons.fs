@@ -130,7 +130,7 @@ let drawHoverIcon(c,w,h) =
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,option<(Canvas*_*_->_)> >()
 let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
-    let g = Utils.makeGrid(1, keys.Length+1, KEYS_LIST_BOX_WIDTH, 20)
+    let g = Utils.makeGrid(1, keys.Length+2, KEYS_LIST_BOX_WIDTH, 20)  // +2 for (disable all,regex)
     let mkTxt(s) = new TextBox(IsReadOnly=true, FontSize=12., Text=s, BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.White, IsHitTestVisible=false)
     let AddBorderMouseEnterLeaveBehaviors(b:Border, enterFunc, leaveFunc) =
         b.MouseEnter.Add(fun _ -> b.BorderBrush <- Brushes.Cyan; enterFunc())
