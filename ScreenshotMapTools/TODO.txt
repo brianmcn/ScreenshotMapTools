@@ -1,8 +1,21 @@
-﻿
+﻿asher - 41 mins into day 1
+asmadi - 1:25 into day 2
+miika was too much
+fyda thru E3
+JPPG, IGC, quasi on YT
+
+
+watching other folks with brightness up makes many things wayyyy easier to see
+
+
+
+
 improve perf of moving focused tile
+ - consider WriteableBitmap https://stackoverflow.com/questions/2455004/wpf-how-to-efficiently-update-an-image-30-times-per-second
 
 
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
+ - and then map out bottom right bubble eaters to test the visualization etc
 (all connectivity? like up left down right exits too?)
 
 
@@ -15,7 +28,7 @@ it's awkward that clicking shifts the view and then mouse cursor is now hovering
 are hashtags per zone or global? (should be global?) do testing
 
 
-watching dwarf play VS: would wnt multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposited to AnimalWell-compositing)
+watching dwarf play VS: would want multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposed to AnimalWell-compositing)
  - or maybe in AW I will also want 'auxilary screenshots' as well as compositing?
 
 
@@ -30,6 +43,15 @@ naming zones
 
 
 printing to game folder, all zones, by name, maybe in a date folder
+
+aside: my tool could use c&p to help solve tail puzzle in VS
+
+animal well pencil, i made way to 'draw' in ztracker, again a 'draw' layer could be good
+
+since i can already pull up full size screenshot, having a way to click bounds a clip a section (e.g. idol out of VS screenshot) could be useful... then e.g. set up
+way to make dwarf's translator, where I have a row of screenshot clips, and a row of alphabet, and a way to click one row input and get other row output...
+basically, try to list all the scenarios it would be nice to support, and see if there is a cleanish way to unify them all under my 
+screenshot-grid-with-associated-other-data whole theme i have going on...
 
 
 ------------------------------------------
