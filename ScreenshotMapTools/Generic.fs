@@ -96,11 +96,14 @@ type MyWindow() as this =
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let MAPX,MAPY = VIEWX,420
-    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.White)
+    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
+    let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
+    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
     let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
-        let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true)
+        let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
+        Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
         r.Children.Add(mapCanvas) |> ignore
         r.Children.Add(mapIconCanvas) |> ignore
         r.Children.Add(mapIconHoverCanvas) |> ignore
@@ -179,6 +182,7 @@ type MyWindow() as this =
         )
     let mutable mapIconRedraw = fun _ -> ()
     let mutable mapIconHoverRedraw = fun _ -> ()
+    let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
     // TODO if I like redid this as a full canvas and just changed the viewport bounds, then moving would not require redrawing map icons (only changing zoom level would)
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
@@ -200,13 +204,18 @@ type MyWindow() as this =
             for j = cj-level-kludge to cj+level+kludge do
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     drawnLocations.Add(i,j)
+                    let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
                     if imgArray.[i,j] <> null then
-                        let img = project(imgArray.[i,j])
-                        img.Width <- W
-                        img.Height <- H
-                        img.Stretch <- System.Windows.Media.Stretch.Fill
-                        Utils.canvasAdd(mapCanvas, img, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                        // TODO figure out how to deal with projections using project(), what layer it should move to
+                        let W,H = int(W),int(H)
+                        let bytes = imgArray.GetRaw(i,j,W,H)
+                        let stride = W*4
+                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                     else
+                        do
+                            let W,H = int(W),int(H)
+                            let stride = W*4
+                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, W, H)
                         let tb = zoomTextboxes.[i,j]
                         Utils.deparent(tb)
                         tb.Background <- (if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue)
@@ -215,6 +224,8 @@ type MyWindow() as this =
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
                 else
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+        writeableBitmapImage.Source <- bitmapSource
         mapIconRedraw <- (fun f ->
             for i = ci-level to ci+level do
                 for j = cj-level-kludge to cj+level+kludge do

@@ -181,3 +181,15 @@ let ColorFromHSV(hue, saturation, value) =
     else
         Color.FromArgb(255, v, p, q)
 
+//////////////////////////////////////////////////////////////////////
+
+let CopyBGRARegion(destBytes:byte[], destStride, destX, destY, sourceBytes:byte[], sourceStride, sourceX, sourceY, sourceW, sourceH) =
+    // asssume BGRA 4 bytes per pixel
+    for dh = 0 to sourceH-1 do
+        // copy each row as a strip
+        let sourceIndex = (sourceY+dh) * sourceStride + sourceX*4
+        let destIndex = (destY+dh) * destStride + destX*4
+        for i = 0 to (sourceW*4)-1 do
+            destBytes.[destIndex+i] <- sourceBytes.[sourceIndex+i]
+
+            

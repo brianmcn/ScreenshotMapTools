@@ -9,6 +9,7 @@ let MAX = 100
 // caches are per-zone
 type ImgArrayCache() =
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
+    let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
     let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(), "cache", sprintf "%02d-%02d.png" x y)
     let CacheToDisk(x,y,bmp : System.Drawing.Bitmap) =
         let file = GetCacheFilename(x,y)
@@ -26,12 +27,29 @@ type ImgArrayCache() =
         if writeToDisk then
             CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
+        rawCaches.[x,y].Clear()
     member this.GetCopyOfBmp(x,y) =
         let file = GetCacheFilename(x,y)
         if System.IO.File.Exists(file) then
             new System.Drawing.Bitmap(file)
         else
             null
+    member this.GetRaw(x, y, width, height) =
+        match rawCaches.[x,y].TryGetValue((width,height)) with
+        | false, _ ->
+            let bmp = this.GetCopyOfBmp(x,y)
+            let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(width,height))
+            let data = bmp.LockBits(System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+            // copy bgra32 data into byte array
+            let numBytes = data.Stride * bmp.Height
+            let byteArray : byte[] = Array.zeroCreate numBytes
+            System.Runtime.InteropServices.Marshal.Copy(data.Scan0, byteArray, 0, numBytes)
+            let w,h,stride = bmp.Width, bmp.Height, data.Stride
+            bmp.UnlockBits(data)
+            bmp.Dispose()
+            rawCaches.[x,y].Add((width,height), byteArray)
+            byteArray
+        | _, r -> r
 
 // this is all for the current loaded zone
 let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data

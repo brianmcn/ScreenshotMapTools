@@ -9,9 +9,10 @@ watching other folks with brightness up makes many things wayyyy easier to see
 
 
 
-
 improve perf of moving focused tile
- - consider WriteableBitmap https://stackoverflow.com/questions/2455004/wpf-how-to-efficiently-update-an-image-30-times-per-second
+ - considered WriteableBitmap https://stackoverflow.com/questions/2455004/wpf-how-to-efficiently-update-an-image-30-times-per-second
+ - turns out WBM had its own issues, but the key is to avoid making a giant tree of canvases with hundreds of children and whatnot, and 'painting' my own bitmap data is good
+ - now need to consider similar idea to deal with the icons, which have same issue (how easy it line/ellipse with stroke code? actually, I should just cache some WPF output to a bitmap and reuse it, duh)
 
 
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
@@ -26,6 +27,9 @@ it's awkward that clicking shifts the view and then mouse cursor is now hovering
 
 
 are hashtags per zone or global? (should be global?) do testing
+
+
+probably want a 'location' abstraction, that is like zone,x,y maybe?
 
 
 watching dwarf play VS: would want multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposed to AnimalWell-compositing)
