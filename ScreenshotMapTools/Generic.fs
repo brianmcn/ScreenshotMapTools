@@ -99,14 +99,14 @@ type MyWindow() as this =
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
-    let mapIconCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
-    let mapIconHoverCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
+    let mapMarkersImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
+    let mapMarkersHoverImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
         Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
         r.Children.Add(mapCanvas) |> ignore
-        r.Children.Add(mapIconCanvas) |> ignore
-        r.Children.Add(mapIconHoverCanvas) |> ignore
+        Utils.canvasAdd(r, mapMarkersImage, float(-MAPX), float(-MAPY))
+        Utils.canvasAdd(r, mapMarkersHoverImage, float(-MAPX), float(-MAPY))
         r
     let RT = 4.
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2.)
@@ -180,7 +180,6 @@ type MyWindow() as this =
         new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black,
                     HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         )
-    let mutable mapIconRedraw = fun _ -> ()
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
     // TODO if I like redid this as a full canvas and just changed the viewport bounds, then moving would not require redrawing map icons (only changing zoom level would)
@@ -196,8 +195,8 @@ type MyWindow() as this =
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
         let scale = float(2*(level-1)+1)
         mapCanvas.Children.Clear()
-        mapIconCanvas.Children.Clear()
-        mapIconHoverCanvas.Children.Clear()
+        mapMarkersImage.Source <- null
+        mapMarkersHoverImage.Source <- null
         let W,H = float(VIEWX)/scale,float(VIEWY)/scale
         let drawnLocations = ResizeArray()
         for i = ci-level to ci+level do
@@ -226,28 +225,6 @@ type MyWindow() as this =
                     Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
         let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
         writeableBitmapImage.Source <- bitmapSource
-        mapIconRedraw <- (fun f ->
-            for i = ci-level to ci+level do
-                for j = cj-level-kludge to cj+level+kludge do
-                    if i>=0 && i<MAX && j>=0 && j<MAX then
-                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                        let makeCanvas() =
-                            let c = new Canvas(Width=W, Height=H)
-                            Utils.canvasAdd(mapIconCanvas, c, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                            c
-                        f(loc, makeCanvas)
-            )
-        mapIconHoverRedraw <- (fun f ->
-            for i = ci-level to ci+level do
-                for j = cj-level-kludge to cj+level+kludge do
-                    if i>=0 && i<MAX && j>=0 && j<MAX then
-                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                        let makeCanvas() =
-                            let c = new Canvas(Width=W, Height=H)
-                            Utils.canvasAdd(mapIconHoverCanvas, c, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                            c
-                        f(loc, makeCanvas)
-            )
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
@@ -260,7 +237,7 @@ type MyWindow() as this =
             do
                 // map icons
                 MapIcons.redrawMapIconsEv.Publish.Add(fun _ ->
-                    mapIconCanvas.Children.Clear()    
+                    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
                     if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
                         do
                             // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
@@ -269,32 +246,46 @@ type MyWindow() as this =
                                 for i,j in drawnLocations do
                                     let note = mapTiles.[i,j].Note
                                     if note <> null && re.IsMatch(note) then
-                                        mapIconRedraw(fun (loc, mkCanvas) ->
-                                            if loc.X=i && loc.Y=j then
-                                                let c = mkCanvas()
-                                                MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].Value(c, c.Width, c.Height)
-                                            )
+                                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                        let W,H = int(W),int(H)
+                                        let bytes = MapIcons.mapMarkerCaches.[MapIcons.REGEX_DUMMY].Get(W,H)
+                                        let stride = W*4
+                                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
                         for k in keys do
                             let locs = metadataStore.LocationsForKey(k)
-                            mapIconRedraw(fun (loc, mkCanvas) ->
-                                if locs.Contains(loc) then
-                                    match MapIcons.keyDrawFuncs.[k] with
-                                    | Some f ->
-                                        let c = mkCanvas()
-                                        f(c, c.Width, c.Height)
-                                    | _ -> ()
-                                )
+                            for i = ci-level to ci+level do
+                                for j = cj-level-kludge to cj+level+kludge do
+                                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                                        if locs.Contains(loc) then
+                                            match MapIcons.keyDrawFuncs.[k] with
+                                            | Some _ ->
+                                                let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                                let W,H = int(W),int(H)
+                                                let bytes = MapIcons.mapMarkerCaches.[k].Get(W,H)
+                                                let stride = W*4
+                                                Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                                            | _ -> ()
+                    let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+                    mapMarkersImage.Source <- bitmapSource
                     )
                 MapIcons.redrawMapIconHoverOnly.Publish.Add(fun _ ->
-                    mapIconHoverCanvas.Children.Clear()    
+                    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
                     if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
                         // TODO consider hover for userRegex
-                        mapIconHoverRedraw(fun (loc, mkCanvas) ->
-                            if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
-                                let c = mkCanvas()
-                                MapIcons.drawHoverIcon(c, c.Width, c.Height)
-                            )
+                        for i = ci-level to ci+level do
+                            for j = cj-level-kludge to cj+level+kludge do
+                                if i>=0 && i<MAX && j>=0 && j<MAX then
+                                    let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                                    if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
+                                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                        let W,H = int(W),int(H)
+                                        let bytes = MapIcons.mapMarkerCaches.[MapIcons.HOVER_DUMMY].Get(W,H)
+                                        let stride = W*4
+                                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                    let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+                    mapMarkersHoverImage.Source <- bitmapSource
                     )
             mapCanvasMouseMoveFunc <- (fun (x,y) ->
                 // compute which index we are over

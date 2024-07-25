@@ -39,13 +39,7 @@ type ImgArrayCache() =
         | false, _ ->
             let bmp = this.GetCopyOfBmp(x,y)
             let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(width,height))
-            let data = bmp.LockBits(System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-            // copy bgra32 data into byte array
-            let numBytes = data.Stride * bmp.Height
-            let byteArray : byte[] = Array.zeroCreate numBytes
-            System.Runtime.InteropServices.Marshal.Copy(data.Scan0, byteArray, 0, numBytes)
-            let w,h,stride = bmp.Width, bmp.Height, data.Stride
-            bmp.UnlockBits(data)
+            let byteArray = Utils.ConvertBmpToBGRA(bmp)
             bmp.Dispose()
             rawCaches.[x,y].Add((width,height), byteArray)
             byteArray

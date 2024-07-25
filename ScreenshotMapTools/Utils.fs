@@ -183,6 +183,16 @@ let ColorFromHSV(hue, saturation, value) =
 
 //////////////////////////////////////////////////////////////////////
 
+let ConvertBmpToBGRA(bmp:System.Drawing.Bitmap) =
+    let data = bmp.LockBits(System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    // copy bgra32 data into byte array
+    let numBytes = data.Stride * bmp.Height
+    let byteArray : byte[] = Array.zeroCreate numBytes
+    System.Runtime.InteropServices.Marshal.Copy(data.Scan0, byteArray, 0, numBytes)
+    let w,h,stride = bmp.Width, bmp.Height, data.Stride
+    bmp.UnlockBits(data)
+    byteArray
+
 let CopyBGRARegion(destBytes:byte[], destStride, destX, destY, sourceBytes:byte[], sourceStride, sourceX, sourceY, sourceW, sourceH) =
     // asssume BGRA 4 bytes per pixel
     for dh = 0 to sourceH-1 do

@@ -9,12 +9,6 @@ watching other folks with brightness up makes many things wayyyy easier to see
 
 
 
-improve perf of moving focused tile
- - considered WriteableBitmap https://stackoverflow.com/questions/2455004/wpf-how-to-efficiently-update-an-image-30-times-per-second
- - turns out WBM had its own issues, but the key is to avoid making a giant tree of canvases with hundreds of children and whatnot, and 'painting' my own bitmap data is good
- - now need to consider similar idea to deal with the icons, which have same issue (how easy it line/ellipse with stroke code? actually, I should just cache some WPF output to a bitmap and reuse it, duh)
-
-
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
  - and then map out bottom right bubble eaters to test the visualization etc
 (all connectivity? like up left down right exits too?)

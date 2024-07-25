@@ -113,6 +113,7 @@ do
     allIconsDisabledCheckbox.Unchecked.Add(fun _ -> redrawMapIconsEv.Trigger())
 ///////////////////////////
 // text box search
+let HOVER_DUMMY = "AAAAAhover"    // TODO a bit of a kludgy way to shoehorn it in, just for mapMarkerCaches
 let REGEX_DUMMY = "AAAAA"    // TODO a bit of a kludgy way to shoehorn it in
 let mutable userRegex = ""   // use this instead of key for k=REGEX_DUMMY in mapIconData.[k]
 ///////////////////////////
@@ -122,11 +123,49 @@ let SaveMapIconData() =
     let icons = [| for k in mapIconData.Keys do yield mapIconData.[k] |] |> Array.sortBy (fun i -> i.Hashtag)
     let json = System.Text.Json.JsonSerializer.Serialize<Icon[]>(icons)
     BackingStoreData.WriteAllText(file, json)
+/////////////////////////
+type SingleMapMarkerCache(origDraw) =    // caches a drawn map marker (BGRA pixel array) at a given W,H size
+    let cache = new System.Collections.Generic.Dictionary<int*int,byte[]>()
+    let mutable draw = origDraw
+    member this.Get(w,h) =
+        match cache.TryGetValue((w,h)) with
+        | false, _ ->
+            let c = new Canvas(Width=float w, Height=float h)
+            draw(c,w,h)
+            c.Measure(new Size(float w, float h))
+            c.Arrange(new Rect(new Size(float w, float h)))
+            let rtbmp = new System.Windows.Media.Imaging.RenderTargetBitmap(w, h, 96., 96., PixelFormats.Pbgra32)
+            rtbmp.Render(c)
+            let encoder = new System.Windows.Media.Imaging.PngBitmapEncoder()
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtbmp))
+            let ms = new System.IO.MemoryStream()
+            encoder.Save(ms)
+            let bmp = new System.Drawing.Bitmap(ms)
+            let byteArray = Utils.ConvertBmpToBGRA(bmp)
+            bmp.Dispose()
+            cache.Add((w,h), byteArray)
+            byteArray
+        | true, r -> r
+    member this.Invalidate(newDraw) =
+        cache.Clear()
+        draw <- newDraw
+let mapMarkerCaches = new System.Collections.Generic.Dictionary<string,SingleMapMarkerCache>()
+let updateMMC(k,icon:Icon) =
+    let brush = new SolidColorBrush(icon.GetColor())
+    let shape = IconShape.FromString(icon.Shape).Value
+    let draw(c,w,h) = 
+        shape.AddToCanvas(c, brush, float w, float h)
+    mapMarkerCaches.[k] <- new SingleMapMarkerCache(draw)
+let drawHoverIcon(c,w,h) =
+    let s = new System.Windows.Shapes.Ellipse(Width=float w*0.4, Height=float h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(float w,float h))
+    Utils.canvasAdd(c, s, float w*0.3, float h*0.1)
+do
+    for KeyValue(k,icon) in mapIconData do
+        updateMMC(k,icon)
+    mapMarkerCaches.[HOVER_DUMMY] <- new SingleMapMarkerCache(drawHoverIcon)
+/////////////////////////
 let mutable currentlyHoveredHashtagKey = null
 let CW, CH = 32., 18.
-let drawHoverIcon(c,w,h) =
-    let s = new System.Windows.Shapes.Ellipse(Width=w*0.4, Height=h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(w,h))
-    Utils.canvasAdd(c, s, w*0.3, h*0.1)
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,option<(Canvas*_*_->_)> >()
 let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
@@ -271,6 +310,7 @@ let MakeIconUI(parentWindow) =
                 total.Children.Add(dp) |> ignore
                 Utils.DoModalDialog(parentWindow, total, "Choose appearance", closeEv.Publish)
                 mapIconData.[k] <- cur
+                updateMMC(k,cur)
             else
                 // just toggle enable on left click (and initialize if no default yet)
                 match mapIconData.TryGetValue(k) with
