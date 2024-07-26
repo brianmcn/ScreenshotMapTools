@@ -631,7 +631,8 @@ type MyWindow() as this =
                     let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
                     let orig = if orig = null then "" else orig
                     //let special = "#TODO"
-                    let special = "#UV"
+                    //let special = "#UV"
+                    let special = "#NOW"
                     if orig.EndsWith(special) then
                         UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length))
                     else

@@ -315,7 +315,9 @@ let MakeIconUI(parentWindow) =
                 // just toggle enable on left click (and initialize if no default yet)
                 match mapIconData.TryGetValue(k) with
                 | false, _ ->
-                    mapIconData.[k] <- new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
+                    let icon = new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
+                    mapIconData.[k] <- icon
+                    updateMMC(k,icon)
                 | true, icon ->
                     icon.IsEnabled <- not icon.IsEnabled
             eval()
