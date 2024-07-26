@@ -202,4 +202,18 @@ let CopyBGRARegion(destBytes:byte[], destStride, destX, destY, sourceBytes:byte[
         for i = 0 to (sourceW*4)-1 do
             destBytes.[destIndex+i] <- sourceBytes.[sourceIndex+i]
 
+let CopyBGRARegionOnlyPartsWithAlpha(destBytes:byte[], destStride, destX, destY, sourceBytes:byte[], sourceStride, sourceX, sourceY, sourceW, sourceH) =
+    // asssume BGRA 4 bytes per pixel
+    for dh = 0 to sourceH-1 do
+        // copy each row as a strip
+        let sourceIndex = (sourceY+dh) * sourceStride + sourceX*4
+        let destIndex = (destY+dh) * destStride + destX*4
+        for i = 0 to sourceW-1 do
+            let j = sourceIndex+i*4
+            let b,g,r,a = sourceBytes.[j], sourceBytes.[j+1], sourceBytes.[j+2], sourceBytes.[j+3]
+            if a <> 0uy then
+                destBytes.[destIndex+i*4] <- b
+                destBytes.[destIndex+i*4+1] <- g
+                destBytes.[destIndex+i*4+2] <- r
+                destBytes.[destIndex+i*4+3] <- a
             

@@ -265,7 +265,7 @@ type MyWindow() as this =
                                                 let W,H = int(W),int(H)
                                                 let bytes = MapIcons.mapMarkerCaches.[k].Get(W,H)
                                                 let stride = W*4
-                                                Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                                                Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                                             | _ -> ()
                     let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
                     mapMarkersImage.Source <- bitmapSource
