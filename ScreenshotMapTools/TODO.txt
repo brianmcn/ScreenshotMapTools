@@ -1,29 +1,36 @@
-﻿asher - 41 mins into day 1
-asmadi - 1:25 into day 2
-miika was too much
+﻿asher - 0:21 into day 3
 fyda thru E3
 JPPG, IGC, quasi on YT
 
 
-watching other folks with brightness up makes many things wayyyy easier to see
 
 
+for master key:
+ - need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
+ - need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
+ - need zone names (for like 'dungeon 1')
+
+general:
+ - would be good to redo layout so i can capture/project a useful map, though still not sure what is best
+ - i rarely used zoom, and preferred seeing whole map and marker-abstractions, so maybe always just zoom to see all map + 2 tiles on each end?
+ - (can always print to see full zoomable map in another image/photo tool; printing to game folder, all zones, by name, maybe in a date folder)
+ - my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both
+
+it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup
 
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
  - and then map out bottom right bubble eaters to test the visualization etc
 (all connectivity? like up left down right exits too?)
 
-
-deal with TODOs in code
-
-
-it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup
-
-
 are hashtags per zone or global? (should be global?) do testing
 
 
-probably want a 'location' abstraction, that is like zone,x,y maybe?
+
+
+
+
+deal with TODOs in code
+
 
 
 watching dwarf play VS: would want multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposed to AnimalWell-compositing)
@@ -37,11 +44,6 @@ maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
 dwarf idea about partial screenshot (e.g. alien font, VS mural square) mapping to letters, how to deal with
 
 
-naming zones
-
-
-printing to game folder, all zones, by name, maybe in a date folder
-
 aside: my tool could use c&p to help solve tail puzzle in VS
 
 animal well pencil, i made way to 'draw' in ztracker, again a 'draw' layer could be good
@@ -50,7 +52,7 @@ since i can already pull up full size screenshot, having a way to click bounds a
 way to make dwarf's translator, where I have a row of screenshot clips, and a row of alphabet, and a way to click one row input and get other row output...
 basically, try to list all the scenarios it would be nice to support, and see if there is a cleanish way to unify them all under my 
 screenshot-grid-with-associated-other-data whole theme i have going on...
-
+scenario: even for non-screen-based games (e.g. hero's spirit), taking screenshots of like NPC dialogs and having a 'zone' for each area and just placing screenshots haphazard is useful
 
 ------------------------------------------
 
@@ -81,103 +83,6 @@ so I probably want to
  - have a way to capture metadata from a projection and display it too (e.g. grid of screen names, or screen name in summary area)
 and I'll be playing/capturing 2x or 3x resolution, so want to downscale screenshots/images like Elephantasy to save disk/processing/etc
 
-so
- + hardcode how to get native 1x screenshot bmps
- + hardcode (for now) the various projections I want (full game, play area, screen name)
- + make VIEWX be 630 (multiple of 1/3/5/7/9) and app width be like 630+20+20
- + make VIEWY be dynamic, adjusting to aspect ratio of current projection, so we always fit e.g. a 5x5 map plus some edges at a zoom level, but the height varies with aspect ratio
- + have a way to select what projection to see now (press NUM-* toggles among three)
- + always show curx/cury meta+full screenshot in the bottom metadata area 
-
-
-for YT, do I want a minimap projection thingy?
-I guess separate OBS scene layout I can toggle is simpler, occasionally do it and break flow
-
 
 
 time travel/review
-
-metadata
-
-metadata map-viz
-
-see-whole-map (auto zoom, cursor without centering)
-
-map connectivity? (can you go N-S here)
-
-
-
-
-
-
-(*
-
--------------------
-
-whole map is like 100x100 and starts you at 50,50
-
-data is big JSON array of bools? if anything exist here
-
-each map tile has its own file on disk of own JSON, something like
- - screenshots: [ TS1, TS2, ... TSN ]
- - note: (text note)
- - meta: [ metas ]
-
-where metas are like a list of things of form
-    Meta01: [ {TS1,true}, {TS2,false} ]
-
-And there's some master list of names of the meta categories, e.g.
-
-    Meta01: "Yellow Key"
-    Meta02: "Need double jump"
-
-and then some way to add categories.
-
-And then UI is like, defaults to Num5 takes a screenshot, but you can change modes:
-    Screenshot
-    Text Note
-    Meta01Name
-    Meta02Name
-and like the tiles with any data in that category get a highlight, and pressing Num5 will like
-    take screenshot
-    give place to edit the text note
-    toggle the meta flag
-and 'cut/delete' would like erase the last meta entry, so if you accidentally mark a Yellow Key where it's not you can erase it
-
-------------------
-
-And since everything is timestamped you can kinda 'go back in time' or see map evolve over time
-*)
-
-
-
-// wpf, imagine a big Grid of all the screenshot Images
-// can zoom/scroll it to desired on-screen portion
-// then can draw gridlines and cursor highlight at a certain thickness atop all that in window pixels
-
-(*
-interactions
-move cursor with Num2468 
-or with click
-
-dropdown change zone (save prompt)
-button rename current zone
-add new zone (in dropdown?)
-
-dropdown change type (screenshot/note/metaNN)   // better name for 'type' - mode?
-if meta
-    button rename current meta
-    add new meta (in dropdown?)
-
-Num5?Num0?NumEnter? 'add' a thingy (edits existing note)
-Num- delete/cut a thingy (need some kind of clipboard viz, and i guess a clipboard per 'type')
-    does cutting a screenshot mean taking the whole maptile and all its metadata with it? no
-Num+ paste
-
-Num79 zoom in/out (see 1x1/3x3/5x5/... plus a little edges)
-
-Num/ toggle full v zoom, if full, then fit all non-empty into screen area?
-
-state: cursor location, zoom level, isFull
-
-*)

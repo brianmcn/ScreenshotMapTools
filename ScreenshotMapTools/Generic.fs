@@ -425,8 +425,10 @@ type MyWindow() as this =
                                         //let color = Utils.GetColorFromLockedFormat32BppArgb(mx+x,my+y,data)
                                         //r.SetPixel(mw*(i-minx) + x, mh*(j-miny) + y, color)
                                         //Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData,color)
-                                        Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData,
-                                                                                        mx+x, my+y, data)
+                                        if x=mw-1 || y=mh-1 then
+                                            Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
+                                        else
+                                            Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data)
                                 bmp.UnlockBits(data)
                     r.UnlockBits(rData)
                     r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
