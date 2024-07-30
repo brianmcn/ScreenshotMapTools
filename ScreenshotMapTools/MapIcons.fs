@@ -40,14 +40,14 @@ type IconShape =
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
-            let s = new System.Windows.Shapes.Ellipse(Width=w, Height=h, Stroke=brush, StrokeThickness=IST(w,h))
-            Utils.canvasAdd(c, s, 0., 0.)
+            let s = new System.Windows.Shapes.Ellipse(Width=w*0.8, Height=h*0.8, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.1, h*0.1)
         | IconShape.SmallOval ->
             let s = new System.Windows.Shapes.Ellipse(Width=w*0.6, Height=h*0.6, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, w*0.2, h*0.2)
         | IconShape.LargeBox -> 
-            let s = new System.Windows.Shapes.Rectangle(Width=w*0.9, Height=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
-            Utils.canvasAdd(c, s, w*0.05, h*0.05)
+            let s = new System.Windows.Shapes.Rectangle(Width=w*0.8, Height=h*0.8, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.1, h*0.1)
         | IconShape.SmallBox -> 
             let s = new System.Windows.Shapes.Rectangle(Width=w*0.5, Height=h*0.7, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, w*0.25, h*0.15)
@@ -70,11 +70,21 @@ type Icon() =
     member this.GetColor() = Icon.GetColor(this.HexColorRGB)
     static member GetColor(hexColorRGB) = System.Windows.Media.ColorConverter.ConvertFromString("#FF" + hexColorRGB) :?> System.Windows.Media.Color
 
-let hexColorUniverse = new System.Collections.Generic.HashSet<_>()
+// a (dx,dy) direction to offset icons, so e.g. a red X and a green X won't draw right on top of each other
+let ColorJitters = [| 0,0; 0,-1; -1,0; 1,0; 0,1; -1,-1; 1,-1; -1,1; 1,1 |]
+let NextColorJitter = 
+    let mutable next = 0
+    let f() =
+        let r = next
+        next <- (next + 1) % ColorJitters.Length
+        r
+    f
+
+let hexColorUniverse = new System.Collections.Generic.Dictionary<_,_>()
 do
-    hexColorUniverse.Add("FF0000") |> ignore  // red
-    hexColorUniverse.Add("00FF00") |> ignore  // lime
-    hexColorUniverse.Add("FFFF00") |> ignore  // yellow
+    hexColorUniverse.Add("FF0000", NextColorJitter()) |> ignore  // red
+    hexColorUniverse.Add("00FF00", NextColorJitter()) |> ignore  // lime
+    hexColorUniverse.Add("FFFF00", NextColorJitter()) |> ignore  // yellow
 
 let GetIconFilename() = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
 let LoadMapIconData() =
@@ -95,7 +105,8 @@ let LoadMapIconData() =
                 printfn "is being ignored."
             else
                 r.[i.Hashtag] <- i
-                hexColorUniverse.Add(i.HexColorRGB) |> ignore
+                if not(hexColorUniverse.ContainsKey(i.HexColorRGB)) then
+                    hexColorUniverse.Add(i.HexColorRGB, NextColorJitter()) |> ignore
         r
 
 open System.Windows
@@ -153,8 +164,16 @@ let mapMarkerCaches = new System.Collections.Generic.Dictionary<string,SingleMap
 let updateMMC(k,icon:Icon) =
     let brush = new SolidColorBrush(icon.GetColor())
     let shape = IconShape.FromString(icon.Shape).Value
+    let jitterDx, jitterDy =
+        let idx = 
+            match hexColorUniverse.TryGetValue(icon.HexColorRGB) with
+            | true, r -> r
+            | _ -> 0
+        ColorJitters.[idx]
     let draw(c,w,h) = 
-        shape.AddToCanvas(c, brush, float w, float h)
+        let oc = new Canvas(Width=float w, Height=float h)
+        shape.AddToCanvas(oc, brush, float w, float h)
+        Utils.canvasAdd(c, oc, float w * 0.1 * float jitterDx, float h * 0.1 * float jitterDy)
     mapMarkerCaches.[k] <- new SingleMapMarkerCache(draw)
 let drawHoverIcon(c,w,h) =
     let s = new System.Windows.Shapes.Ellipse(Width=float w*0.4, Height=float h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(float w,float h))
@@ -281,7 +300,7 @@ let MakeIconUI(parentWindow) =
                 let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, 48, 48)
                 let mutable i = 0
                 let all = ResizeArray()
-                for c in hexColorUniverse do
+                for KeyValue(c,_) in hexColorUniverse do
                     let col = Icon.GetColor(c)
                     let swatch = new DockPanel(Width=40., Height=40., Background=new SolidColorBrush(col))
                     let b = new Border(Child=swatch, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)

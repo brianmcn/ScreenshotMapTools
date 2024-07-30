@@ -14,7 +14,7 @@ general:
  - would be good to redo layout so i can capture/project a useful map, though still not sure what is best
  - i rarely used zoom, and preferred seeing whole map and marker-abstractions, so maybe always just zoom to see all map + 2 tiles on each end?
  - (can always print to see full zoomable map in another image/photo tool; printing to game folder, all zones, by name, maybe in a date folder)
- - my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both
+ - DONE my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both
 
 it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup
 
