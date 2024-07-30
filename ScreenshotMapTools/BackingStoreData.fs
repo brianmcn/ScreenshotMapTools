@@ -80,7 +80,19 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
 // each zone has a folder:
 // with files MapTileXnnYmm where nn/mm range 00-99
 let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" theGame.CurZone)
-let GetZoneName(zoneNum) = sprintf "zone%02d" zoneNum  // TODO load names, support renaming
+let rec GetZoneName(zoneNum) = 
+    if zoneNum < theGame.ZoneNames.Length then
+        theGame.ZoneNames.[zoneNum]
+    else
+        let r = [|
+            for i = 0 to zoneNum do
+                if i < theGame.ZoneNames.Length then
+                    yield theGame.ZoneNames.[i]
+                else
+                    yield sprintf "zone%02d" i
+            |]
+        theGame.ZoneNames <- r
+        GetZoneName(zoneNum)
 
 let TakeNewScreenshot() =
     let bmp =

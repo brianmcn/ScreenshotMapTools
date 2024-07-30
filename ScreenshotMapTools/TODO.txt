@@ -8,7 +8,7 @@ JPPG, IGC, quasi on YT
 for master key:
  - need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
  - need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
- - need zone names (for like 'dungeon 1')
+ - DONE need zone names (for like 'dungeon 1')
 
 general:
  - would be good to redo layout so i can capture/project a useful map, though still not sure what is best

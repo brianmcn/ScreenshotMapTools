@@ -118,7 +118,9 @@ type MyWindow() as this =
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
+    let mutable selectionChangeIsDisabled = false
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
+    let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
@@ -357,10 +359,11 @@ type MyWindow() as this =
         zoneComboBox.SelectedIndex <- savedZone
         // zone changes
         zoneComboBox.SelectionChanged.Add(fun _ ->
-            theGame.CurZone <- zoneComboBox.SelectedIndex
-            UpdateGameFile()
-            LoadZoneMapTiles(true)
-            zoom(theGame.CurX, theGame.CurY, curZoom)
+            if not selectionChangeIsDisabled then
+                theGame.CurZone <- zoneComboBox.SelectedIndex
+                UpdateGameFile()
+                LoadZoneMapTiles(true)
+                zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         addNewZoneButton.Click.Add(fun _ ->
             let n = theGame.ZoneNames.Length
@@ -370,6 +373,40 @@ type MyWindow() as this =
             zoneComboBox.SelectedIndex <- n
             LoadZoneMapTiles(true)
             zoom(theGame.CurX, theGame.CurY, curZoom)
+            )
+        renameZoneButton.Click.Add(fun _ ->
+            let orig = GetZoneName(theGame.CurZone)
+            let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
+                                    Foreground=Brushes.Black, Background=Brushes.White,
+                                    Width=float(VIEWX/2), Height=20., TextWrapping=TextWrapping.NoWrap, AcceptsReturn=false, 
+                                    Margin=Thickness(5.))
+            let closeEv = new Event<unit>()
+            let mutable save = false
+            let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
+            let sb = new Button(Content=" Save ", Margin=Thickness(4.))
+            cb.Click.Add(fun _ -> closeEv.Trigger())
+            sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+            let dp = new DockPanel(LastChildFill=true)
+            dp.Children.Add(cb) |> ignore
+            dp.Children.Add(sb) |> ignore
+            dp.Children.Add(new DockPanel()) |> ignore
+            DockPanel.SetDock(cb, Dock.Left)
+            DockPanel.SetDock(sb, Dock.Right)
+            let sp = new StackPanel(Orientation=Orientation.Vertical)
+            sp.Children.Add(tb) |> ignore
+            sp.Children.Add(dp) |> ignore
+            tb.Loaded.Add(fun _ ->
+                tb.Select(tb.Text.Length, 0)   // position the cursor at the end
+                System.Windows.Input.Keyboard.Focus(tb) |> ignore
+                )
+            Utils.DoModalDialog(this, sp, "Edit zone name", closeEv.Publish)
+            if save then
+                theGame.ZoneNames.[theGame.CurZone] <- tb.Text
+                UpdateGameFile()
+                selectionChangeIsDisabled <- true
+                zoneOptions.[theGame.CurZone] <- theGame.ZoneNames.[theGame.CurZone]
+                zoneComboBox.SelectedIndex <- theGame.CurZone 
+                selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
             // TODO
@@ -463,6 +500,7 @@ type MyWindow() as this =
             let sp = new StackPanel(Orientation=Orientation.Horizontal)
             sp.Children.Add(addNewZoneButton) |> ignore
             sp.Children.Add(zoneComboBox) |> ignore
+            sp.Children.Add(renameZoneButton) |> ignore
             sp.Children.Add(printCurrentZoneButton) |> ignore
             let toggleLayoutButton = new Button(Content="Toggle layout", Margin=Thickness(4.))
             toggleLayoutButton.Click.Add(fun _ ->
