@@ -1,18 +1,5 @@
 ﻿module Generic
 
-let AAppend(a:_[],x) =
-    if a=null then
-        [|x|]
-    else
-        Array.init (a.Length+1) (fun i -> if i<a.Length then a.[i] else x)
-let ACut(a:_[]) =
-    if a=null || a.Length=0 then
-        failwith "array cut"
-    elif a.Length=1 then
-        [||]
-    else
-        Array.init (a.Length-1) (fun i -> a.[i])
-
 let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
 let APP_HEIGHT = 980. + 16. + 20.
 let BOTTOM_HEIGHT = 480.
@@ -79,7 +66,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
                         //printfn "cutting %s" ssid
                         clipboardSSID <- ssid
                         updateClipboardView()
-                        mapTiles.[x,y].Screenshots <- mapTiles.[x,y].Screenshots |> Array.filter (fun s -> s <> ssid)
+                        mapTiles.[x,y].CutScreenshot(ssid)
                         // update current tile view
                         RecomputeImage(x,y)
                         //zoom(...) will be called when the window closes
@@ -162,7 +149,7 @@ type MyWindow() as this =
             metaAndScreenshotPanel.Children.Add(largeImage) |> ignore
             largeImage.MouseDown.Add(fun _ ->
                 let cmt = mapTiles.[theGame.CurX, theGame.CurY]
-                if cmt.Screenshots.Length > 1 then
+                if cmt.NumScreenshots() > 1 then
                     DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this)
                     doZoom(theGame.CurX, theGame.CurY, curZoom)
                 )
@@ -230,7 +217,7 @@ type MyWindow() as this =
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = mapTiles.[ci,cj]
-        summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+        summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (cmt.NumScreenshots()) cmt.Note
         mfsRefresh()
         do
             mouseCursor.Width <- W + RT
@@ -303,7 +290,7 @@ type MyWindow() as this =
                 if i>=0 && i<MAX && j>=0 && j<MAX && imgArray.[i,j] <> null then
                     let largeImage = Utils.ImageProjection(imgArray.[i,j],(0,0,GAMENATIVEW,GAMENATIVEH))
                     let cmt = mapTiles.[i,j]
-                    floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (if cmt.Screenshots=null then 0 else cmt.Screenshots.Length) cmt.Note
+                    floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (cmt.NumScreenshots()) cmt.Note
                     let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 30., Height=BOTTOM_HEIGHT - 10., Background=Brushes.Cyan, LastChildFill=true)
                     DockPanel.SetDock(largeImage, Dock.Bottom)
                     dp.Children.Add(largeImage) |> ignore
@@ -585,7 +572,7 @@ type MyWindow() as this =
                             printfn "key %A was pressed" k
                 if key = VK_SUBTRACT && imgArray.[theGame.CurX,theGame.CurY]<>null then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
                     let id = mapTiles.[theGame.CurX,theGame.CurY].Screenshots |> Array.last
-                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- ACut(mapTiles.[theGame.CurX,theGame.CurY].Screenshots)
+                    mapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
@@ -594,7 +581,7 @@ type MyWindow() as this =
                     // update disk
                     SerializeMapTile(theGame.CurX,theGame.CurY)
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
-                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, clipboardSSID)
+                    mapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
                     SerializeMapTile(theGame.CurX,theGame.CurY)
                     RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
@@ -626,7 +613,7 @@ type MyWindow() as this =
                 if key = VK_NUMPAD0 then
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
-                    mapTiles.[theGame.CurX,theGame.CurY].Screenshots <- AAppend(mapTiles.[theGame.CurX,theGame.CurY].Screenshots, id)
+                    mapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
                     SerializeMapTile(theGame.CurX,theGame.CurY)
                     RecomputeImage(theGame.CurX,theGame.CurY)
                     zoom(theGame.CurX,theGame.CurY, curZoom)

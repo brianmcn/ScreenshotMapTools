@@ -110,10 +110,21 @@ let TakeNewScreenshot() =
     let id,img = SaveScreenshot(nativeBmp)
     img, nativeBmp, id
 
+
+let AAppend(a:_[],x) =
+    if a=null then
+        [|x|]
+    else
+        Array.init (a.Length+1) (fun i -> if i<a.Length then a.[i] else x)
+
 [<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50
     member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"
-    member this.IsEmpty = (this.Screenshots = null || this.Screenshots.Length=0) && (this.Note = null || this.Note="")
+    member this.IsEmpty = not(this.ThereAreScreenshots()) && (this.Note = null || this.Note="")
+    member this.ThereAreScreenshots() = this.Screenshots<>null && this.Screenshots.Length>0
+    member this.CutScreenshot(ssid) = this.Screenshots <- this.Screenshots |> Array.filter (fun s -> s <> ssid)
+    member this.AddScreenshot(ssid) = this.Screenshots <- AAppend(this.Screenshots, ssid)
+    member this.NumScreenshots() = if this.Screenshots=null then 0 else this.Screenshots.Length
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 

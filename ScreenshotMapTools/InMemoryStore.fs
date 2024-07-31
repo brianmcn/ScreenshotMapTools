@@ -53,7 +53,7 @@ let imgArray = ImgArrayCache()
 
 let RecomputeBitmap(i,j) =
     let data = mapTiles.[i,j]
-    if data.Screenshots <> null && data.Screenshots.Length > 0 then
+    if data.ThereAreScreenshots() then
         let bmps = ResizeArray()
         for ts in data.Screenshots do
             let bmp = bmpDict.[ts]
@@ -78,7 +78,7 @@ let LoadZoneMapTiles(alsoLoadImages) =
                 let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
                 mapTiles.[i,j] <- data
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
-                if alsoLoadImages && data.Screenshots <> null && data.Screenshots.Length > 0 then
+                if alsoLoadImages && data.ThereAreScreenshots() then
                     for ts in data.Screenshots do
                         if not(bmpDict.ContainsKey(ts)) then
                             let ssFile = ScreenshotFilenameFromTimestampId(ts)
