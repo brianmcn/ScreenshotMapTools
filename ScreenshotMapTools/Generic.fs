@@ -39,8 +39,8 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
     // state
     let mutable whichSSIDisHighlighted = None
     let allBorders = ResizeArray()
-    for id in mapTiles.[x,y].Screenshots do
-        let ssid = id   // local immutable will get captured   // TODO needed?
+    for swk in mapTiles.[x,y].ScreenshotsWithKinds do
+        let ssid = swk.Id
         let bmp = bmpDict.[ssid]
         let img = Utils.BMPtoImage(bmp)
         let largeImage = Utils.ImageProjection(img,(0,0,GAMENATIVEW,GAMENATIVEH))
@@ -571,7 +571,7 @@ type MyWindow() as this =
                         if key = k then
                             printfn "key %A was pressed" k
                 if key = VK_SUBTRACT && imgArray.[theGame.CurX,theGame.CurY]<>null then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
-                    let id = mapTiles.[theGame.CurX,theGame.CurY].Screenshots |> Array.last
+                    let id = (mapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
                     mapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
                     clipboardSSID <- id
                     updateClipboardView()

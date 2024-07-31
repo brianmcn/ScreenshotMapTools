@@ -55,9 +55,10 @@ let RecomputeBitmap(i,j) =
     let data = mapTiles.[i,j]
     if data.ThereAreScreenshots() then
         let bmps = ResizeArray()
-        for ts in data.Screenshots do
-            let bmp = bmpDict.[ts]
-            bmps.Add(bmp)
+        for swk in data.ScreenshotsWithKinds do
+            if swk.IsMainKind() then
+                let bmp = bmpDict.[swk.Id]
+                bmps.Add(bmp)
         MultipleScreenshotForOneScreen.GetRepresentative(bmps)
     else
         null
@@ -76,19 +77,23 @@ let LoadZoneMapTiles(alsoLoadImages) =
             if System.IO.File.Exists(file) then
                 let json = System.IO.File.ReadAllText(file)
                 let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
+                data.Canonicalize()
                 mapTiles.[i,j] <- data
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
                 if alsoLoadImages && data.ThereAreScreenshots() then
-                    for ts in data.Screenshots do
-                        if not(bmpDict.ContainsKey(ts)) then
-                            let ssFile = ScreenshotFilenameFromTimestampId(ts)
-                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                            bmpDict.Add(ts, bmp)
+                    for swk in data.ScreenshotsWithKinds do
+                        if swk.IsMainKind() then
+                            if not(bmpDict.ContainsKey(swk.Id)) then
+                                let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
+                                let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                                bmpDict.Add(swk.Id, bmp)
                     imgArray.TryReadFromDisk(i,j)
                     if imgArray.[i,j] = null then
                         bgWork.Add((i,j))
             else
-                mapTiles.[i,j] <- MapTile()
+                let mt = MapTile()
+                mt.Canonicalize()
+                mapTiles.[i,j] <- mt 
     let cde = new System.Threading.CountdownEvent(bgWork.Count)
     let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
     let ctxt = System.Threading.SynchronizationContext.Current

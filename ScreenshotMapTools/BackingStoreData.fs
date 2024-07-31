@@ -110,6 +110,7 @@ let TakeNewScreenshot() =
     let id,img = SaveScreenshot(nativeBmp)
     img, nativeBmp, id
 
+//////////////////////////////////////////////////////////////////////////
 
 let AAppend(a:_[],x) =
     if a=null then
@@ -117,14 +118,59 @@ let AAppend(a:_[],x) =
     else
         Array.init (a.Length+1) (fun i -> if i<a.Length then a.[i] else x)
 
+let screenshotKindUniverse = ResizeArray()
+let MAIN_KIND = "main"
+do
+    screenshotKindUniverse.Add(MAIN_KIND)     // the default kind
+
+[<AllowNullLiteral>]
+type ScreenshotWithKinds() =
+    member val Id : string = null with get,set         // e.g. "2024-05-12-09-45-43"
+    member val Kinds : string[] = null with get,set    // e.g. [| "main"; "shop" |]
+    member this.IsMainKind() =  this.Kinds |> Array.contains MAIN_KIND
+
 [<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50
-    member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]
+    member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]  // used for backward compat, before kinds; all assumed "main"
+    member val ScreenshotsWithKinds : ScreenshotWithKinds[] = null with get,set         // new version of data
+    member this.Canonicalize() =
+        if this.Screenshots = null && this.ScreenshotsWithKinds <> null then
+            ()  // nothing to do, is already canonical
+        else
+            // preserve new data
+            let swks = ResizeArray()
+            if this.ScreenshotsWithKinds <> null then
+                for swk in this.ScreenshotsWithKinds do
+                    swks.Add(swk)
+            // translate old disk data format into new disk and runtime format
+            if this.Screenshots <> null then
+                for ssid in this.Screenshots do
+                    let swk = new ScreenshotWithKinds()
+                    swk.Id <- ssid
+                    swk.Kinds <- [| MAIN_KIND |]
+                    swks.Add(swk)
+            // new format uses only ScreenshotsWithKinds
+            this.Screenshots <- null
+            this.ScreenshotsWithKinds <- swks |> Seq.toArray
+    member this.Assert() =
+        if this.Screenshots <> null || this.ScreenshotsWithKinds = null then
+            failwith "noncanonical MapTile"
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"
     member this.IsEmpty = not(this.ThereAreScreenshots()) && (this.Note = null || this.Note="")
-    member this.ThereAreScreenshots() = this.Screenshots<>null && this.Screenshots.Length>0
-    member this.CutScreenshot(ssid) = this.Screenshots <- this.Screenshots |> Array.filter (fun s -> s <> ssid)
-    member this.AddScreenshot(ssid) = this.Screenshots <- AAppend(this.Screenshots, ssid)
-    member this.NumScreenshots() = if this.Screenshots=null then 0 else this.Screenshots.Length
+    member this.ThereAreScreenshots() = 
+        this.Assert()
+        this.ScreenshotsWithKinds.Length > 0
+    member this.CutScreenshot(ssid) = 
+        this.Assert()
+        this.ScreenshotsWithKinds <- this.ScreenshotsWithKinds |> Array.filter (fun s -> s.Id <> ssid)
+    member this.AddScreenshot(ssid) =
+        this.Assert()
+        let swk = new ScreenshotWithKinds()
+        swk.Id <- ssid
+        swk.Kinds <- [| MAIN_KIND |]
+        this.ScreenshotsWithKinds <- AAppend(this.ScreenshotsWithKinds, swk)
+    member this.NumScreenshots() = 
+        this.Assert()
+        this.ScreenshotsWithKinds.Length
 let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 
