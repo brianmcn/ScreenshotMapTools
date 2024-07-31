@@ -45,7 +45,25 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
         let img = Utils.BMPtoImage(bmp)
         let largeImage = Utils.ImageProjection(img,(0,0,GAMENATIVEW,GAMENATIVEH))
         let border = new Border(BorderThickness=Thickness(TH), Child=largeImage)
-        sp.Children.Add(border) |> ignore
+        let kindPanel = new StackPanel(Orientation=Orientation.Vertical, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0.,0.,4.,0.))
+        for k in BackingStoreData.screenshotKindUniverse do
+            let cb = new CheckBox(Content=k, IsChecked=(swk.Kinds |> Array.contains k))
+            kindPanel.Children.Add(cb) |> ignore
+            cb.Checked.Add(fun _ -> 
+                swk.Kinds <- BackingStoreData.AAppend(swk.Kinds, k)
+                RecomputeImage(x,y)
+                SerializeMapTile(x,y)
+                )
+            cb.Unchecked.Add(fun _ -> 
+                swk.Kinds <- swk.Kinds |> Array.filter (fun x -> x<> k)
+                RecomputeImage(x,y)
+                SerializeMapTile(x,y)
+                )
+        let dp = new DockPanel(LastChildFill=true)
+        DockPanel.SetDock(kindPanel, Dock.Right)
+        dp.Children.Add(kindPanel) |> ignore
+        dp.Children.Add(border) |> ignore
+        sp.Children.Add(dp) |> ignore
         allBorders.Add(border)
         border.MouseDown.Add(fun _ ->
             //printfn "highlighting %s" ssid
@@ -149,7 +167,7 @@ type MyWindow() as this =
             metaAndScreenshotPanel.Children.Add(largeImage) |> ignore
             largeImage.MouseDown.Add(fun _ ->
                 let cmt = mapTiles.[theGame.CurX, theGame.CurY]
-                if cmt.NumScreenshots() > 1 then
+                if cmt.NumScreenshots() > 0 then
                     DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this)
                     doZoom(theGame.CurX, theGame.CurY, curZoom)
                 )

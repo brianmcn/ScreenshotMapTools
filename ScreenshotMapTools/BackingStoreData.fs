@@ -142,6 +142,9 @@ type MapTile() =   // e.g. 50,50
             if this.ScreenshotsWithKinds <> null then
                 for swk in this.ScreenshotsWithKinds do
                     swks.Add(swk)
+                    for k in swk.Kinds do
+                        if not(screenshotKindUniverse.Contains(k)) then
+                            screenshotKindUniverse.Add(k)
             // translate old disk data format into new disk and runtime format
             if this.Screenshots <> null then
                 for ssid in this.Screenshots do

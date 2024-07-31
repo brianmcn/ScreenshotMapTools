@@ -48,7 +48,7 @@ type ImgArrayCache() =
 // this is all for the current loaded zone
 let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
 let metadataStore = GenericMetadata.MetadataStore()
-let bmpDict = new System.Collections.Generic.Dictionary<SSID,System.Drawing.Bitmap>()
+let bmpDict = new System.Collections.Generic.Dictionary<SSID,System.Drawing.Bitmap>()    // contains all screenshots, regardless of Kind
 let imgArray = ImgArrayCache()
 
 let RecomputeBitmap(i,j) =
@@ -82,11 +82,10 @@ let LoadZoneMapTiles(alsoLoadImages) =
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
                 if alsoLoadImages && data.ThereAreScreenshots() then
                     for swk in data.ScreenshotsWithKinds do
-                        if swk.IsMainKind() then
-                            if not(bmpDict.ContainsKey(swk.Id)) then
-                                let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
-                                let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                                bmpDict.Add(swk.Id, bmp)
+                        if not(bmpDict.ContainsKey(swk.Id)) then
+                            let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
+                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                            bmpDict.Add(swk.Id, bmp)
                     imgArray.TryReadFromDisk(i,j)
                     if imgArray.[i,j] = null then
                         bgWork.Add((i,j))
