@@ -98,7 +98,7 @@ let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
         for KeyValue(hwnd,(title,rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-            if title = WINDOW_TITLE then
+            if title.StartsWith(WINDOW_TITLE) then
                 r <- Some hwnd
         match r with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, GAMESCREENW, GAMESCREENH)

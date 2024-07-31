@@ -159,11 +159,11 @@ type MyWindow() as this =
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
         metaAndScreenshotPanel.Children.Clear()
-        if imgArray.[theGame.CurX,theGame.CurY] <> null then
-            let top = Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],MetaArea)
+        if fullImgArray.[theGame.CurX,theGame.CurY] <> null then
+            let top = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
             metaAndScreenshotPanel.Children.Add(top) |> ignore
             DockPanel.SetDock(top, Dock.Top)
-            let largeImage = Utils.ImageProjection(imgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
+            let largeImage = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
             metaAndScreenshotPanel.Children.Add(largeImage) |> ignore
             largeImage.MouseDown.Add(fun _ ->
                 let cmt = mapTiles.[theGame.CurX, theGame.CurY]
@@ -177,26 +177,19 @@ type MyWindow() as this =
             metaAndScreenshotPanel.Children.Add(new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)) |> ignore
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
-    let project(img) =
-        match curProjection with
-        | 0 -> img
-        | 1 -> Utils.ImageProjection(img,MapArea)
-        | 2 -> Utils.ImageProjection(img,MetaArea)
-        | _ -> failwith "bad curProjection"
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
         new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black,
                     HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         )
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
-    // TODO if I like redid this as a full canvas and just changed the viewport bounds, then moving would not require redrawing map icons (only changing zoom level would)
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
-        let aspect,kludge = 
+        let aspect,kludge,ia,pw,ph = 
             match curProjection with
-            | 0 -> GAMEASPECT, 0
-            | 1 -> let _,_,w,h = MapArea in float w / float h, 0
-            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9
+            | 0 -> GAMEASPECT, 0, fullImgArray, GAMENATIVEW, GAMENATIVEH
+            | 1 -> let _,_,w,h = MapArea in float w / float h, 0, mapImgArray, w, h
+            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, metaImgArray, w, h
             | _ -> failwith "bad curProjection"
         let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
@@ -211,10 +204,9 @@ type MyWindow() as this =
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     drawnLocations.Add(i,j)
                     let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                    if imgArray.[i,j] <> null then
-                        // TODO figure out how to deal with projections using project(), what layer it should move to
-                        let W,H = int(W),int(H)
-                        let bytes = imgArray.GetRaw(i,j,W,H)
+                    if fullImgArray.[i,j] <> null then
+                        let W,H = int(W),(max 1 (int H))
+                        let bytes = ia.GetRaw(i,j,W,H)
                         let stride = W*4
                         Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                     else
@@ -305,8 +297,8 @@ type MyWindow() as this =
                 mouseCursor.Stroke <- Brushes.Cyan
                 // draw quick hover data
                 bottomFloat.Children.Clear()
-                if i>=0 && i<MAX && j>=0 && j<MAX && imgArray.[i,j] <> null then
-                    let largeImage = Utils.ImageProjection(imgArray.[i,j],(0,0,GAMENATIVEW,GAMENATIVEH))
+                if i>=0 && i<MAX && j>=0 && j<MAX && fullImgArray.[i,j] <> null then
+                    let largeImage = Utils.ImageProjection(ia.[i,j],(0,0,pw,ph))
                     let cmt = mapTiles.[i,j]
                     floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (cmt.NumScreenshots()) cmt.Note
                     let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 30., Height=BOTTOM_HEIGHT - 10., Background=Brushes.Cyan, LastChildFill=true)
@@ -326,7 +318,7 @@ type MyWindow() as this =
                     UpdateGameFile()
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                     if me.RightButton = Input.MouseButtonState.Pressed then
-                        Utils.DoModalDialog(this, imgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
+                        Utils.DoModalDialog(this, fullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                 )
         MapIcons.redrawMapIconsEv.Trigger()
         MapIcons.redrawMapIconHoverOnly.Trigger()
@@ -440,7 +432,7 @@ type MyWindow() as this =
             let mutable minx,miny,maxx,maxy = 100,100,0,0
             for i = 0 to MAX-1 do
                 for j = 0 to MAX-1 do
-                    let bmp = imgArray.GetCopyOfBmp(i,j)
+                    let bmp = fullImgArray.GetCopyOfBmp(i,j)
                     if bmp <> null then
                         bmps.[i,j] <- bmp
                         minx <- min minx i
@@ -588,7 +580,7 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed" k
-                if key = VK_SUBTRACT && imgArray.[theGame.CurX,theGame.CurY]<>null then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
+                if key = VK_SUBTRACT && mapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
                     let id = (mapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
                     mapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
                     clipboardSSID <- id

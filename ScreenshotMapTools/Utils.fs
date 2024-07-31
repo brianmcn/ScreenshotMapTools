@@ -183,6 +183,13 @@ let ColorFromHSV(hue, saturation, value) =
 
 //////////////////////////////////////////////////////////////////////
 
+let cropToRect(bmp:System.Drawing.Bitmap, r:System.Drawing.Rectangle) =
+    if bmp=null then null else
+    let nb = new Bitmap(r.Width, r.Height)
+    use g = Graphics.FromImage(nb)
+    g.DrawImage(bmp, -r.X, -r.Y)
+    nb
+
 let ConvertBmpToBGRA(bmp:System.Drawing.Bitmap) =
     let data = bmp.LockBits(System.Drawing.Rectangle(0, 0, bmp.Width, bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
     // copy bgra32 data into byte array

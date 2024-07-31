@@ -17,6 +17,8 @@ let MetaArea = 230,  0, 120,  14
 
 #else
 
+#if BAR
+
 let GAME = "Animal Well"          // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "ANIMAL WELL"  // of the process to find
 let NATIVE_FACTOR = 1         // e.g. I am running it at 1x native pixel size
@@ -24,7 +26,25 @@ let GAMESCREENW, GAMESCREENH = 1280, 720
 let MapArea  = 0, 0, 1280, 720         // x,y,w,h
 let MetaArea = 0, 0, 100, 1
 
+#else
+
+let GAME = "Zelda"          // name of save folder for this program's assets (screenshots etc)
+let WINDOW_TITLE = "FCEUX 2.6.4"  // of the process to find
+let NATIVE_FACTOR = 1         // e.g. I am running it at 1x native pixel size
+let GAMESCREENW, GAMESCREENH = 768, 672
+let MapArea  = 0, 168, 768, 504         // x,y,w,h
+let MetaArea = 0, 0, 100, 1
+
 #endif
+
+#endif
+
+let MapAreaRectangle =
+    let x,y,w,h = MapArea
+    new System.Drawing.Rectangle(x,y,w,h)
+let MetaAreaRectangle =
+    let x,y,w,h = MetaArea
+    new System.Drawing.Rectangle(x,y,w,h)
 
 //////////////////////////////////////////////////////////////////////////
 // common computations
