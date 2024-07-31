@@ -20,6 +20,7 @@
     <Compile Include="MultipleScreenshotForOneScreen.fs" />
     <Compile Include="InMemoryStore.fs" />
     <Compile Include="MapIcons.fs" />
+    <Compile Include="FeatureWindow.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Program.fs" />

@@ -65,12 +65,19 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
         dp.Children.Add(border) |> ignore
         sp.Children.Add(dp) |> ignore
         allBorders.Add(border)
-        border.MouseDown.Add(fun _ ->
-            //printfn "highlighting %s" ssid
-            whichSSIDisHighlighted <- Some(ssid)
-            for b in allBorders do
-                b.BorderBrush <- Brushes.Transparent
-            border.BorderBrush <- Brushes.Orange
+        border.MouseDown.Add(fun ea ->
+            if ea.RightButton = System.Windows.Input.MouseButtonState.Pressed then
+                let img = Utils.BMPtoImage(bmp)
+                img.Width <- 1280.
+                img.Height <- 720.
+                img.Stretch <- Stretch.Uniform
+                FeatureWindow.EnsureFeature(parent.Owner, img)
+            else
+                //printfn "highlighting %s" ssid
+                whichSSIDisHighlighted <- Some(ssid)
+                for b in allBorders do
+                    b.BorderBrush <- Brushes.Transparent
+                border.BorderBrush <- Brushes.Orange
             )
     broadcastHotKeyEv.Publish.Add(fun (msg, wParam, lParam) ->              // TODO this leaks, but hopefully isn't used frequently
         let WM_HOTKEY = 0x0312
@@ -509,6 +516,11 @@ type MyWindow() as this =
                     this.Left <- this.Left + float APP_WIDTH
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
+            let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
+            featureButton.Click.Add(fun _ ->
+                FeatureWindow.EnsureFeature(this.Owner, new DockPanel(Background=Brushes.Blue))
+                )
+            sp.Children.Add(featureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore

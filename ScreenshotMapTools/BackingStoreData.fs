@@ -135,7 +135,10 @@ type MapTile() =   // e.g. 50,50
     member val ScreenshotsWithKinds : ScreenshotWithKinds[] = null with get,set         // new version of data
     member this.Canonicalize() =
         if this.Screenshots = null && this.ScreenshotsWithKinds <> null then
-            ()  // nothing to do, is already canonical
+            for swk in this.ScreenshotsWithKinds do
+                for k in swk.Kinds do
+                    if not(screenshotKindUniverse.Contains(k)) then
+                        screenshotKindUniverse.Add(k)
         else
             // preserve new data
             let swks = ResizeArray()
