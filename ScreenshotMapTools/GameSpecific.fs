@@ -28,12 +28,25 @@ let MetaArea = 0, 0, 100, 1
 
 #else
 
+#if BAZ
+
 let GAME = "Zelda"          // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "FCEUX 2.6.4"  // of the process to find
 let NATIVE_FACTOR = 1         // e.g. I am running it at 1x native pixel size
 let GAMESCREENW, GAMESCREENH = 768, 672
 let MapArea  = 0, 168, 768, 504         // x,y,w,h
 let MetaArea = 0, 0, 100, 1
+
+#else
+
+let GAME = "Master Key"          // name of save folder for this program's assets (screenshots etc)
+let WINDOW_TITLE = "Master Key"  // of the process to find
+let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
+let GAMESCREENW, GAMESCREENH = 1136, 640
+let MapArea  = 176, 0, 960, 640         // x,y,w,h
+let MetaArea = 0, 0, 100, 1
+
+#endif 
 
 #endif
 

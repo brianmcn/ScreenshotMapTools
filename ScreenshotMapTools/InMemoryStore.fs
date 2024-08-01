@@ -14,13 +14,13 @@ let META = 2
 type ImgArrayCache(proj) =
     let prefix = 
         match proj with
-        | x when x=FULL -> "full"
-        | x when x=MAP  -> "map"
-        | x when x=META -> "meta"
+        | x when x=FULL -> "full-cache"
+        | x when x=MAP  -> "map-cache"
+        | x when x=META -> "meta-cache"
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
-    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(), prefix, "-cache", sprintf "%02d-%02d.png" x y)
+    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(), prefix, sprintf "%02d-%02d.png" x y)
     let CacheToDisk(x,y,bmp : System.Drawing.Bitmap) =
         let file = GetCacheFilename(x,y)
         System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
