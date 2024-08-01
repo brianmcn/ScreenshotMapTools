@@ -4,12 +4,12 @@
 
 
 for master key:
- - need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
+ - DONE need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
  - need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
  - DONE need zone names (for like 'dungeon 1')
 
 general:
- - would be good to redo layout so i can capture/project a useful map, though still not sure what is best
+ - DONE would be good to redo layout so i can capture/project a useful map, though still not sure what is best
  - i rarely used zoom, and preferred seeing whole map and marker-abstractions, so maybe always just zoom to see all map + 2 tiles on each end?
  - (can always print to see full zoomable map in another image/photo tool; printing to game folder, all zones, by name, maybe in a date folder)
  - DONE my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both

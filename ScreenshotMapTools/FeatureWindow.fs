@@ -43,9 +43,9 @@ let MakeFeatureMap(owner) =
             // nonMains
             let matches = mt.ScreenshotsWithKinds |> Array.filter (fun swk -> swk.Kinds |> Array.contains("main") |> not)
             if matches.Length > 0 then
-                let bmp = matches |> Array.map (fun swk -> InMemoryStore.bmpDict.[swk.Id]) |> ResizeArray |> MultipleScreenshotForOneScreen.GetRepresentative
-                let bmp = Utils.cropToRect(bmp, GameSpecific.MapAreaRectangle)
-                nonMainBmps.[i,j] <- bmp
+                let bmps = matches |> Array.map (fun swk -> InMemoryStore.bmpDict.[swk.Id])
+                let bmps = bmps |> Array.map (fun bmp -> Utils.cropToRect(bmp, GameSpecific.MapAreaRectangle))
+                nonMainBmps.[i,j] <- bmps
             // map
             if mapImgArray.[i,j] <> null then
                 mapBmps.[i,j] <- mapImgArray.GetCopyOfBmp(i,j)
@@ -153,7 +153,8 @@ let MakeFeatureMap(owner) =
             if mapBmps.[i,j] <> null then
                 bottom.Children.Add(mapBmps.[i,j] |> fit) |> ignore
             if nonMainBmps.[i,j] <> null then
-                bottom.Children.Add(nonMainBmps.[i,j] |> fit) |> ignore
+                for bmp in nonMainBmps.[i,j] do
+                    bottom.Children.Add(bmp |> fit) |> ignore
             )
         img.MouseLeave.Add(fun _ ->
             highlightRect.Opacity <- 0.0
