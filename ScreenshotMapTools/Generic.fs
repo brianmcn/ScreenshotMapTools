@@ -244,6 +244,12 @@ type MyWindow() as this =
                 // map icons
                 MapIcons.redrawMapIconsEv.Publish.Add(fun _ ->
                     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
+                    let draw(i,j,key) =
+                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                        let W,H = int(W),int(H)
+                        let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
+                        let stride = W*4
+                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                     if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
                         do
                             // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
@@ -252,27 +258,16 @@ type MyWindow() as this =
                                 for i,j in drawnLocations do
                                     let note = mapTiles.[i,j].Note
                                     if note <> null && re.IsMatch(note) then
-                                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                        let W,H = int(W),int(H)
-                                        let bytes = MapIcons.mapMarkerCaches.[MapIcons.REGEX_DUMMY].Get(W,H)
-                                        let stride = W*4
-                                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                                        draw(i,j,MapIcons.REGEX_DUMMY)
                         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
                         for k in keys do
                             let locs = metadataStore.LocationsForKey(k)
-                            for i = ci-level to ci+level do
-                                for j = cj-level-kludge to cj+level+kludge do
-                                    if i>=0 && i<MAX && j>=0 && j<MAX then
-                                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                        if locs.Contains(loc) then
-                                            match MapIcons.keyDrawFuncs.[k] with
-                                            | Some _ ->
-                                                let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                                let W,H = int(W),int(H)
-                                                let bytes = MapIcons.mapMarkerCaches.[k].Get(W,H)
-                                                let stride = W*4
-                                                Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                                            | _ -> ()
+                            for i,j in drawnLocations do
+                                let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                                if locs.Contains(loc) then
+                                    match MapIcons.keyDrawFuncs.[k] with
+                                    | Some _ -> draw(i,j,k)
+                                    | _ -> ()
                     let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
                     mapMarkersImage.Source <- bitmapSource
                     )
@@ -517,9 +512,7 @@ type MyWindow() as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
-            featureButton.Click.Add(fun _ ->
-                FeatureWindow.EnsureFeature(this.Owner, new DockPanel(Background=Brushes.Blue))
-                )
+            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner))
             sp.Children.Add(featureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
