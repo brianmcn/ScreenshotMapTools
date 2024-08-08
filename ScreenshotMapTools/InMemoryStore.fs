@@ -55,16 +55,30 @@ type ImgArrayCache(proj) =
             byteArray
         | _, r -> r
 
-// this is all for the current loaded zone
-let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
+// these are global to all zones
 let metadataStore = GenericMetadata.MetadataStore()
 let bmpDict = new System.Collections.Generic.Dictionary<SSID,System.Drawing.Bitmap>()    // contains all screenshots, regardless of Kind
-let fullImgArray = ImgArrayCache(0)
-let mapImgArray = ImgArrayCache(1)
-let metaImgArray = ImgArrayCache(2)
+// per-zone stuff 
+type ZoneMemory(zone:int) =
+    static let dict = new System.Collections.Generic.Dictionary<int,ZoneMemory>()
+    let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
+    let fullImgArray = ImgArrayCache(0)
+    let mapImgArray = ImgArrayCache(1)
+    let metaImgArray = ImgArrayCache(2)
+    member this.MapTiles = mapTiles
+    member this.FullImgArray = fullImgArray
+    member this.MapImgArray = mapImgArray
+    member this.MetaImgArray = metaImgArray
+    static member Get(z) =
+        if dict.ContainsKey(z) then
+            dict.[z]
+        else
+            let zm = new ZoneMemory(z)
+            dict.[z] <- zm
+            zm
 
-let RecomputeBitmap(i,j) =
-    let data = mapTiles.[i,j]
+let RecomputeBitmap(i,j,zm:ZoneMemory) =
+    let data = zm.MapTiles.[i,j]
     if data.ThereAreScreenshots() then
         let bmps = ResizeArray()
         for swk in data.ScreenshotsWithKinds do
@@ -75,52 +89,52 @@ let RecomputeBitmap(i,j) =
     else
         null
 
-let RecomputeImageCore(i,j,bmp) =
-    fullImgArray.Set(i,j,bmp,true)
-    mapImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MapAreaRectangle),true)
-    metaImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MetaAreaRectangle),true)
-let RecomputeImage(i,j) =
-    let bmp = RecomputeBitmap(i,j)
-    RecomputeImageCore(i,j,bmp)
+let RecomputeImageCore(i,j,bmp,zm:ZoneMemory) =
+    zm.FullImgArray.Set(i,j,bmp,true)
+    zm.MapImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MapAreaRectangle),true)
+    zm.MetaImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MetaAreaRectangle),true)
+let RecomputeImage(i,j,zm:ZoneMemory) =
+    let bmp = RecomputeBitmap(i,j,zm)
+    RecomputeImageCore(i,j,bmp,zm)
 
-let LoadZoneMapTiles(alsoLoadImages) =
+let LoadZoneMapTiles(zm:ZoneMemory) =
     // load map tile data and screenshots from disk
     let bgWork = ResizeArray()
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
-            fullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
-            mapImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
-            metaImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
+            zm.FullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
+            zm.MapImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
+            zm.MetaImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
             let file = MapTileFilename(i,j)
             if System.IO.File.Exists(file) then
                 let json = System.IO.File.ReadAllText(file)
                 let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
                 data.Canonicalize()
-                mapTiles.[i,j] <- data
+                zm.MapTiles.[i,j] <- data
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
-                if alsoLoadImages && data.ThereAreScreenshots() then
+                if data.ThereAreScreenshots() then
                     for swk in data.ScreenshotsWithKinds do
                         if not(bmpDict.ContainsKey(swk.Id)) then
                             let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
                             let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
                             bmpDict.Add(swk.Id, bmp)
-                    fullImgArray.TryReadFromDisk(i,j)
-                    mapImgArray.TryReadFromDisk(i,j)
-                    metaImgArray.TryReadFromDisk(i,j)
-                    if fullImgArray.[i,j] = null then   // assume 3 disks stay in sync
+                    zm.FullImgArray.TryReadFromDisk(i,j)
+                    zm.MapImgArray.TryReadFromDisk(i,j)
+                    zm.MetaImgArray.TryReadFromDisk(i,j)
+                    if zm.FullImgArray.[i,j] = null then   // assume 3 disks stay in sync
                         bgWork.Add((i,j))
             else
                 let mt = MapTile()
                 mt.Canonicalize()
-                mapTiles.[i,j] <- mt 
+                zm.MapTiles.[i,j] <- mt 
     let cde = new System.Threading.CountdownEvent(bgWork.Count)
     let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
     let ctxt = System.Threading.SynchronizationContext.Current
     for (i,j) in bgWork do
         async {
-            let bmp = RecomputeBitmap(i,j)
+            let bmp = RecomputeBitmap(i,j,zm)
             if bmp <> null then
-                fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp))
+                fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp,zm))
             cde.Signal() |> ignore
         } |> Async.Start
     cde.Wait()

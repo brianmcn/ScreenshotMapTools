@@ -11,7 +11,6 @@ let VIEWX = APP_WIDTH
 open System
 open System.Windows
 open System.Windows.Controls
-open System.Windows.Shapes
 open System.Windows.Media
 open Elephantasy.Winterop
 open GameSpecific
@@ -21,13 +20,13 @@ open InMemoryStore
 let mutable clipboardSSID = ""
 let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugly tangle
 
-let SerializeMapTile(x,y) = 
-    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(mapTiles.[x,y])
+let SerializeMapTile(x,y,zm:ZoneMemory) = 
+    let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(zm.MapTiles.[x,y])
     WriteAllText(MapTileFilename(x,y), json)
 
 let broadcastHotKeyEv = new Event<int*IntPtr*IntPtr>()
 
-let DoScreenshotDisplayWindow(x,y,parent:Window) = 
+let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) = 
     let closeEv = new Event<unit>()
     // layout
     let sp = new StackPanel(Orientation=Orientation.Vertical)
@@ -39,7 +38,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
     // state
     let mutable whichSSIDisHighlighted = None
     let allBorders = ResizeArray()
-    for swk in mapTiles.[x,y].ScreenshotsWithKinds do
+    for swk in zm.MapTiles.[x,y].ScreenshotsWithKinds do
         let ssid = swk.Id
         let bmp = bmpDict.[ssid]
         let img = Utils.BMPtoImage(bmp)
@@ -51,13 +50,13 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
             kindPanel.Children.Add(cb) |> ignore
             cb.Checked.Add(fun _ -> 
                 swk.Kinds <- BackingStoreData.AAppend(swk.Kinds, k)
-                RecomputeImage(x,y)
-                SerializeMapTile(x,y)
+                RecomputeImage(x,y,zm)
+                SerializeMapTile(x,y,zm)
                 )
             cb.Unchecked.Add(fun _ -> 
                 swk.Kinds <- swk.Kinds |> Array.filter (fun x -> x<> k)
-                RecomputeImage(x,y)
-                SerializeMapTile(x,y)
+                RecomputeImage(x,y,zm)
+                SerializeMapTile(x,y,zm)
                 )
         let dp = new DockPanel(LastChildFill=true)
         DockPanel.SetDock(kindPanel, Dock.Right)
@@ -91,12 +90,12 @@ let DoScreenshotDisplayWindow(x,y,parent:Window) =
                         //printfn "cutting %s" ssid
                         clipboardSSID <- ssid
                         updateClipboardView()
-                        mapTiles.[x,y].CutScreenshot(ssid)
+                        zm.MapTiles.[x,y].CutScreenshot(ssid)
                         // update current tile view
-                        RecomputeImage(x,y)
+                        RecomputeImage(x,y,zm)
                         //zoom(...) will be called when the window closes
                         // update disk
-                        SerializeMapTile(x,y)
+                        SerializeMapTile(x,y,zm)
                         //printfn "closing..."
                         closeEv.Trigger()
                         //printfn "closed"
@@ -165,13 +164,14 @@ type MyWindow() as this =
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
         metaAndScreenshotPanel.Children.Clear()
         let child : UIElement = 
-            if fullImgArray.[theGame.CurX,theGame.CurY] <> null then
-                let top = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
+            if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
+                let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
                 metaAndScreenshotPanel.Children.Add(top) |> ignore
                 DockPanel.SetDock(top, Dock.Top)
-                let largeImage = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
+                let largeImage = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
                 upcast largeImage
             else
                 let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
@@ -179,9 +179,9 @@ type MyWindow() as this =
                 upcast new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)
         metaAndScreenshotPanel.Children.Add(child) |> ignore
         child.MouseDown.Add(fun _ ->
-            let cmt = mapTiles.[theGame.CurX, theGame.CurY]
+            let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
             if cmt.NumScreenshots() > 0 then
-                DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this)
+                DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm)
                 doZoom(theGame.CurX, theGame.CurY, curZoom)
             )
     // zoom/refresh
@@ -194,11 +194,12 @@ type MyWindow() as this =
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
         //printfn "called zoom(%d,%d,%d)" ci cj level
+        let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,pw,ph = 
             match curProjection with
-            | 0 -> GAMEASPECT, 0, fullImgArray, GAMENATIVEW, GAMENATIVEH
-            | 1 -> let _,_,w,h = MapArea in float w / float h, 0, mapImgArray, w, h
-            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, metaImgArray, w, h
+            | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMENATIVEW, GAMENATIVEH
+            | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
+            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"
         let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
         let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
@@ -213,7 +214,7 @@ type MyWindow() as this =
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     drawnLocations.Add(i,j)
                     let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                    if fullImgArray.[i,j] <> null then
+                    if zm.FullImgArray.[i,j] <> null then
                         let W,H = int(W),(max 1 (int H))
                         let bytes = ia.GetRaw(i,j,W,H)
                         let stride = W*4
@@ -225,7 +226,7 @@ type MyWindow() as this =
                             Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, W, H)
                         let tb = zoomTextboxes.[i,j]
                         Utils.deparent(tb)
-                        tb.Background <- (if mapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue)
+                        tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue)
                         tb.Width <- W
                         tb.Height<- H
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
@@ -235,7 +236,7 @@ type MyWindow() as this =
         writeableBitmapImage.Source <- bitmapSource
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
-        let cmt = mapTiles.[ci,cj]
+        let cmt = zm.MapTiles.[ci,cj]
         summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (cmt.NumScreenshots()) cmt.Note
         mfsRefresh()
         do
@@ -258,7 +259,7 @@ type MyWindow() as this =
                             if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
                                 let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
                                 for i,j in drawnLocations do
-                                    let note = mapTiles.[i,j].Note
+                                    let note = zm.MapTiles.[i,j].Note
                                     if note <> null && re.IsMatch(note) then
                                         draw(i,j,MapIcons.REGEX_DUMMY)
                         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
@@ -301,9 +302,9 @@ type MyWindow() as this =
                 mouseCursor.Stroke <- Brushes.Cyan
                 // draw quick hover data
                 bottomFloat.Children.Clear()
-                if i>=0 && i<MAX && j>=0 && j<MAX && fullImgArray.[i,j] <> null then
+                if i>=0 && i<MAX && j>=0 && j<MAX && zm.FullImgArray.[i,j] <> null then
                     let largeImage = Utils.ImageProjection(ia.[i,j],(0,0,pw,ph))
-                    let cmt = mapTiles.[i,j]
+                    let cmt = zm.MapTiles.[i,j]
                     floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (cmt.NumScreenshots()) cmt.Note
                     let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 30., Height=BOTTOM_HEIGHT - 10., Background=Brushes.Cyan, LastChildFill=true)
                     DockPanel.SetDock(largeImage, Dock.Bottom)
@@ -322,7 +323,7 @@ type MyWindow() as this =
                     UpdateGameFile()
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                     if me.RightButton = Input.MouseButtonState.Pressed then
-                        Utils.DoModalDialog(this, fullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
+                        Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                 )
         MapIcons.redrawMapIconsEv.Trigger()
         MapIcons.redrawMapIconHoverOnly.Trigger()
@@ -330,9 +331,9 @@ type MyWindow() as this =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
         WriteAllText(gameFile, json)
-    let UpdateCurrentNote(origNote, newNote) =
-        mapTiles.[theGame.CurX,theGame.CurY].Note <- newNote
-        SerializeMapTile(theGame.CurX,theGame.CurY)
+    let UpdateCurrentNote(origNote, newNote, zm:ZoneMemory) =
+        zm.MapTiles.[theGame.CurX,theGame.CurY].Note <- newNote
+        SerializeMapTile(theGame.CurX,theGame.CurY,zm)
         metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
         refreshMetadataKeys()
         zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
@@ -352,10 +353,11 @@ type MyWindow() as this =
             zoneOptions.Add(theGame.ZoneNames.[i])
             // populate key metdata from all notes
             theGame.CurZone <- i
-            LoadZoneMapTiles(false)
+            let zm = ZoneMemory.Get(i)
+            LoadZoneMapTiles(zm)
         theGame.CurZone <- savedZone
         // populate images for initial map
-        LoadZoneMapTiles(true)
+        let mutable zm = ZoneMemory.Get(theGame.CurZone)
         zoneComboBox.ItemsSource <- zoneOptions
         zoneComboBox.SelectedIndex <- savedZone
         // zone changes
@@ -363,7 +365,7 @@ type MyWindow() as this =
             if not selectionChangeIsDisabled then
                 theGame.CurZone <- zoneComboBox.SelectedIndex
                 UpdateGameFile()
-                LoadZoneMapTiles(true)
+                zm <- ZoneMemory.Get(theGame.CurZone)
                 zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         addNewZoneButton.Click.Add(fun _ ->
@@ -371,8 +373,11 @@ type MyWindow() as this =
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
             zoneOptions.Add(theGame.ZoneNames.[n])
             UpdateGameFile()
+            selectionChangeIsDisabled <- true
             zoneComboBox.SelectedIndex <- n
-            LoadZoneMapTiles(true)
+            selectionChangeIsDisabled <- false
+            theGame.CurZone <- zoneComboBox.SelectedIndex
+            zm <- ZoneMemory.Get(theGame.CurZone)
             zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         renameZoneButton.Click.Add(fun _ ->
@@ -436,7 +441,7 @@ type MyWindow() as this =
             let mutable minx,miny,maxx,maxy = 100,100,0,0
             for i = 0 to MAX-1 do
                 for j = 0 to MAX-1 do
-                    let bmp = fullImgArray.GetCopyOfBmp(i,j)
+                    let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
                     if bmp <> null then
                         bmps.[i,j] <- bmp
                         minx <- min minx i
@@ -514,7 +519,7 @@ type MyWindow() as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
-            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner))
+            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner, zm))
             sp.Children.Add(featureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
@@ -579,6 +584,7 @@ type MyWindow() as this =
     member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
         if Utils.aModalDialogIsOpen then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
+        let zm = ZoneMemory.Get(theGame.CurZone)
         if msg = WM_HOTKEY then
             if wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
                 //let ctrl_bits = lParam.ToInt32() &&& 0xF  // see WM_HOTKEY docs
@@ -587,20 +593,20 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed" k
-                if key = VK_SUBTRACT && mapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
-                    let id = (mapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
-                    mapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
+                if key = VK_SUBTRACT && zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
+                    let id = (zm.MapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
+                    zm.MapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
-                    RecomputeImage(theGame.CurX,theGame.CurY)
+                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                     // update disk
-                    SerializeMapTile(theGame.CurX,theGame.CurY)
+                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
-                    mapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
-                    SerializeMapTile(theGame.CurX,theGame.CurY)
-                    RecomputeImage(theGame.CurX,theGame.CurY)
+                    zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
+                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_MULTIPLY then
                     curProjection <- curProjection + 1
@@ -630,9 +636,9 @@ type MyWindow() as this =
                 if key = VK_NUMPAD0 then
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
-                    mapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
-                    SerializeMapTile(theGame.CurX,theGame.CurY)
-                    RecomputeImage(theGame.CurX,theGame.CurY)
+                    zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
+                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_NUMPAD7 then
                     if curZoom > 1 then
@@ -644,7 +650,7 @@ type MyWindow() as this =
                         zoom(theGame.CurX,theGame.CurY, curZoom)
                 if key = VK_DIVIDE then
                     Utils.Win32.SetForegroundWindow(_hwnd) |> ignore
-                    let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
+                    let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                             Foreground=Brushes.Black, Background=Brushes.White,
                                             Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
@@ -670,15 +676,15 @@ type MyWindow() as this =
                         )
                     Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
                     if save then
-                        UpdateCurrentNote(orig, tb.Text)
+                        UpdateCurrentNote(orig, tb.Text, zm)
                 if key = VK_DECIMAL then
-                    let orig = mapTiles.[theGame.CurX,theGame.CurY].Note
+                    let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
                     let orig = if orig = null then "" else orig
                     //let special = "#TODO"
                     //let special = "#UV"
                     let special = "#NOW"
                     if orig.EndsWith(special) then
-                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length))
+                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
                     else
-                        UpdateCurrentNote(orig, orig+"\n"+special)
+                        UpdateCurrentNote(orig, orig+"\n"+special, zm)
         IntPtr.Zero

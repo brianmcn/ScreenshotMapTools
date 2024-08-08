@@ -32,25 +32,25 @@ let EnsureFeature(rootOwner, content) =
 
 
 open InMemoryStore
-let MakeFeatureMap(owner) =
+let MakeFeatureMap(owner,zm:ZoneMemory) =
     let MAX = 100
     let mapBmps = Array2D.zeroCreate MAX MAX 
     let nonMainBmps = Array2D.zeroCreate MAX MAX
     let mutable minx,miny,maxx,maxy = MAX,MAX,0,0
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
-            let mt = mapTiles.[i,j]
+            let mt = zm.MapTiles.[i,j]
             // nonMains
             let matches = mt.ScreenshotsWithKinds |> Array.filter (fun swk -> swk.Kinds |> Array.contains("main") |> not)
             if matches.Length > 0 then
-                let bmps = matches |> Array.map (fun swk -> InMemoryStore.bmpDict.[swk.Id])
+                let bmps = matches |> Array.map (fun swk -> bmpDict.[swk.Id])
                 let bmps = bmps |> Array.map (fun bmp -> Utils.cropToRect(bmp, GameSpecific.MapAreaRectangle))
                 nonMainBmps.[i,j] <- bmps
             // map
-            if mapImgArray.[i,j] <> null then
-                mapBmps.[i,j] <- mapImgArray.GetCopyOfBmp(i,j)
+            if zm.MapImgArray.[i,j] <> null then
+                mapBmps.[i,j] <- zm.MapImgArray.GetCopyOfBmp(i,j)
             // any
-            if matches.Length > 0 || fullImgArray.[i,j] <> null then
+            if matches.Length > 0 || zm.FullImgArray.[i,j] <> null then
                 minx <- min minx i
                 miny <- min miny j
                 maxx <- max maxx i
@@ -81,7 +81,7 @@ let MakeFeatureMap(owner) =
                             else
                                 Utils.SetAndGetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y, rData, x, y, data)
                     bmp.UnlockBits(data)
-                elif not(mapTiles.[i,j].IsEmpty) then
+                elif not(zm.MapTiles.[i,j].IsEmpty) then
                     for x = 0 to w-1 do
                         for y = 0 to h-1 do
                             if x=w-1 || y=h-1 then
@@ -107,7 +107,7 @@ let MakeFeatureMap(owner) =
                     do
                         if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
                             let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
-                            let note = mapTiles.[i,j].Note
+                            let note = zm.MapTiles.[i,j].Note
                             if note <> null && re.IsMatch(note) then
                                 draw(i,j,MapIcons.REGEX_DUMMY)
                     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
@@ -142,7 +142,7 @@ let MakeFeatureMap(owner) =
             let i,j = di+minx, dj+miny
             bottom.Children.Clear()
             bottom.Children.Add(bottomTB) |> ignore
-            bottomTB.Text <- mapTiles.[i,j].Note
+            bottomTB.Text <- zm.MapTiles.[i,j].Note
             let fit(bmp) =
                 let i = bmp |> Utils.BMPtoImage
                 i.Height <- 240.
