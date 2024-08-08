@@ -11,7 +11,7 @@ let MAP  = 1
 let META = 2
 
 // caches are per-zone
-type ImgArrayCache(proj) =
+type ImgArrayCache(proj,zone) =
     let prefix = 
         match proj with
         | x when x=FULL -> "full-cache"
@@ -20,7 +20,7 @@ type ImgArrayCache(proj) =
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
-    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetCurZoneFolder(), prefix, sprintf "%02d-%02d.png" x y)
+    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(zone), prefix, sprintf "%02d-%02d.png" x y)
     let CacheToDisk(x,y,bmp : System.Drawing.Bitmap) =
         let file = GetCacheFilename(x,y)
         System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
@@ -62,13 +62,14 @@ let bmpDict = new System.Collections.Generic.Dictionary<SSID,System.Drawing.Bitm
 type ZoneMemory(zone:int) =
     static let dict = new System.Collections.Generic.Dictionary<int,ZoneMemory>()
     let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
-    let fullImgArray = ImgArrayCache(0)
-    let mapImgArray = ImgArrayCache(1)
-    let metaImgArray = ImgArrayCache(2)
+    let fullImgArray = ImgArrayCache(0,zone)
+    let mapImgArray = ImgArrayCache(1,zone)
+    let metaImgArray = ImgArrayCache(2,zone)
     member this.MapTiles = mapTiles
     member this.FullImgArray = fullImgArray
     member this.MapImgArray = mapImgArray
     member this.MetaImgArray = metaImgArray
+    member this.Zone = zone
     static member Get(z) =
         if dict.ContainsKey(z) then
             dict.[z]
@@ -105,7 +106,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
             zm.FullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
             zm.MapImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
             zm.MetaImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
-            let file = MapTileFilename(i,j)
+            let file = MapTileFilename(i,j,zm.Zone)
             if System.IO.File.Exists(file) then
                 let json = System.IO.File.ReadAllText(file)
                 let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)

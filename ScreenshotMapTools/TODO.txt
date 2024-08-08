@@ -1,7 +1,4 @@
-﻿fyda thru E7
-
-
-
+﻿
 
 for master key:
  - DONE need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
@@ -14,8 +11,8 @@ general:
  - (can always print to see full zoomable map in another image/photo tool; printing to game folder, all zones, by name, maybe in a date folder)
  - DONE my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both
  - fast travel linkages (visually, click-y, ...)
-   - idea, in addition to e.g. (30,40) to go that that screen in this zone, also allow (zone02) or (zone02,30,40)
-   - and in feature, it should show those labeled with the coords and/or zone label
+   - DONE idea, in addition to e.g. (30,40) to go that that screen in this zone, also allow (zone02) or (zone02,30,40)
+   - DONE and in feature, it should show those labeled with the coords and/or zone label
    - and in app, should be clickable list to go there
 
 it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup

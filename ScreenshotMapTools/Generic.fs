@@ -22,7 +22,7 @@ let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugl
 
 let SerializeMapTile(x,y,zm:ZoneMemory) = 
     let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(zm.MapTiles.[x,y])
-    WriteAllText(MapTileFilename(x,y), json)
+    WriteAllText(MapTileFilename(x,y,zm.Zone), json)
 
 let broadcastHotKeyEv = new Event<int*IntPtr*IntPtr>()
 
@@ -344,8 +344,9 @@ type MyWindow() as this =
         mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
         // init zones and ensure directories
         LoadRootGameData()
-        let zoneFolder = GetCurZoneFolder()
-        System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
+        do
+            let zoneFolder = GetZoneFolder(0)
+            System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
         let savedZone = theGame.CurZone
         for i = 0 to theGame.ZoneNames.Length-1 do

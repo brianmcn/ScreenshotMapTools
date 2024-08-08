@@ -83,15 +83,16 @@ let zoneRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d)\)", compi
 
 let FindAllLinkages(note:string, curZone, curX, curY) =
     let locs = ResizeArray()
-    for m in coordsRegex.Matches(note) do
-        let x,y = int m.Groups.[1].Value, int m.Groups.[2].Value
-        locs.Add(new Location(curZone, x, y))
-    for m in fullRegex.Matches(note) do
-        let z,x,y = int m.Groups.[1].Value, int m.Groups.[2].Value, int m.Groups.[3].Value
-        locs.Add(new Location(z, x, y))
-    for m in zoneRegex.Matches(note) do
-        let z = int m.Groups.[1].Value
-        locs.Add(new Location(z, curX, curY))
+    if note <> null then
+        for m in coordsRegex.Matches(note) do
+            let x,y = int m.Groups.[1].Value, int m.Groups.[2].Value
+            locs.Add(new Location(curZone, x, y))
+        for m in fullRegex.Matches(note) do
+            let z,x,y = int m.Groups.[1].Value, int m.Groups.[2].Value, int m.Groups.[3].Value
+            locs.Add(new Location(z, x, y))
+        for m in zoneRegex.Matches(note) do
+            let z = int m.Groups.[1].Value
+            locs.Add(new Location(z, curX, curY))
     locs
 
             

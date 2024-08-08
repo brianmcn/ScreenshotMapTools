@@ -36,6 +36,7 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
     let MAX = 100
     let mapBmps = Array2D.zeroCreate MAX MAX 
     let nonMainBmps = Array2D.zeroCreate MAX MAX
+    let linkages = Array2D.init MAX MAX (fun _ _ -> ResizeArray())
     let mutable minx,miny,maxx,maxy = MAX,MAX,0,0
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
@@ -49,6 +50,11 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             // map
             if zm.MapImgArray.[i,j] <> null then
                 mapBmps.[i,j] <- zm.MapImgArray.GetCopyOfBmp(i,j)
+            // linkages
+            for loc in GenericMetadata.FindAllLinkages(mt.Note, zm.Zone, i, j) do
+                let lm = ZoneMemory.Get(loc.Zone)
+                let bmp = lm.MapImgArray.GetCopyOfBmp(loc.X,loc.Y)
+                linkages.[i,j].Add( (loc,bmp) )
             // any
             if matches.Length > 0 || zm.FullImgArray.[i,j] <> null then
                 minx <- min minx i
@@ -126,13 +132,15 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
         let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(r.Width, r.Height, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
         let mapMarkersImage = new Image(Source=bitmapSource, IsHitTestVisible=false)
         Utils.canvasAdd(c, mapMarkersImage, imgx, imgy)
-        let highlightRect = new Shapes.Rectangle(Width=float w, Height=float h, Stroke=Brushes.Red, StrokeThickness=4., IsHitTestVisible=false, Opacity=0.)
+        let highlightRect = new Shapes.Rectangle(Width=float w, Height=float h, Stroke=Brushes.Orange, StrokeThickness=4., IsHitTestVisible=false, Opacity=0.)
         c.Children.Add(highlightRect) |> ignore
-        let bottom = new StackPanel(Height=240., Orientation=Orientation.Horizontal)
-        Utils.canvasAdd(c, bottom, 0., 480.)
+        let HH = 240.
+        let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
+        let bottom = new StackPanel(Height=HH, Orientation=Orientation.Horizontal)
+        Utils.canvasAdd(c, bottom, 0., c.Height - HH)
         let bottomTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
                                         FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
-                                        Width=320., Height=240., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,6.,0.))
+                                        Width=320., Height=HH, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,4.,0.))
         img.MouseMove.Add(fun ea ->
             let pos = ea.GetPosition(img)
             let di, dj = int(pos.X / float w), int(pos.Y / float h)
@@ -145,13 +153,31 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             bottomTB.Text <- zm.MapTiles.[i,j].Note
             let fit(bmp) =
                 let i = bmp |> Utils.BMPtoImage
-                i.Height <- 240.
-                i.Width <- i.Height / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
+                i.Height <- HH
+                i.Width <- WW
                 i.Stretch <- Stretch.Uniform
-                i.Margin <- Thickness(0.,0.,6.,0.)
+                i.Margin <- Thickness(0.,0.,4.,0.)
                 i
             if mapBmps.[i,j] <> null then
                 bottom.Children.Add(mapBmps.[i,j] |> fit) |> ignore
+            for loc,bmp in linkages.[i,j] do
+                let TH = 24.
+                let HH = HH - TH
+                let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
+                let dp = new DockPanel(LastChildFill=true, Height=HH, Width=WW)
+                let locDesc = new TextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
+                                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
+                                                Height=TH, VerticalScrollBarVisibility=ScrollBarVisibility.Disabled)
+                locDesc.Text <- sprintf "(%s,%d,%d)" BackingStoreData.theGame.ZoneNames.[loc.Zone] loc.X loc.Y
+                DockPanel.SetDock(locDesc, Dock.Bottom)
+                dp.Children.Add(locDesc) |> ignore
+                let img = bmp |> Utils.BMPtoImage
+                img.Height <- HH
+                img.Width <- WW
+                img.Stretch <- Stretch.Uniform
+                img.Margin <- Thickness(0.,0.,4.,0.)
+                dp.Children.Add(img) |> ignore
+                bottom.Children.Add(dp) |> ignore
             if nonMainBmps.[i,j] <> null then
                 for bmp in nonMainBmps.[i,j] do
                     bottom.Children.Add(bmp |> fit) |> ignore
