@@ -343,7 +343,7 @@ type MyWindow() as this =
         mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
         // init zones and ensure directories
         LoadRootGameData()
-        let zoneFolder = GetZoneFolder()
+        let zoneFolder = GetCurZoneFolder()
         System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
         let savedZone = theGame.CurZone

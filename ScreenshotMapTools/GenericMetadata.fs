@@ -40,7 +40,7 @@ type Location(zone,x,y) =
     member this.Zone = zone
     member this.X = x
     member this.Y = y
-    override this.GetHashCode() = zone*1000 + x*100 + y
+    override this.GetHashCode() = zone*10000 + x*100 + y
     override this.Equals(o) =
         match o with
         | :? Location as l -> l.Zone = this.Zone && l.X = this.X && l.Y = this.Y
@@ -68,7 +68,30 @@ type MetadataStore() =
         | false, _ -> System.Collections.Generic.HashSet()
         | true, hs -> System.Collections.Generic.HashSet(hs)
     member this.AllKeys() = [| for z in data.Keys do if data.[z].Count > 0 then yield z |]
-        
 
+////////////////////////////////////////////////////////
+// linkages
+//
+// (30,40) in text means links to 30,40 in this zone
+// (zone02) in text means links to same coords but zone02
+// (zone02,30,40) in text means links to that location
+
+let compiled = System.Text.RegularExpressions.RegexOptions.Compiled
+let coordsRegex = new System.Text.RegularExpressions.Regex("\((\d\d),(\d\d)\)", compiled)   // x,y
+let fullRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d),(\d\d),(\d\d)\)", compiled)   // z,x,y
+let zoneRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d)\)", compiled)   // z
+
+let FindAllLinkages(note:string, curZone, curX, curY) =
+    let locs = ResizeArray()
+    for m in coordsRegex.Matches(note) do
+        let x,y = int m.Groups.[1].Value, int m.Groups.[2].Value
+        locs.Add(new Location(curZone, x, y))
+    for m in fullRegex.Matches(note) do
+        let z,x,y = int m.Groups.[1].Value, int m.Groups.[2].Value, int m.Groups.[3].Value
+        locs.Add(new Location(z, x, y))
+    for m in zoneRegex.Matches(note) do
+        let z = int m.Groups.[1].Value
+        locs.Add(new Location(z, curX, curY))
+    locs
 
             

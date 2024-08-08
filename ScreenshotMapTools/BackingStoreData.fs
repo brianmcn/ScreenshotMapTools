@@ -79,7 +79,8 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
     id, img
 // each zone has a folder:
 // with files MapTileXnnYmm where nn/mm range 00-99
-let GetZoneFolder() = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" theGame.CurZone)
+let GetZoneFolder(zone) = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" zone)
+let GetCurZoneFolder() = GetZoneFolder(theGame.CurZone)
 let rec GetZoneName(zoneNum) = 
     if zoneNum < theGame.ZoneNames.Length then
         theGame.ZoneNames.[zoneNum]
@@ -178,5 +179,5 @@ type MapTile() =   // e.g. 50,50
     member this.NumScreenshots() = 
         this.Assert()
         this.ScreenshotsWithKinds.Length
-let MapTileFilename(i,j) = System.IO.Path.Combine(GetZoneFolder(), sprintf "tile%02d-%02d.json" i j)
+let MapTileFilename(i,j) = System.IO.Path.Combine(GetCurZoneFolder(), sprintf "tile%02d-%02d.json" i j)
 

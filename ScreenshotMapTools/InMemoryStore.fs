@@ -20,7 +20,7 @@ type ImgArrayCache(proj) =
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
-    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(), prefix, sprintf "%02d-%02d.png" x y)
+    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetCurZoneFolder(), prefix, sprintf "%02d-%02d.png" x y)
     let CacheToDisk(x,y,bmp : System.Drawing.Bitmap) =
         let file = GetCacheFilename(x,y)
         System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
