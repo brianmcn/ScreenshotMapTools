@@ -166,22 +166,24 @@ type MyWindow() as this =
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
         metaAndScreenshotPanel.Children.Clear()
-        if fullImgArray.[theGame.CurX,theGame.CurY] <> null then
-            let top = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
-            metaAndScreenshotPanel.Children.Add(top) |> ignore
-            DockPanel.SetDock(top, Dock.Top)
-            let largeImage = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
-            metaAndScreenshotPanel.Children.Add(largeImage) |> ignore
-            largeImage.MouseDown.Add(fun _ ->
-                let cmt = mapTiles.[theGame.CurX, theGame.CurY]
-                if cmt.NumScreenshots() > 0 then
-                    DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this)
-                    doZoom(theGame.CurX, theGame.CurY, curZoom)
-                )
-        else
-            let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
-            let h = w / 16. * 9.
-            metaAndScreenshotPanel.Children.Add(new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)) |> ignore
+        let child : UIElement = 
+            if fullImgArray.[theGame.CurX,theGame.CurY] <> null then
+                let top = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
+                metaAndScreenshotPanel.Children.Add(top) |> ignore
+                DockPanel.SetDock(top, Dock.Top)
+                let largeImage = Utils.ImageProjection(fullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
+                upcast largeImage
+            else
+                let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
+                let h = w / 16. * 9.
+                upcast new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)
+        metaAndScreenshotPanel.Children.Add(child) |> ignore
+        child.MouseDown.Add(fun _ ->
+            let cmt = mapTiles.[theGame.CurX, theGame.CurY]
+            if cmt.NumScreenshots() > 0 then
+                DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this)
+                doZoom(theGame.CurX, theGame.CurY, curZoom)
+            )
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
@@ -249,7 +251,7 @@ type MyWindow() as this =
                         let W,H = int(W),int(H)
                         let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
                         let stride = W*4
-                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                        Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
                     if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
                         do
                             // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
