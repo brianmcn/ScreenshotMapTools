@@ -132,7 +132,12 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
         let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(r.Width, r.Height, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
         let mapMarkersImage = new Image(Source=bitmapSource, IsHitTestVisible=false)
         Utils.canvasAdd(c, mapMarkersImage, imgx, imgy)
-        let highlightRect = new Shapes.Rectangle(Width=float w, Height=float h, Stroke=Brushes.Orange, StrokeThickness=4., IsHitTestVisible=false, Opacity=0.)
+        let ca = System.Windows.Media.Animation.ColorAnimation(From=Colors.Orange, To=Colors.Yellow, Duration=new Duration(System.TimeSpan.FromSeconds(0.5)), 
+                                                                AutoReverse=true, RepeatBehavior=System.Windows.Media.Animation.RepeatBehavior.Forever)
+        let animBrush = new SolidColorBrush()
+        animBrush.BeginAnimation(SolidColorBrush.ColorProperty, ca)
+        let DEL = 3.
+        let highlightRect = new Shapes.Rectangle(Width=float w + 2.*DEL, Height=float h + 2.*DEL, Stroke=animBrush, StrokeThickness=2.*DEL, IsHitTestVisible=false, Opacity=0.)
         c.Children.Add(highlightRect) |> ignore
         let HH = 240.
         let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
@@ -145,8 +150,8 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             let pos = ea.GetPosition(img)
             let di, dj = int(pos.X / float w), int(pos.Y / float h)
             highlightRect.Opacity <- 1.0
-            Canvas.SetLeft(highlightRect, imgx+float(di*w))
-            Canvas.SetTop(highlightRect, imgy+float(dj*h))
+            Canvas.SetLeft(highlightRect, imgx+float(di*w)-DEL)
+            Canvas.SetTop(highlightRect, imgy+float(dj*h)-DEL)
             let i,j = di+minx, dj+miny
             bottom.Children.Clear()
             bottom.Children.Add(bottomTB) |> ignore

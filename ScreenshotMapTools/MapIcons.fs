@@ -40,17 +40,17 @@ type IconShape =
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
-            let s = new System.Windows.Shapes.Ellipse(Width=w*0.8, Height=h*0.8, Stroke=brush, StrokeThickness=IST(w,h))
-            Utils.canvasAdd(c, s, w*0.1, h*0.1)
+            let s = new System.Windows.Shapes.Ellipse(Width=w*0.7, Height=h*0.7, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.15, h*0.15)
         | IconShape.SmallOval ->
             let s = new System.Windows.Shapes.Ellipse(Width=w*0.6, Height=h*0.6, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, w*0.2, h*0.2)
         | IconShape.LargeBox -> 
-            let s = new System.Windows.Shapes.Rectangle(Width=w*0.8, Height=h*0.8, Stroke=brush, StrokeThickness=IST(w,h))
-            Utils.canvasAdd(c, s, w*0.1, h*0.1)
+            let s = new System.Windows.Shapes.Rectangle(Width=w*0.7, Height=h*0.7, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.15, h*0.15)
         | IconShape.SmallBox -> 
-            let s = new System.Windows.Shapes.Rectangle(Width=w*0.5, Height=h*0.7, Stroke=brush, StrokeThickness=IST(w,h))
-            Utils.canvasAdd(c, s, w*0.25, h*0.15)
+            let s = new System.Windows.Shapes.Rectangle(Width=w*0.5, Height=h*0.6, Stroke=brush, StrokeThickness=IST(w,h))
+            Utils.canvasAdd(c, s, w*0.25, h*0.2)
         | IconShape.X -> 
             let s = new System.Windows.Shapes.Line(X1=w*0.1, X2=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
