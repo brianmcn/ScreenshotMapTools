@@ -172,9 +172,13 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
                 let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
                 let dp = new DockPanel(LastChildFill=true, Height=HH, Width=WW)
                 let locDesc = new TextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
-                                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
+                                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.NoWrap, SelectionBrush=Brushes.Orange,
                                                 Height=TH, VerticalScrollBarVisibility=ScrollBarVisibility.Disabled)
-                locDesc.Text <- sprintf "(%s,%d,%d)" BackingStoreData.theGame.ZoneNames.[loc.Zone] loc.X loc.Y
+                locDesc.Text <- 
+                    if loc.X = i && loc.Y = j then
+                        sprintf "(%s)" BackingStoreData.theGame.ZoneNames.[loc.Zone]
+                    else
+                        sprintf "(%s,%d,%d)" BackingStoreData.theGame.ZoneNames.[loc.Zone] loc.X loc.Y
                 DockPanel.SetDock(locDesc, Dock.Bottom)
                 dp.Children.Add(locDesc) |> ignore
                 let img = bmp |> Utils.BMPtoImage
