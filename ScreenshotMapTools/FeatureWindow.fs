@@ -54,7 +54,8 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             for loc in GenericMetadata.FindAllLinkages(mt.Note, zm.Zone, i, j) do
                 let lm = ZoneMemory.Get(loc.Zone)
                 let bmp = lm.MapImgArray.GetCopyOfBmp(loc.X,loc.Y)
-                linkages.[i,j].Add( (loc,bmp) )
+                if bmp <> null then  // only populate linkages when we have a screenshot on the other end to preview
+                    linkages.[i,j].Add( (loc,bmp) )
             // any
             if matches.Length > 0 || zm.FullImgArray.[i,j] <> null then
                 minx <- min minx i
