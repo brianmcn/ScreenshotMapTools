@@ -5,11 +5,12 @@ open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
 
+let FEATUREW,FEATUREH = 1280.,720.
 [<AllowNullLiteral>]
 type FeatureWindow(owner) as this =
     inherit Window()
     static let mutable theFeatureWindow : FeatureWindow = null
-    let b = new Border(Width=1280., Height=720., BorderThickness=Thickness(0.), Background=Brushes.Olive)
+    let b = new Border(Width=FEATUREW, Height=FEATUREH, BorderThickness=Thickness(0.), Background=new SolidColorBrush(Color.FromRgb(0x30uy,0x40uy,0x60uy)))
     do
         this.Owner <- owner
         this.Title <- "FEATURE"
@@ -63,15 +64,21 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
                 maxx <- max maxx i
                 maxy <- max maxy j
     if maxx >= minx then // there was at least one screenshot
-        let fitWidth = 1280. / float (maxx-minx+1)
-        //let fitHeight = 720. / float (maxy-miny+1)
-        let fitHeight = 480. / float (maxy-miny+1)
-        let w,h =
+        let gameMapAspect = 
             let _mx,_my,mw,mh = GameSpecific.MapArea
-            if fitWidth / float mw * float mh > fitHeight then
-                int(fitHeight / float mh * float mw), int(fitHeight)
+            float mw / float mh
+        let PICH = 300.                     // height of pictures on the bottom
+        let PICW = PICH * gameMapAspect       // width of left strip to preserve
+        let FH = FEATUREH - PICH
+        let FW = FEATUREW - PICW
+        let MARGIN = 6.
+        let fitWidth = (FW-MARGIN) / float (maxx-minx+1)
+        let fitHeight = (FH-MARGIN) / float (maxy-miny+1)
+        let w,h =
+            if fitWidth / gameMapAspect > fitHeight then
+                int(fitHeight * gameMapAspect), int(fitHeight)
             else
-                int(fitWidth), int(fitWidth / float mw * float mh)
+                int(fitWidth), int(fitWidth / gameMapAspect)
         let r = new System.Drawing.Bitmap(w*(maxx-minx+1), h*(maxy-miny+1))
         let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
         let backBuffer, backBufferStride = Array.zeroCreate (r.Width*r.Height*4), r.Width*4   // for drawing overlay icons
@@ -127,8 +134,10 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
                             | _ -> ()
         r.UnlockBits(rData)
         let img = Utils.BMPtoImage(r)
-        let c = new Canvas(Width=1280., Height=720.)
-        let imgx, imgy = float((1280-r.Width)/2), float((480-r.Height)/2)
+        let c = new Canvas(Width=FEATUREW, Height=FEATUREH)
+        let mapBGcolor = new DockPanel(Width=FW, Height=FH, Background=Brushes.DarkOliveGreen)
+        Utils.canvasAdd(c, mapBGcolor, FEATUREW-FW, 0.)
+        let imgx, imgy = PICW + (FW-float r.Width)/2., (FH-float r.Height)/2.
         Utils.canvasAdd(c, img, imgx, imgy)
         let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(r.Width, r.Height, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
         let mapMarkersImage = new Image(Source=bitmapSource, IsHitTestVisible=false)
@@ -140,13 +149,16 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
         let DEL = 3.
         let highlightRect = new Shapes.Rectangle(Width=float w + 2.*DEL, Height=float h + 2.*DEL, Stroke=animBrush, StrokeThickness=2.*DEL, IsHitTestVisible=false, Opacity=0.)
         c.Children.Add(highlightRect) |> ignore
-        let HH = 240.
-        let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
-        let bottom = new StackPanel(Height=HH, Orientation=Orientation.Horizontal)
-        Utils.canvasAdd(c, bottom, 0., c.Height - HH)
-        let bottomTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
+        let WW = PICH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
+        let highlightedPicture = new Canvas()
+        Utils.canvasAdd(c, highlightedPicture, 0., 0.)
+        let HTBS = 100.   // how much skinnier to make the text box than the pic
+        let highlightedTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
                                         FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
-                                        Width=320., Height=HH, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,4.,0.))
+                                        Width=PICW-HTBS-MARGIN, Height=FEATUREH-PICH-MARGIN, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,4.,0.))
+        Utils.canvasAdd(c, highlightedTB, 0., FEATUREH-highlightedTB.Height)
+        let bottom = new StackPanel(Height=PICH, Orientation=Orientation.Horizontal)
+        Utils.canvasAdd(c, bottom, PICW-HTBS, c.Height - PICH)
         img.MouseMove.Add(fun ea ->
             let pos = ea.GetPosition(img)
             let di, dj = int(pos.X / float w), int(pos.Y / float h)
@@ -155,20 +167,21 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             Canvas.SetTop(highlightRect, imgy+float(dj*h)-DEL)
             let i,j = di+minx, dj+miny
             bottom.Children.Clear()
-            bottom.Children.Add(bottomTB) |> ignore
-            bottomTB.Text <- zm.MapTiles.[i,j].Note
+            highlightedTB.Text <- zm.MapTiles.[i,j].Note
+            highlightedTB.Opacity <- 1.0
             let fit(bmp) =
                 let i = bmp |> Utils.BMPtoImage
-                i.Height <- HH
+                i.Height <- PICH
                 i.Width <- WW
                 i.Stretch <- Stretch.Uniform
-                i.Margin <- Thickness(0.,0.,4.,0.)
+                i.Margin <- Thickness(0.,0.,MARGIN,0.)
                 i
+            highlightedPicture.Children.Clear()
             if mapBmps.[i,j] <> null then
-                bottom.Children.Add(mapBmps.[i,j] |> fit) |> ignore
+                highlightedPicture.Children.Add(mapBmps.[i,j] |> fit) |> ignore
             for loc,bmp in linkages.[i,j] do
                 let TH = 24.
-                let HH = HH - TH
+                let HH = PICH - TH
                 let WW = HH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
                 let dp = new DockPanel(LastChildFill=true, Height=HH, Width=WW)
                 let locDesc = new TextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
@@ -194,6 +207,8 @@ let MakeFeatureMap(owner,zm:ZoneMemory) =
             )
         img.MouseLeave.Add(fun _ ->
             highlightRect.Opacity <- 0.0
+            highlightedTB.Opacity <- 0.0
+            highlightedPicture.Children.Clear()
             bottom.Children.Clear()
             )
         EnsureFeature(owner, c)

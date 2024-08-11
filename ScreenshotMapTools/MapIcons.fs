@@ -14,7 +14,7 @@ module DU =
 
 let IST(w,h) = 
     let m = min w h
-    if m > 30. then 3. else 2.
+    if m > 30. then 4. else 3.
 [<RequireQualifiedAccess>]
 type IconShape =
     | LargeOval

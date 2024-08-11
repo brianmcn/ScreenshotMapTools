@@ -1,4 +1,5 @@
 ﻿
+feature window could use an icon legend, somewhere, somehow
 
 for master key:
  - DONE need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
