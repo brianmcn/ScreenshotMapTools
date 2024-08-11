@@ -61,7 +61,7 @@ let bmpDict = new System.Collections.Generic.Dictionary<SSID,System.Drawing.Bitm
 // per-zone stuff 
 type ZoneMemory(zone:int) =
     static let dict = new System.Collections.Generic.Dictionary<int,ZoneMemory>()
-    let mapTiles = Array2D.create MAX MAX (MapTile())             // backing store data
+    let mapTiles = Array2D.init MAX MAX (fun _ _ -> MapTile())             // backing store data
     let fullImgArray = ImgArrayCache(0,zone)
     let mapImgArray = ImgArrayCache(1,zone)
     let metaImgArray = ImgArrayCache(2,zone)
