@@ -1,4 +1,8 @@
 ﻿
+what if my icons could include single letter/number/character?
+
+maybe make my own minimap projection window to overlay on HUD?
+
 feature window could use an icon legend, somewhere, somehow
 
 for master key:

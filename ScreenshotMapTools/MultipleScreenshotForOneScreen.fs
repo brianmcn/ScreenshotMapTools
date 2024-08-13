@@ -3,17 +3,17 @@
 open System.Drawing
 
 let tweak(c) =
-    let h,s,v = Utils.ColorToHSV(c)
-    let v = 
-        if true then               
-            // increase value so 0.1-0.4 becomes 0.1 to 0.7, and 0.4 to 1.0 becomes 0.7 to 1.0
-            if v < 0.1 then v
-            elif v < 0.4 then 0.1 + (v-0.1) * 2.
-            else 0.7 + (v-0.4) / 2.
-        else
-            v
-    let r = Utils.ColorFromHSV(h,s,v)
-    r
+    if false then               
+        let h,s,v = Utils.ColorToHSV(c)
+        let v = 
+                // increase value so 0.1-0.4 becomes 0.1 to 0.7, and 0.4 to 1.0 becomes 0.7 to 1.0
+                if v < 0.1 then v
+                elif v < 0.4 then 0.1 + (v-0.1) * 2.
+                else 0.7 + (v-0.4) / 2.
+        let r = Utils.ColorFromHSV(h,s,v)
+        r
+    else
+        c
 
 let MoreLuminous(c1:Color,c2:Color) =
     if c1.GetBrightness() > c2.GetBrightness() then

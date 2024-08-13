@@ -186,6 +186,8 @@ type MyWindow() as this =
             )
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
+    //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
+    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
         new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black,
                     HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
@@ -226,7 +228,7 @@ type MyWindow() as this =
                             Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, W, H)
                         let tb = zoomTextboxes.[i,j]
                         Utils.deparent(tb)
-                        tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then Brushes.LightGray else Brushes.DarkGray) else Brushes.CornflowerBlue)
+                        tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.CornflowerBlue)
                         tb.Width <- W
                         tb.Height<- H
                         Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
