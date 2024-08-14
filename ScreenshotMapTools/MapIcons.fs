@@ -250,7 +250,12 @@ let MakeIconUI(parentWindow) =
             but.Children.Add(regexButton) |> ignore
             dp.Children.Add(but) |> ignore
         else
-            dp.Children.Add(mkTxt(k)) |> ignore                    // TODO consider displaying count
+            let mutable all, here = 0,0
+            for loc in InMemoryStore.metadataStore.LocationsForKey(k) do
+                if loc.Zone = BackingStoreData.theGame.CurZone then
+                    here <- here + 1
+                all <- all + 1
+            dp.Children.Add(mkTxt(sprintf "%s (%d/%d)" k here all)) |> ignore
         let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, i)
         i <- i + 1

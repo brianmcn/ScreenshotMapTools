@@ -155,12 +155,10 @@ type MyWindow() as this =
     let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
     let refreshMetadataKeys() =   // TODO can clean this up
         let newKeys = metadataStore.AllKeys() |> Array.sort
-        let oldKeys = if metadataKeys.Count=0 then [||] else metadataKeys |> Seq.toArray
-        if oldKeys <> newKeys then
-            MapIcons.redrawPanelEv.Trigger()
-            metadataKeys.Clear()
-            for s in newKeys do
-                metadataKeys.Add(s)
+        MapIcons.redrawPanelEv.Trigger()
+        metadataKeys.Clear()
+        for s in newKeys do
+            metadataKeys.Add(s)
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
     let mutable doZoom = fun _ -> ()
     let mfsRefresh() =
@@ -370,6 +368,7 @@ type MyWindow() as this =
                 theGame.CurZone <- zoneComboBox.SelectedIndex
                 UpdateGameFile()
                 zm <- ZoneMemory.Get(theGame.CurZone)
+                refreshMetadataKeys()   // to update counts 
                 zoom(theGame.CurX, theGame.CurY, curZoom)
             )
         addNewZoneButton.Click.Add(fun _ ->

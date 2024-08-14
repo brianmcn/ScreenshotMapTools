@@ -1,7 +1,4 @@
-﻿
-some way to show multi-level small dungeon on a single map screen?
-
-what if my icons could include single letter/number/character?
+﻿what if my icons could include single letter/number/character?
 
 maybe make my own minimap projection window to overlay on HUD?
 
@@ -9,7 +6,7 @@ feature window could use an icon legend, somewhere, somehow
 
 for master key:
  - DONE need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
- - need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
+ - DONE need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
  - DONE need zone names (for like 'dungeon 1')
 
 general:
