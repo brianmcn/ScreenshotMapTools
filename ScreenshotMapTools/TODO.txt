@@ -19,8 +19,6 @@ general:
    - DONE and in feature, it should show those labeled with the coords and/or zone label
    - and in app, should be clickable list to go there
 
-it's awkward that clicking shifts the view and then mouse cursor is now hovering a different tile so the one you wanted is obscured by the popup
-
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
  - and then map out bottom right bubble eaters to test the visualization etc
 (all connectivity? like up left down right exits too?)

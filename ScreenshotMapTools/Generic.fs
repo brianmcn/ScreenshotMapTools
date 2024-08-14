@@ -323,6 +323,8 @@ type MyWindow() as this =
                     theGame.CurY <- j
                     UpdateGameFile()
                     zoom(theGame.CurX,theGame.CurY, curZoom)
+                    let pos = mapCanvas.TranslatePoint(Point(DX+float(level)*W-W/2.,DY+float(level)*H-H/2.),this)   // center of the center tile (which is what we just clicked)
+                    Utils.SilentlyWarpMouseCursorTo(pos)
                     if me.RightButton = Input.MouseButtonState.Pressed then
                         Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                 )
@@ -590,6 +592,7 @@ type MyWindow() as this =
         this.Loaded.Add(fun _ ->
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
+            Utils.setup(this)
             zoom(theGame.CurX,theGame.CurY,curZoom)
             )
     override this.OnSourceInitialized(e) =

@@ -226,3 +226,48 @@ let CopyBGRARegionOnlyPartsWithAlpha(destBytes:byte[], destStride, destX, destY,
                 destBytes.[destIndex+i*4+2] <- r
                 destBytes.[destIndex+i*4+3] <- a
             
+////////////////////////////////////////////////////////////
+
+type Win32() =
+    [<System.Runtime.InteropServices.DllImport("User32.dll")>]
+    static extern bool SetCursorPos(int X, int Y)
+    static member SetCursor(theWindow:Window,x,y) = 
+        let pos = theWindow.PointToScreen(System.Windows.Point(x,y))
+        SetCursorPos(int pos.X, int pos.Y) |> ignore
+// ideas from
+// https://kent-boogaart.com/blog/dispatcher-frames
+// from https://stackoverflow.com/questions/4502037/where-is-the-application-doevents-in-wpf
+// see also
+// https://stackoverflow.com/questions/21248643/how-can-i-convert-win32-mouse-messages-to-wpf-mouse-events 
+let mutable sawMouseEvent = false
+let mutable theTimer = null
+let mutable theFrame = null : System.Windows.Threading.DispatcherFrame
+let mutable theCounter = 0
+let mutable theWindow = null
+let setup(w:Window) =
+    if theTimer=null then
+        theTimer <- new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Render) // this only runs for a very short time when warping mouse; use high priority to avoid noticeable latency
+        theTimer.Stop()
+        theTimer.Interval <- System.TimeSpan.FromSeconds(0.03)
+        theTimer.Tick.Add(fun _ -> 
+            if theFrame <> null then   // avoid a race
+                if not sawMouseEvent && theCounter>4 then
+                    //printfn "uh oh too slow"     // or, the mouse didn't move at all
+                    sawMouseEvent <- true
+                if sawMouseEvent then
+                    theFrame.Continue <- false
+                    theTimer.Stop()
+                else
+                    theCounter <- theCounter + 1
+            )
+        w.MouseMove.Add(fun _ -> sawMouseEvent <- true)
+        theWindow <- w
+let SilentlyWarpMouseCursorTo(pos:System.Windows.Point) =
+    if theFrame = null then  // Note: cannot process a second of these calls while one is active; I think that's fine
+        theFrame <- new System.Windows.Threading.DispatcherFrame()
+        sawMouseEvent <- false
+        theCounter <- 0
+        theTimer.Start()
+        Win32.SetCursor(theWindow, pos.X, pos.Y)    // this queues a mouse move input, and we want to block until that event is processed, to avoid spurious MouseLeave()s and other reasons
+        System.Windows.Threading.Dispatcher.PushFrame(theFrame)   // creates a blocking message pump that only stops when Continue set to false
+        theFrame <- null
