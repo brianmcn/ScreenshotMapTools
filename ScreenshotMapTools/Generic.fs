@@ -523,7 +523,15 @@ type MyWindow() as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
-            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner, zm))
+            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner, 
+                                                                            if zm.Zone=3 then Array2D.init 2 2 (fun x y -> 
+                                                                                match x,y with
+                                                                                | 0,0 -> ZoneMemory.Get(3)
+                                                                                | 1,0 -> ZoneMemory.Get(4)
+                                                                                | 0,1 -> ZoneMemory.Get(5)
+                                                                                | _ -> ZoneMemory.Get(6)
+                                                                                )
+                                                                            else Array2D.create 1 1 zm))
             sp.Children.Add(featureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
