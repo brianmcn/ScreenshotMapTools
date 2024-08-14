@@ -127,12 +127,12 @@ type MyWindow() as this =
     let mutable curZoom = 10
     let mutable hwndSource = null
     // current zone combobox
-    let addNewZoneButton = new Button(Content="Add new zone", Margin=Thickness(4.))
+    let addNewZoneButton = new Button(Content="Add zone", Margin=Thickness(4.))
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
     let mutable selectionChangeIsDisabled = false
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
-    let printCurrentZoneButton = new Button(Content="Print this zone", Margin=Thickness(4.))
+    let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                     FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
@@ -523,15 +523,35 @@ type MyWindow() as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
-            featureButton.Click.Add(fun _ -> FeatureWindow.MakeFeatureMap(this.Owner, 
-                                                                            if zm.Zone=3 then Array2D.init 2 2 (fun x y -> 
-                                                                                match x,y with
-                                                                                | 0,0 -> ZoneMemory.Get(3)
-                                                                                | 1,0 -> ZoneMemory.Get(4)
-                                                                                | 0,1 -> ZoneMemory.Get(5)
-                                                                                | _ -> ZoneMemory.Get(6)
-                                                                                )
-                                                                            else Array2D.create 1 1 zm))
+            featureButton.Click.Add(fun _ -> 
+                let W = 220
+                let diag = Utils.makeGrid(2,3,W,20)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
+                let wInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                Utils.gridAdd(diag, wInput, 1, 0)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Height"), 0, 1)
+                let hInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                Utils.gridAdd(diag, hInput, 1, 1)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Comma-separated zones"), 0, 2)
+                let zs = theGame.CurZone.ToString()
+                let zInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text=zs, CaretIndex=zs.Length)
+                Utils.gridAdd(diag, zInput, 1, 2)
+                let closeEv = new Event<unit>()
+                wInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then hInput.Focus() |> ignore)
+                hInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then zInput.Focus() |> ignore)
+                zInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
+                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> wInput.Focus() |> ignore))
+                try
+                    let w = wInput.Text |> int
+                    let h = hInput.Text |> int
+                    let zs = zInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> if s="" then None else Some(ZoneMemory.Get(int s)))
+                    if zs.Length <> w*h then failwith "wrong number of comma-separated entries"
+                    let a = Array2D.init w h (fun x y -> zs.[y*h+x])
+                    FeatureWindow.MakeFeatureMap(this.Owner,a)
+                with e ->
+                    System.Console.Beep()
+                    printfn "FEATURE error: %s" (e.ToString())
+                )
             sp.Children.Add(featureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore

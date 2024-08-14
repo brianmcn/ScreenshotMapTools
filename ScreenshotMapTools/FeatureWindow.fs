@@ -33,7 +33,7 @@ let EnsureFeature(rootOwner, content) =
 
 
 open InMemoryStore
-let MakeFeatureMap(owner,zma:ZoneMemory[,]) =
+let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
     // framing layout
     let gameMapAspect = 
         let _mx,_my,mw,mh = GameSpecific.MapArea
@@ -65,7 +65,15 @@ let MakeFeatureMap(owner,zma:ZoneMemory[,]) =
     let eachHeight = TOTALH / float(zma.GetLength(1)) |> int
     for zi = 0 to zma.GetLength(0)-1 do
         for zj = 0 to zma.GetLength(1)-1 do
-            let zm = zma.[zi,zj]
+            // bg tile color
+            let mapBGcolor = new DockPanel(Width=float eachWidth, Height=float eachHeight, Background=if (zi+zj)%2=0 then Brushes.DarkOliveGreen else Brushes.OliveDrab)
+            let ulx, uly = PICW+float(zi*eachWidth), float(zj*eachHeight)   // where this zone tile begins
+            Utils.canvasAdd(c, mapBGcolor, ulx, uly)
+            // zone
+            let zmo = zma.[zi,zj]
+            match zmo with
+            | None -> ()
+            | Some zm ->
             let MAX = 100
             let mapBmps = Array2D.zeroCreate MAX MAX 
             let nonMainBmps = Array2D.zeroCreate MAX MAX
@@ -159,9 +167,6 @@ let MakeFeatureMap(owner,zma:ZoneMemory[,]) =
                                     | _ -> ()
                 r.UnlockBits(rData)
                 let img = Utils.BMPtoImage(r)
-                let mapBGcolor = new DockPanel(Width=float eachWidth, Height=float eachHeight, Background=if (zi+zj)%2=0 then Brushes.DarkOliveGreen else Brushes.OliveDrab)
-                let ulx, uly = PICW+float(zi*eachWidth), float(zj*eachHeight)   // where this zone tile begins
-                Utils.canvasAdd(c, mapBGcolor, ulx, uly)
                 let imgx, imgy = ulx + float(eachWidth-r.Width)/2., uly + float(eachHeight-LABELH-r.Height)/2.          // for centering image in the tile above the label
                 Utils.canvasAdd(c, img, imgx, imgy)
                 let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(r.Width, r.Height, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)

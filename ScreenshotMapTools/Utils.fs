@@ -43,7 +43,7 @@ let deparent(e:FrameworkElement) =
     | :? Panel as p -> p.Children.Remove(e)
     | _ -> ()
 let mutable aModalDialogIsOpen = false
-let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) =
+let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) =
     let w = new Window()
     w.Title <- title
     w.Content <- element
@@ -53,7 +53,9 @@ let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) =
     close.Add(fun _ -> w.Close())
     aModalDialogIsOpen <- true
     w.Closed.Add(fun _ -> aModalDialogIsOpen <- false)
+    w.Loaded.Add(fun _ -> onLoad())
     w.ShowDialog() |> ignore
+let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) = DoModalDialogCore(parentWindow, element, title, close, (fun() -> ()))
 let BMPtoImage(bmp:System.Drawing.Bitmap) =
     let ms = new System.IO.MemoryStream()
     bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png)  // must be png (not bmp) to save transparency info
