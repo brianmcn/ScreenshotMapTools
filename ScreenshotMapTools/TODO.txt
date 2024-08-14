@@ -1,4 +1,6 @@
 ﻿
+some way to show multi-level small dungeon on a single map screen?
+
 what if my icons could include single letter/number/character?
 
 maybe make my own minimap projection window to overlay on HUD?
