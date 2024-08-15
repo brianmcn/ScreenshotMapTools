@@ -124,6 +124,8 @@ type MyWindow() as this =
     let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
+    let mutable redrawMapIconsFunc = fun _ -> ()
+    let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
     let mutable curZoom = 10
     let mutable hwndSource = null
     // current zone combobox
@@ -246,7 +248,7 @@ type MyWindow() as this =
             mapCanvas.Children.Add(mouseCursor) |> ignore
             do
                 // map icons
-                MapIcons.redrawMapIconsEv.Publish.Add(fun _ ->
+                redrawMapIconsFunc <- (fun _ ->
                     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
                     let draw(i,j,key) =
                         let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
@@ -275,7 +277,7 @@ type MyWindow() as this =
                     let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
                     mapMarkersImage.Source <- bitmapSource
                     )
-                MapIcons.redrawMapIconHoverOnly.Publish.Add(fun _ ->
+                redrawMapIconsHoverOnlyFunc <- (fun _ ->
                     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
                     if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
                         // TODO consider hover for userRegex
@@ -345,6 +347,8 @@ type MyWindow() as this =
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
         mapCanvas.MouseLeave.Add(fun _ -> mouseCursor.Stroke <- Brushes.Transparent; bottomFloat.Children.Clear())
         mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
+        MapIcons.redrawMapIconsEv.Publish.Add(fun () -> redrawMapIconsFunc())
+        MapIcons.redrawMapIconHoverOnly.Publish.Add(fun () -> redrawMapIconsHoverOnlyFunc())
         // init zones and ensure directories
         LoadRootGameData()
         do
