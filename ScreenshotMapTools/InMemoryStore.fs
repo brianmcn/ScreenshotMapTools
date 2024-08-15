@@ -29,9 +29,23 @@ type ImgArrayCache(proj,zone) =
         else
             bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
     member this.TryReadFromDisk(x,y) =
+        (*
         let file = GetCacheFilename(x,y)
         if System.IO.File.Exists(file) then
             imgArray.[x,y] <- new System.Drawing.Bitmap(file) |> Utils.BMPtoImage
+        *)
+        async {
+            let file = GetCacheFilename(x,y)
+            if System.IO.File.Exists(file) then
+                let bmp = new System.Drawing.Bitmap(file)
+                let bi = bmp |> Utils.BMPtoBitmapImage
+                return Some(fun() -> 
+                                let img = new System.Windows.Controls.Image(Source=bi, Width=float bmp.Width, Height=float bmp.Height)
+                                imgArray.[x,y] <- img
+                            )
+            else
+                return None
+        }
     member this.Item with get(x,y) = imgArray.[x,y]
     member this.Set(x,y,bmp,writeToDisk) = 
         if writeToDisk then
@@ -100,6 +114,8 @@ let RecomputeImage(i,j,zm:ZoneMemory) =
 
 let LoadZoneMapTiles(zm:ZoneMemory) =
     // load map tile data and screenshots from disk
+    let asyncs = ResizeArray()
+    let codas = ResizeArray()
     let bgWork = ResizeArray()
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
@@ -119,15 +135,25 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                             let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
                             let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
                             bmpDict.Add(swk.Id, bmp)
-                    zm.FullImgArray.TryReadFromDisk(i,j)
-                    zm.MapImgArray.TryReadFromDisk(i,j)
-                    zm.MetaImgArray.TryReadFromDisk(i,j)
-                    if zm.FullImgArray.[i,j] = null then   // assume 3 disks stay in sync
-                        bgWork.Add((i,j))
+                    asyncs.Add(zm.FullImgArray.TryReadFromDisk(i,j))
+                    asyncs.Add(zm.MapImgArray.TryReadFromDisk(i,j))
+                    asyncs.Add(zm.MetaImgArray.TryReadFromDisk(i,j))
+                    codas.Add(fun() ->
+                        if zm.FullImgArray.[i,j] = null then   // assume 3 disks stay in sync
+                            bgWork.Add((i,j))
+                        )
             else
                 let mt = MapTile()
                 mt.Canonicalize()
                 zm.MapTiles.[i,j] <- mt 
+    let nexts = Async.Parallel asyncs |> Async.RunSynchronously
+    for fo in nexts do
+        match fo with
+        | Some f -> f()   // converts BitmapImages to Images
+        | _ -> ()
+    for f in codas do
+        f()     // populate bgwork
+    // recompute bitmaps that were not cached
     let cde = new System.Threading.CountdownEvent(bgWork.Count)
     let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
     let ctxt = System.Threading.SynchronizationContext.Current
