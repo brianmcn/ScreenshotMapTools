@@ -525,6 +525,9 @@ type MyWindow() as this =
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
             featureButton.Click.Add(fun _ -> 
+                if false then
+                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 53, 38, 58, 43)
+                else
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
