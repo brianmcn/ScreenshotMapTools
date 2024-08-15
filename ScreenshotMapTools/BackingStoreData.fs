@@ -133,6 +133,7 @@ type ScreenshotWithKinds() =
 type MapTile() =   // e.g. 50,50
     member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]  // used for backward compat, before kinds; all assumed "main"
     member val ScreenshotsWithKinds : ScreenshotWithKinds[] = [||] with get,set         // new version of data
+    member val Note : string = null with get,set                  // e.g. "I spawned here at start"
     member this.Canonicalize() =
         if this.Screenshots = null && this.ScreenshotsWithKinds <> null then
             for swk in this.ScreenshotsWithKinds do
@@ -161,7 +162,6 @@ type MapTile() =   // e.g. 50,50
     member this.Assert() =
         if this.Screenshots <> null || this.ScreenshotsWithKinds = null then
             failwith "noncanonical MapTile"
-    member val Note : string = null with get,set                  // e.g. "I spawned here at start"
     member this.IsEmpty = not(this.ThereAreScreenshots()) && (this.Note = null || this.Note="")
     member this.ThereAreScreenshots() = 
         this.Assert()

@@ -525,9 +525,6 @@ type MyWindow() as this =
             sp.Children.Add(toggleLayoutButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
             featureButton.Click.Add(fun _ -> 
-                if false then
-                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 53, 38, 58, 43)
-                else
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
@@ -557,6 +554,12 @@ type MyWindow() as this =
                     printfn "FEATURE error: %s" (e.ToString())
                 )
             sp.Children.Add(featureButton) |> ignore
+            let dualFeatureButton = new Button(Content="Dual", Margin=Thickness(4.))
+            dualFeatureButton.Click.Add(fun _ -> 
+                //FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 53, 38, 58, 43)
+                FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 47, 36, 60, 50)
+                )
+            sp.Children.Add(dualFeatureButton) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
@@ -685,6 +688,23 @@ type MyWindow() as this =
                     if curZoom < MAX/2 then
                         curZoom <- curZoom + 1
                         zoom(theGame.CurX,theGame.CurY, curZoom)
+                if key = VK_NUMPAD5 then
+                    // temp kludge, shift things up one y
+                    if false then
+                        if theGame.CurY > 0 && zm.MapTiles.[theGame.CurX,theGame.CurY-1].IsEmpty then
+                            zm.MapTiles.[theGame.CurX,theGame.CurY-1] <- zm.MapTiles.[theGame.CurX,theGame.CurY]
+                            let e = MapTile()
+                            e.Canonicalize()
+                            zm.MapTiles.[theGame.CurX,theGame.CurY] <- e
+                            SerializeMapTile(theGame.CurX,theGame.CurY-1,zm)
+                            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+                            RecomputeImage(theGame.CurX,theGame.CurY-1,zm)
+                            RecomputeImage(theGame.CurX,theGame.CurY,zm)
+                            //metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
+                            //refreshMetadataKeys()
+                            zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
+                        else
+                            System.Console.Beep()
                 if key = VK_DIVIDE then
                     Utils.Win32.SetForegroundWindow(_hwnd) |> ignore
                     let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
