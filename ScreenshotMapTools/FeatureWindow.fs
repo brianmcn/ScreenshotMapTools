@@ -75,7 +75,7 @@ let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameM
             if zm.MapImgArray.[i,j] <> null then
                 mapBmps.[i,j] <- zm.MapImgArray.GetCopyOfBmp(i,j)
             // linkages
-            for loc in GenericMetadata.FindAllLinkages(mt.Note, zm.Zone, i, j) do
+            for loc,_ in GenericMetadata.FindAllLinkages(mt.Note, zm.Zone, i, j) do
                 let lm = ZoneMemory.Get(loc.Zone)
                 let bmp = lm.MapImgArray.GetCopyOfBmp(loc.X,loc.Y)
                 if bmp <> null then  // only populate linkages when we have a screenshot on the other end to preview

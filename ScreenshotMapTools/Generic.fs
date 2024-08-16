@@ -136,14 +136,38 @@ type MyWindow() as this =
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
     // summary of current selection
-    let summaryTB = new TextBox(IsReadOnly=true, FontSize=20., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
-                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
-                                    HorizontalAlignment=HorizontalAlignment.Stretch,
+    let summaryTB = new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
+                                    HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
-    let floatSummaryTB = new TextBox(IsReadOnly=true, FontSize=18., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
-                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.Wrap, SelectionBrush=Brushes.Orange,
-                                    HorizontalAlignment=HorizontalAlignment.Stretch,
-                                    Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    let floatSummaryTB = new RichTextBox(IsReadOnly=true, FontSize=18., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                            FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
+                                            HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
+                                            Height=180., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    let mutable NavigateTo = (fun (loc:GenericMetadata.Location) -> ())
+    let navigationFunc (o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
+        let s = ea.Uri.AbsolutePath
+        let zone = s.Substring(1,2) |> int
+        let x = s.Substring(4,2) |> int
+        let y = s.Substring(7,2) |> int
+        //printfn "nav to (%d,%d,%s)" x y theGame.ZoneNames.[zone]
+        NavigateTo(GenericMetadata.Location(zone,x,y))
+    let updateTB(tb:RichTextBox, i, j, mt:MapTile) =
+        let fd = new System.Windows.Documents.FlowDocument()
+        let p = new System.Windows.Documents.Paragraph()
+        p.Inlines.Add(sprintf "(%02d,%02d)        %d screenshots\n" i j (mt.NumScreenshots()))
+        let mutable note = mt.Note
+        if note <> null then
+            let linkages = GenericMetadata.FindAllLinkages(mt.Note, theGame.CurZone, i, j)
+            while linkages.Count > 0 do
+                let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
+                linkages.RemoveAt(li)
+                p.Inlines.Add(note.Substring(0,si))
+                p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
+                note <- note.Substring(si+substr.Length)
+            p.Inlines.Add(note)
+        fd.Blocks.Add(p)
+        tb.Document <- fd
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
     let clipView = new Border(Width=float(VIEWX/5), Height=float(VIEWX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
@@ -240,7 +264,7 @@ type MyWindow() as this =
         let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
         Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
         let cmt = zm.MapTiles.[ci,cj]
-        summaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" ci cj (cmt.NumScreenshots()) cmt.Note
+        updateTB(summaryTB, ci, cj, cmt)
         mfsRefresh()
         do
             mouseCursor.Width <- W + RT
@@ -308,8 +332,8 @@ type MyWindow() as this =
                 if i>=0 && i<MAX && j>=0 && j<MAX && zm.FullImgArray.[i,j] <> null then
                     let largeImage = Utils.ImageProjection(ia.[i,j],(0,0,pw,ph))
                     let cmt = zm.MapTiles.[i,j]
-                    floatSummaryTB.Text <- sprintf "(%02d,%02d)        %d screenshots\n%s" i j (cmt.NumScreenshots()) cmt.Note
-                    let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 30., Height=BOTTOM_HEIGHT - 10., Background=Brushes.Cyan, LastChildFill=true)
+                    updateTB(floatSummaryTB, i, j, cmt)
+                    let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 40., Height=BOTTOM_HEIGHT - 40., Background=Brushes.Cyan, LastChildFill=true)
                     DockPanel.SetDock(largeImage, Dock.Bottom)
                     dp.Children.Add(largeImage) |> ignore
                     Utils.deparent(floatSummaryTB)
@@ -349,6 +373,8 @@ type MyWindow() as this =
         mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
         MapIcons.redrawMapIconsEv.Publish.Add(fun () -> redrawMapIconsFunc())
         MapIcons.redrawMapIconHoverOnly.Publish.Add(fun () -> redrawMapIconsHoverOnlyFunc())
+        summaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
+        floatSummaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
         // init zones and ensure directories
         LoadRootGameData()
         do
@@ -369,6 +395,18 @@ type MyWindow() as this =
         zoneComboBox.ItemsSource <- zoneOptions
         zoneComboBox.SelectedIndex <- savedZone
         // zone changes
+        NavigateTo <- (fun loc -> 
+            if loc.Zone >= 0 && loc.Zone < theGame.ZoneNames.Length && loc.X >= 0 && loc.X < MAX && loc.Y >= 0 && loc.Y < MAX then
+                selectionChangeIsDisabled <- true
+                zoneComboBox.SelectedIndex <- loc.Zone
+                selectionChangeIsDisabled <- false
+                theGame.CurZone <- zoneComboBox.SelectedIndex
+                zm <- ZoneMemory.Get(theGame.CurZone)
+                theGame.CurX <- loc.X
+                theGame.CurY <- loc.Y
+                UpdateGameFile()
+                zoom(theGame.CurX, theGame.CurY, curZoom)
+            )
         zoneComboBox.Focusable <- false                // prevent accidents
         zoneComboBox.SelectionChanged.Add(fun _ ->
             if not selectionChangeIsDisabled then

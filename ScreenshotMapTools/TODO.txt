@@ -1,8 +1,4 @@
-﻿way to project just a partial range of the overworld (rather than min..max)?
-and also a way to project two layers at once (overworld and underground), and have mousing one also highlight the other and see both layers?
-
-
-what if my icons could include single letter/number/character?
+﻿what if my icons could include single letter/number/character?
 
 maybe make my own minimap projection window to overlay on HUD?
 
@@ -21,7 +17,7 @@ general:
  - fast travel linkages (visually, click-y, ...)
    - DONE idea, in addition to e.g. (30,40) to go that that screen in this zone, also allow (zone02) or (zone02,30,40)
    - DONE and in feature, it should show those labeled with the coords and/or zone label
-   - and in app, should be clickable list to go there
+   - DONE and in app, should be clickable list to go there
 
 feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
  - and then map out bottom right bubble eaters to test the visualization etc

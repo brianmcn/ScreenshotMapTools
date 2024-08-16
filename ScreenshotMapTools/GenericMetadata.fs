@@ -77,22 +77,26 @@ type MetadataStore() =
 // (zone02,30,40) in text means links to that location
 
 let compiled = System.Text.RegularExpressions.RegexOptions.Compiled
-let coordsRegex = new System.Text.RegularExpressions.Regex("\((\d\d),(\d\d)\)", compiled)   // x,y
-let fullRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d),(\d\d),(\d\d)\)", compiled)   // z,x,y
-let zoneRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d)\)", compiled)   // z
+let coordsRegex = new System.Text.RegularExpressions.Regex("\((\d\d),(\d\d)\)", compiled)               // x,y
+let fullRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d),(\d\d),(\d\d)\)", compiled)      // z,x,y
+let altFullRegex = new System.Text.RegularExpressions.Regex("\((\d\d),(\d\d),zone(\d\d)\)", compiled)   // x,y,z
+let zoneRegex = new System.Text.RegularExpressions.Regex("\(zone(\d\d)\)", compiled)                    // z
 
 let FindAllLinkages(note:string, curZone, curX, curY) =
     let locs = ResizeArray()
     if note <> null then
         for m in coordsRegex.Matches(note) do
             let x,y = int m.Groups.[1].Value, int m.Groups.[2].Value
-            locs.Add(new Location(curZone, x, y))
+            locs.Add(new Location(curZone, x, y), m.Groups.[0].Value)
         for m in fullRegex.Matches(note) do
             let z,x,y = int m.Groups.[1].Value, int m.Groups.[2].Value, int m.Groups.[3].Value
-            locs.Add(new Location(z, x, y))
+            locs.Add(new Location(z, x, y), m.Groups.[0].Value)
+        for m in altFullRegex.Matches(note) do
+            let x,y,z = int m.Groups.[1].Value, int m.Groups.[2].Value, int m.Groups.[3].Value
+            locs.Add(new Location(z, x, y), m.Groups.[0].Value)
         for m in zoneRegex.Matches(note) do
             let z = int m.Groups.[1].Value
-            locs.Add(new Location(z, curX, curY))
+            locs.Add(new Location(z, curX, curY), m.Groups.[0].Value)
     locs
 
             
