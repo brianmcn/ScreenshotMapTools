@@ -369,6 +369,7 @@ type MyWindow() as this =
         zoneComboBox.ItemsSource <- zoneOptions
         zoneComboBox.SelectedIndex <- savedZone
         // zone changes
+        zoneComboBox.Focusable <- false                // prevent accidents
         zoneComboBox.SelectionChanged.Add(fun _ ->
             if not selectionChangeIsDisabled then
                 theGame.CurZone <- zoneComboBox.SelectedIndex
@@ -377,6 +378,7 @@ type MyWindow() as this =
                 refreshMetadataKeys()   // to update counts 
                 zoom(theGame.CurX, theGame.CurY, curZoom)
             )
+        addNewZoneButton.Focusable <- false            // prevent accidents
         addNewZoneButton.Click.Add(fun _ ->
             let n = theGame.ZoneNames.Length
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
@@ -560,8 +562,39 @@ type MyWindow() as this =
             sp.Children.Add(featureButton) |> ignore
             let dualFeatureButton = new Button(Content="Dual", Margin=Thickness(4.))
             dualFeatureButton.Click.Add(fun _ -> 
-                //FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 53, 38, 58, 43)
-                FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(1), ZoneMemory.Get(2), 47, 36, 60, 50)
+                let W = 220
+                let diag = Utils.makeGrid(2,3,W,20)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Left Zone"), 0, 0)
+                let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                Utils.gridAdd(diag, lInput, 1, 0)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Right Zone"), 0, 1)
+                let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="2", CaretIndex=1)
+                Utils.gridAdd(diag, rInput, 1, 1)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="minx,miny,maxx,maxy"), 0, 2)
+                let boundsInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="", CaretIndex=0)
+                Utils.gridAdd(diag, boundsInput, 1, 2)
+                let closeEv = new Event<unit>()
+                lInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then rInput.Focus() |> ignore)
+                rInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then 
+                                                boundsInput.Focus() |> ignore
+                                                try
+                                                    let a,b,c,d = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
+                                                    let w,x,y,z = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
+                                                    boundsInput.Text <- sprintf "%d,%d,%d,%d" (min a w) (min b x) (max c y) (max d z)
+                                                    boundsInput.CaretIndex <- boundsInput.Text.Length
+                                                with _ -> ()
+                                                )
+                boundsInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
+                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
+                try
+                    let l = lInput.Text |> int
+                    let r = rInput.Text |> int
+                    let [|a;b;c;d|] = boundsInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> int s)
+                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), a,b,c,d)
+                with e ->
+                    System.Console.Beep()
+                    printfn "FEATURE error: %s" (e.ToString())
+
                 )
             sp.Children.Add(dualFeatureButton) |> ignore
             sp
