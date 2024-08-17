@@ -131,6 +131,7 @@ type MyWindow() as this =
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add zone", Margin=Thickness(4.))
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
+    let makeZoneName(z) = sprintf "%02d: %s" z (theGame.ZoneNames.[z])
     let mutable selectionChangeIsDisabled = false
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
@@ -384,7 +385,7 @@ type MyWindow() as this =
         let savedZone = theGame.CurZone
         for i = 0 to theGame.ZoneNames.Length-1 do
             // populate zone names for combobox
-            zoneOptions.Add(theGame.ZoneNames.[i])
+            zoneOptions.Add(makeZoneName i)
             // populate key metdata from all notes
             theGame.CurZone <- i
             let zm = ZoneMemory.Get(i)
@@ -420,7 +421,7 @@ type MyWindow() as this =
         addNewZoneButton.Click.Add(fun _ ->
             let n = theGame.ZoneNames.Length
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
-            zoneOptions.Add(theGame.ZoneNames.[n])
+            zoneOptions.Add(makeZoneName n)
             UpdateGameFile()
             selectionChangeIsDisabled <- true
             zoneComboBox.SelectedIndex <- n
@@ -459,7 +460,7 @@ type MyWindow() as this =
                 theGame.ZoneNames.[theGame.CurZone] <- tb.Text
                 UpdateGameFile()
                 selectionChangeIsDisabled <- true
-                zoneOptions.[theGame.CurZone] <- theGame.ZoneNames.[theGame.CurZone]
+                zoneOptions.[theGame.CurZone] <- makeZoneName(theGame.CurZone)
                 zoneComboBox.SelectedIndex <- theGame.CurZone 
                 selectionChangeIsDisabled <- false
             )
