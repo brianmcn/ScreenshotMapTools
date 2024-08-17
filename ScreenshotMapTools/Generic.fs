@@ -384,12 +384,15 @@ type MyWindow() as this =
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
         let savedZone = theGame.CurZone
         for i = 0 to theGame.ZoneNames.Length-1 do
+            let name = makeZoneName i
+            printfn "Loading screenshots for zone%s..." name
             // populate zone names for combobox
-            zoneOptions.Add(makeZoneName i)
+            zoneOptions.Add(name)
             // populate key metdata from all notes
             theGame.CurZone <- i
             let zm = ZoneMemory.Get(i)
             LoadZoneMapTiles(zm)
+        printfn "...done!"
         theGame.CurZone <- savedZone
         // populate images for initial map
         let mutable zm = ZoneMemory.Get(theGame.CurZone)
@@ -676,6 +679,7 @@ type MyWindow() as this =
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
             Utils.setup(this)
             zoom(theGame.CurX,theGame.CurY,curZoom)
+            this.Activate() |> ignore
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)

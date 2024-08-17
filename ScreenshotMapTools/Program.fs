@@ -13,8 +13,13 @@ type DummyWindow() as this =
         this.Width <- 300.
         this.Height <- 100.
         this.WindowState <- WindowState.Minimized
+        this.Visibility <- Visibility.Hidden
         this.Loaded.Add(fun _ ->
-            this.Visibility <- Visibility.Hidden
+            this.Activate() |> ignore
+            printfn "Starting up..."
+            let handle = Elephantasy.Winterop.GetConsoleWindow()
+            let _hwnd = Elephantasy.Winterop.SetActiveWindow(handle)
+            //printfn "%A" _hwnd
             let mainW = new Generic.MyWindow()
             mainW.Owner <- this
             mainW.Show()

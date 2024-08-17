@@ -119,6 +119,8 @@ module Winterop =
     let SW_HIDE = 0
     let SW_SHOW = 5
     let SW_MINIMIZE = 6
+    [<DllImport("user32.dll")>]
+    extern IntPtr SetActiveWindow(IntPtr hWnd)
 
 open System.Windows.Controls
 open System.Windows.Shapes
