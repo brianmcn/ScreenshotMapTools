@@ -117,6 +117,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     let asyncs = ResizeArray()
     let codas = ResizeArray()
     let bgWork = ResizeArray()
+    let mutable bmpCount = 0
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
             zm.FullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
@@ -135,6 +136,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                             let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
                             let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
                             bmpDict.Add(swk.Id, bmp)
+                            bmpCount <- bmpCount + 1
                     asyncs.Add(zm.FullImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MapImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MetaImgArray.TryReadFromDisk(i,j))
@@ -167,4 +169,5 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     cde.Wait()
     for f in fgWork do
         f()
+    bmpCount
 
