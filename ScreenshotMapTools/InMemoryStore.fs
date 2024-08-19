@@ -134,9 +134,12 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                     for swk in data.ScreenshotsWithKinds do
                         if not(bmpDict.ContainsKey(swk.Id)) then
                             let ssFile = ScreenshotFilenameFromTimestampId(swk.Id)
-                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                            bmpDict.Add(swk.Id, bmp)
-                            bmpCount <- bmpCount + 1
+                            if System.IO.File.Exists(ssFile) then
+                                let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
+                                bmpDict.Add(swk.Id, bmp)
+                                bmpCount <- bmpCount + 1
+                            else
+                                printfn "warning, file '%s' reference by (zone%d,%d,%d) was not found" ssFile theGame.CurZone i j
                     asyncs.Add(zm.FullImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MapImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MetaImgArray.TryReadFromDisk(i,j))

@@ -30,7 +30,8 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
 
 open GameSpecific
 
-let rootFolder = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, GAME)
+//let rootFolder = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, GAME)
+let rootFolder = System.IO.Path.Combine(GAME)
 let GetRootFolder() = rootFolder
 
 let WriteAllText(filename, text) =
