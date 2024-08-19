@@ -104,6 +104,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
 
 type MyWindow() as this = 
     inherit Window()
+    let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let MAPX,MAPY = VIEWX,420
@@ -708,8 +709,11 @@ type MyWindow() as this =
         if Utils.aModalDialogIsOpen then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
         let zm = ZoneMemory.Get(theGame.CurZone)
-        if msg = WM_HOTKEY then
-            if wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
+        if msg = WM_HOTKEY && wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
+            if currentlyRunningAHotkeyCommand then
+                System.Console.Beep()
+            else
+                currentlyRunningAHotkeyCommand <- true
                 //let ctrl_bits = lParam.ToInt32() &&& 0xF  // see WM_HOTKEY docs
                 let key = lParam.ToInt32() >>> 16
                 if false then
@@ -827,4 +831,5 @@ type MyWindow() as this =
                         UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
                     else
                         UpdateCurrentNote(orig, orig+"\n"+special, zm)
+                currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero

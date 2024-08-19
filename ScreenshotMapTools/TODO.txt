@@ -1,4 +1,8 @@
-﻿what if my icons could include single letter/number/character?
+﻿two quick consecutive screenshots or cuts crashes, dunno why
+
+crash when press '*'?
+
+what if my icons could include single letter/number/character?
 
 maybe make my own minimap projection window to overlay on HUD?
 

@@ -30,7 +30,8 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
 
 open GameSpecific
 
-let GetRootFolder() = System.IO.Path.Combine(GAME)
+let rootFolder = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, GAME)
+let GetRootFolder() = rootFolder
 
 let WriteAllText(filename, text) =
     let dir = System.IO.Path.GetDirectoryName(filename)
@@ -103,10 +104,15 @@ let TakeNewScreenshot() =
         match r with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, GAMESCREENW, GAMESCREENH)
         | None -> failwith "window not found"
-    let nativeBmp = new System.Drawing.Bitmap(GAMENATIVEW, GAMENATIVEH)
-    for i = 0 to GAMENATIVEW-1 do
-        for j = 0 to GAMENATIVEH-1 do
-            nativeBmp.SetPixel(i, j, bmp.GetPixel(i*NATIVE_FACTOR, j*NATIVE_FACTOR))
+    let nativeBmp = 
+        if NATIVE_FACTOR <> 1 then
+            let r = new System.Drawing.Bitmap(GAMENATIVEW, GAMENATIVEH)
+            for i = 0 to GAMENATIVEW-1 do
+                for j = 0 to GAMENATIVEH-1 do
+                    r.SetPixel(i, j, bmp.GetPixel(i*NATIVE_FACTOR, j*NATIVE_FACTOR))
+            r
+        else
+            bmp
     let id,img = SaveScreenshot(nativeBmp)
     img, nativeBmp, id
 

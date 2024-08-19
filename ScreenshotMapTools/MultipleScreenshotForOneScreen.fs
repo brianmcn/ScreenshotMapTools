@@ -24,8 +24,6 @@ let MoreLuminous(c1:Color,c2:Color) =
 let ComputeUnion(bmps:ResizeArray<Bitmap>) =
     if bmps.Count = 0 then
         null
-//    elif bmps.Count = 1 then
-//        bmps.[0]
     else
         let w,h = bmps.[0].Width, bmps.[0].Height
         for bmp in bmps do

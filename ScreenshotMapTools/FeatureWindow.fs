@@ -28,8 +28,8 @@ type FeatureWindow(owner) as this =
 let EnsureFeature(rootOwner, content) =
     if FeatureWindow.TheFeatureWindow=null then
         FeatureWindow.TheFeatureWindow <- new FeatureWindow(rootOwner)
-        FeatureWindow.TheFeatureWindow.Show()
-    FeatureWindow.TheFeatureWindow.SetContent(content)
+        FeatureWindow.TheFeatureWindow.SetContent(content)
+        FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
 
 let MAX = 100
 let ComputeRange(zm:InMemoryStore.ZoneMemory) =
@@ -37,9 +37,12 @@ let ComputeRange(zm:InMemoryStore.ZoneMemory) =
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
             let mt = zm.MapTiles.[i,j]
+            (*
             let matches = mt.ScreenshotsWithKinds |> Array.filter (fun swk -> swk.Kinds |> Array.contains("main") |> not)
             // any
             if matches.Length > 0 || zm.FullImgArray.[i,j] <> null then
+            *)
+            if not mt.IsEmpty then
                 minx <- min minx i
                 miny <- min miny j
                 maxx <- max maxx i
@@ -58,7 +61,7 @@ let makeHighlightRect() =
 
 
 open InMemoryStore
-let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, margin, onHover:Event<_>, onLeave:Event<_>) =
+let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, margin, onHover:Event<_>, onLeave:Event<_>, iconForNonMains) =
     let mapBmps = Array2D.zeroCreate MAX MAX 
     let nonMainBmps = Array2D.zeroCreate MAX MAX
     let linkages = Array2D.init MAX MAX (fun _ _ -> ResizeArray())
@@ -124,7 +127,7 @@ let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameM
                 let bytes = MapIcons.mapMarkerCaches.[key].Get(w,h)
                 let stride = w*4
                 Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, xoff, yoff, bytes, stride, 0, 0, w, h)
-            if nonMainBmps.[i,j] <> null then
+            if iconForNonMains && nonMainBmps.[i,j] <> null then
                 draw(i,j,MapIcons.HOVER_DUMMY)
             if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
                 do
@@ -217,7 +220,7 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
             if maxx >= minx then // there was at least one screenshot
                 let WW = PICH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
                 let onHover, onLeave = new Event<_>(), new Event<_>()
-                let imgCanvas, mapBmps, nonMainBmps, linkages, _, _ = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave)
+                let imgCanvas, mapBmps, nonMainBmps, linkages, _, _ = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, true)
                 Utils.canvasAdd(c, imgCanvas, ulx, uly)
                 onHover.Publish.Add(fun (i,j) ->
                     // framing updates...
@@ -292,7 +295,7 @@ let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, minx, miny, maxx, 
                 let ulx, uly = (if first then 0. else 640.), 0.  // where this zone tile begins
                 Utils.canvasAdd(c, mapBGcolor, ulx, uly)
                 let onHover, onLeave = new Event<_>(), new Event<_>()
-                let imgCanvas, mapBmps, _nonMainBmps, _linkages, hi, unhi = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave)
+                let imgCanvas, mapBmps, _nonMainBmps, _linkages, hi, unhi = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, false)
                 Utils.canvasAdd(c, imgCanvas, ulx, uly)
                 yield onHover, onLeave, mapBmps, hi, unhi
         |]

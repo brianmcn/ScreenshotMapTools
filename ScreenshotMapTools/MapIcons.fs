@@ -239,7 +239,7 @@ let MakeIconUI(parentWindow) =
                 dp.Children.Add(label) |> ignore
                 dp.Children.Add(closeButton) |> ignore
                 dp.Children.Add(edit) |> ignore
-                Utils.DoModalDialog(parentWindow, dp, "Change user regex", closeEv.Publish)
+                Utils.DoModalDialogCore(parentWindow, dp, "Change user regex", closeEv.Publish, (fun() -> edit.Focus() |> ignore))
                 userRegex <- edit.Text
                 refreshButton()
                 )
