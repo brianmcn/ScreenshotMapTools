@@ -251,11 +251,20 @@ let MakeIconUI(parentWindow) =
             dp.Children.Add(but) |> ignore
         else
             let mutable all, here = 0,0
+            let zoneCounts = Array.zeroCreate 100
             for loc in InMemoryStore.metadataStore.LocationsForKey(k) do
                 if loc.Zone = BackingStoreData.theGame.CurZone then
                     here <- here + 1
                 all <- all + 1
-            dp.Children.Add(mkTxt(sprintf "%s (%d/%d)" k here all)) |> ignore
+                zoneCounts.[loc.Zone] <- zoneCounts.[loc.Zone] + 1
+            let textBox = mkTxt(sprintf "%s (%d/%d)" k here all)
+            let mutable tooltip = ""
+            for i = 0 to 99 do
+                if zoneCounts.[i] > 0 then
+                    tooltip <- tooltip + sprintf "%d zone%02d: %s\n" zoneCounts.[i] i BackingStoreData.theGame.ZoneNames.[i]
+            textBox.IsHitTestVisible <- true
+            ToolTipService.SetToolTip(textBox, tooltip)
+            dp.Children.Add(textBox) |> ignore
         let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, i)
         i <- i + 1

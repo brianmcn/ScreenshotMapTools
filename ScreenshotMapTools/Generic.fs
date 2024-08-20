@@ -410,6 +410,7 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
                 theGame.CurZone <- zoneComboBox.SelectedIndex
                 zm <- ZoneMemory.Get(theGame.CurZone)
+                refreshMetadataKeys()   // to update counts 
                 theGame.CurX <- loc.X
                 theGame.CurY <- loc.Y
                 UpdateGameFile()
