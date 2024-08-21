@@ -1,8 +1,7 @@
-﻿two quick consecutive screenshots or cuts crashes, dunno why
-
-crash when press '*'?
+﻿crash when press '*'?
 
 what if my icons could include single letter/number/character?
+what if full rectangles of transparent color?
 
 maybe make my own minimap projection window to overlay on HUD?
 

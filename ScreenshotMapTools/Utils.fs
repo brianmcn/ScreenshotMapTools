@@ -148,6 +148,11 @@ let SetAndGetColorFromLockedFormat32BppArgb(rx,ry,rbmd:BitmapData,x,y,bmd:Bitmap
     NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 2) r
     NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 3) a
 
+let LoadBitmapWithoutLockingFile(filename:string) =
+    use bmp = new Bitmap(filename)   // keeps file locked until required to make a deep copy into memory
+    let r = new Bitmap(bmp)  // deep clone
+    r
+
 //////////////////////////////////////////////////////////////////////
 
 // https://stackoverflow.com/questions/1335426/is-there-a-built-in-c-net-system-api-for-hsv-to-rgb

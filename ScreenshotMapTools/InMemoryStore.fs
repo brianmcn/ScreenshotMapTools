@@ -29,11 +29,6 @@ type ImgArrayCache(proj,zone) =
         else
             bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
     member this.TryReadFromDisk(x,y) =
-        (*
-        let file = GetCacheFilename(x,y)
-        if System.IO.File.Exists(file) then
-            imgArray.[x,y] <- new System.Drawing.Bitmap(file) |> Utils.BMPtoImage
-        *)
         async {
             let file = GetCacheFilename(x,y)
             if System.IO.File.Exists(file) then
@@ -55,7 +50,7 @@ type ImgArrayCache(proj,zone) =
     member this.GetCopyOfBmp(x,y) =
         let file = GetCacheFilename(x,y)
         if System.IO.File.Exists(file) then
-            new System.Drawing.Bitmap(file)
+            Utils.LoadBitmapWithoutLockingFile(file)
         else
             null
     member this.GetRaw(x, y, width, height) =
