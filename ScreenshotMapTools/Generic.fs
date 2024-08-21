@@ -384,7 +384,7 @@ type MyWindow() as this =
             System.IO.Directory.CreateDirectory(zoneFolder) |> ignore
         System.IO.Directory.CreateDirectory(System.IO.Path.Combine(GetRootFolder(),SCREENSHOTS_FOLDER)) |> ignore
         let savedZone = theGame.CurZone
-        let mutable totalBmpCount = 0
+        let mutable totalBmpCount, totalMapTileCount = 0, 0
         for i = 0 to theGame.ZoneNames.Length-1 do
             let name = makeZoneName i
             printf "Loading screenshots for zone%-35s..." name
@@ -393,10 +393,11 @@ type MyWindow() as this =
             // populate key metdata from all notes
             theGame.CurZone <- i
             let zm = ZoneMemory.Get(i)
-            let bmpCount = LoadZoneMapTiles(zm)
-            printfn " %3d screenshots loaded!" bmpCount
+            let bmpCount,maptileCount = LoadZoneMapTiles(zm)
+            printfn " %3d screenshots loaded for %3d map tiles!" bmpCount maptileCount
             totalBmpCount <- totalBmpCount + bmpCount
-        printfn "...done! %d total screenshots" totalBmpCount
+            totalMapTileCount <- totalMapTileCount + maptileCount
+        printfn "...done! %d total screenshots, %d total map tiles" totalBmpCount totalMapTileCount
         theGame.CurZone <- savedZone
         // populate images for initial map
         let mutable zm = ZoneMemory.Get(theGame.CurZone)

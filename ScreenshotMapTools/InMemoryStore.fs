@@ -118,6 +118,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     let codas = ResizeArray()
     let bgWork = ResizeArray()
     let mutable bmpCount = 0
+    let mutable mapTileCount = 0
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
             zm.FullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
@@ -129,6 +130,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                 let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
                 data.Canonicalize()
                 zm.MapTiles.[i,j] <- data
+                mapTileCount <- mapTileCount + 1
                 metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,i,j), "", data.Note)
                 if data.ThereAreScreenshots() then
                     for swk in data.ScreenshotsWithKinds do
@@ -172,5 +174,5 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     cde.Wait()
     for f in fgWork do
         f()
-    bmpCount
+    bmpCount, mapTileCount
 
