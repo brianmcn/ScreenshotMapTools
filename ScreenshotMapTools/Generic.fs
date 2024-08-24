@@ -26,6 +26,9 @@ let SerializeMapTile(x,y,zm:ZoneMemory) =
     WriteAllText(MapTileFilename(x,y,zm.Zone), json)
 
 let broadcastHotKeyEv = new Event<int*IntPtr*IntPtr>()
+let mutable theCurrentLocalBHKE = fun _ -> ()
+do
+    broadcastHotKeyEv.Publish.Add(fun x -> theCurrentLocalBHKE x)
 
 let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) = 
     let closeEv = new Event<unit>()
@@ -70,13 +73,12 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                 img.Stretch <- Stretch.Uniform
                 FeatureWindow.EnsureFeature(parent.Owner, img)
             else
-                //printfn "highlighting %s" ssid
                 whichSSIDisHighlighted <- Some(ssid)
                 for b in allBorders do
                     b.BorderBrush <- Brushes.Transparent
                 border.BorderBrush <- Brushes.Orange
             )
-    broadcastHotKeyEv.Publish.Add(fun (msg, wParam, lParam) ->              // TODO this leaks, but hopefully isn't used frequently
+    theCurrentLocalBHKE <- (fun (msg, wParam, lParam) ->
         let WM_HOTKEY = 0x0312
         if msg = WM_HOTKEY then
             if wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
@@ -85,7 +87,6 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                     match whichSSIDisHighlighted with
                     | None -> ()
                     | Some(ssid) ->
-                        //printfn "cutting %s" ssid
                         clipboardSSID <- ssid
                         updateClipboardView()
                         zm.MapTiles.[x,y].CutScreenshot(ssid)
@@ -94,11 +95,10 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                         //zoom(...) will be called when the window closes
                         // update disk
                         SerializeMapTile(x,y,zm)
-                        //printfn "closing..."
                         closeEv.Trigger()
-                        //printfn "closed"
         )
     Utils.DoModalDialog(parent, all, sprintf "All Screenshots for (%d,%d)" x y, closeEv.Publish)
+    theCurrentLocalBHKE <- fun _ -> ()
 
 type MyWindow() as this = 
     inherit Window()
@@ -150,7 +150,6 @@ type MyWindow() as this =
         let zone = s.Substring(1,2) |> int
         let x = s.Substring(4,2) |> int
         let y = s.Substring(7,2) |> int
-        //printfn "nav to (%d,%d,%s)" x y theGame.ZoneNames.[zone]
         NavigateTo(GenericMetadata.Location(zone,x,y))
     let updateTB(tb:RichTextBox, i, j, mt:MapTile) =
         let fd = new System.Windows.Documents.FlowDocument()
@@ -188,10 +187,8 @@ type MyWindow() as this =
         let child : UIElement = 
             if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
                 let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
-                metaAndScreenshotPanel.Children.Add(top) |> ignore
-                DockPanel.SetDock(top, Dock.Top)
-                let largeImage = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
-                upcast largeImage
+                metaAndScreenshotPanel.AddTop(top) |> ignore
+                upcast Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
             else
                 let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
                 let h = w / 16. * 9.
@@ -208,14 +205,11 @@ type MyWindow() as this =
     //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
     let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
-        //new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, BorderThickness=Thickness(1.), Foreground=Brushes.Black,
-        //    HorizontalContentAlignment=HorizontalAlignment.Center, VerticalContentAlignment=VerticalAlignment.Center)
         new TextBlock(IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, Foreground=Brushes.Black)  // TextBlock is much lighter weight (perf), but lacks alignment centering
         )
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
     let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
-        //printfn "called zoom(%d,%d,%d)" ci cj level
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,pw,ph = 
             match curProjection with
@@ -236,16 +230,13 @@ type MyWindow() as this =
                 if i>=0 && i<MAX && j>=0 && j<MAX then
                     drawnLocations.Add(i,j)
                     let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                    let IW,IH = int(W),(max 1 (int H))
+                    let stride = IW*4
                     if zm.FullImgArray.[i,j] <> null then
-                        let W,H = int(W),(max 1 (int H))
-                        let bytes = ia.GetRaw(i,j,W,H)
-                        let stride = W*4
-                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                        let bytes = ia.GetRaw(i,j,IW,IH)
+                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, IW, IH)
                     else
-                        do
-                            let W,H = int(W),int(H)
-                            let stride = W*4
-                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, W, H)
+                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, IW, IH)
                         let tb = zoomTextboxes.[i,j]
                         Utils.deparent(tb)
                         tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.CornflowerBlue)
@@ -317,7 +308,6 @@ type MyWindow() as this =
                 // compute which index we are over
                 let i = (ci - level) + int((x - DX + W)/W)
                 let j = (cj - level) + int((y - DY + H)/H)
-                //printfn "mousemove (%6.2f,%6.2f,%2d,%2d)" x y i j
                 // draw mouse cursor
                 Canvas.SetLeft(mouseCursor, DX-W+float(i-ci+level)*W-RT/2.)
                 Canvas.SetTop(mouseCursor, DY-H+float(j-cj+level)*H-RT/2.)
@@ -477,7 +467,6 @@ type MyWindow() as this =
                     let mx,my,mw,mh = ma
                     let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
                     let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                    //System.Diagnostics.Debugger.Break()
                     for i = minx to maxx do
                         printfn "[%d..%d] - %d" minx maxx i
                         for j = miny to maxy do
@@ -486,10 +475,6 @@ type MyWindow() as this =
                                 let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
                                 for x = 0 to mw-1 do
                                     for y = 0 to mh-1 do
-                                        //let color = bmp.GetPixel(mx+x,my+y)
-                                        //let color = Utils.GetColorFromLockedFormat32BppArgb(mx+x,my+y,data)
-                                        //r.SetPixel(mw*(i-minx) + x, mh*(j-miny) + y, color)
-                                        //Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData,color)
                                         if x=mw-1 || y=mh-1 then
                                             Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
                                         else
@@ -503,11 +488,7 @@ type MyWindow() as this =
         updateClipboardView <- (fun () ->
             if not(System.String.IsNullOrEmpty(clipboardSSID)) then
                 let img = bmpDict.[clipboardSSID] |> Utils.BMPtoImage
-                //printfn "CV: %f, %f" clipView.Width clipView.ActualWidth
                 clipView.Child <- img
-                //img.Stretch <- Stretch.Uniform
-                //img.StretchDirection <- StretchDirection.Both
-                // code below seems stupid but it works, as opposed to code above
                 img.Width <- clipView.ActualWidth
                 img.Height <- clipView.ActualHeight
                 clipTB.Text <- clipboardSSID
