@@ -16,6 +16,7 @@ open Elephantasy.Winterop
 open GameSpecific
 open BackingStoreData
 open InMemoryStore
+open Utils.Extensions
 
 let mutable clipboardSSID = ""
 let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugly tangle
@@ -58,10 +59,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                 RecomputeImage(x,y,zm)
                 SerializeMapTile(x,y,zm)
                 )
-        let dp = new DockPanel(LastChildFill=true)
-        DockPanel.SetDock(kindPanel, Dock.Right)
-        dp.Children.Add(kindPanel) |> ignore
-        dp.Children.Add(border) |> ignore
+        let dp = (new DockPanel(LastChildFill=true)).AddRight(kindPanel).Add(border)
         sp.Children.Add(dp) |> ignore
         allBorders.Add(border)
         border.MouseDown.Add(fun ea ->
@@ -173,12 +171,7 @@ type MyWindow() as this =
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
     let clipView = new Border(Width=float(VIEWX/5), Height=float(VIEWX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
-    let clipDP = 
-        let r = new DockPanel(LastChildFill=true)
-        r.Children.Add(clipTB) |> ignore
-        DockPanel.SetDock(clipTB, Dock.Top)
-        r.Children.Add(clipView) |> ignore
-        r
+    let clipDP = (new DockPanel(LastChildFill=true)).AddTop(clipTB).Add(clipView)
     // meta and full summary of current tile
     let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
     let refreshMetadataKeys() =   // TODO can clean this up
@@ -335,11 +328,9 @@ type MyWindow() as this =
                     let largeImage = Utils.ImageProjection(ia.[i,j],(0,0,pw,ph))
                     let cmt = zm.MapTiles.[i,j]
                     updateTB(floatSummaryTB, i, j, cmt)
-                    let dp = new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 40., Height=BOTTOM_HEIGHT - 40., Background=Brushes.Cyan, LastChildFill=true)
-                    DockPanel.SetDock(largeImage, Dock.Bottom)
-                    dp.Children.Add(largeImage) |> ignore
                     Utils.deparent(floatSummaryTB)
-                    dp.Children.Add(floatSummaryTB) |> ignore
+                    let dp = (new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 40., Height=BOTTOM_HEIGHT - 40., Background=Brushes.Cyan, LastChildFill=true))
+                                .AddBottom(largeImage).Add(floatSummaryTB)
                     Utils.canvasAdd(bottomFloat, new Border(Child=dp, BorderBrush=Brushes.Cyan, BorderThickness=Thickness(4.)), 0., 0.)
                 )
             mapCanvasMouseDownFunc <- (fun (me,x,y) ->
@@ -451,12 +442,7 @@ type MyWindow() as this =
             let sb = new Button(Content=" Save ", Margin=Thickness(4.))
             cb.Click.Add(fun _ -> closeEv.Trigger())
             sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-            let dp = new DockPanel(LastChildFill=true)
-            dp.Children.Add(cb) |> ignore
-            dp.Children.Add(sb) |> ignore
-            dp.Children.Add(new DockPanel()) |> ignore
-            DockPanel.SetDock(cb, Dock.Left)
-            DockPanel.SetDock(sb, Dock.Right)
+            let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
             let sp = new StackPanel(Orientation=Orientation.Vertical)
             sp.Children.Add(tb) |> ignore
             sp.Children.Add(dp) |> ignore
@@ -474,28 +460,6 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
-            // TODO
-#if OLD
-            // load full screenshots from disk
-            let bmps = Array2D.zeroCreate 100 100
-            let mutable minx,miny,maxx,maxy = 100,100,0,0
-            for i = 0 to MAX-1 do
-                for j = 0 to MAX-1 do
-                    let file = MapTileFilename(i,j)
-                    if System.IO.File.Exists(file) then
-                        let json = System.IO.File.ReadAllText(file)
-                        let data = System.Text.Json.JsonSerializer.Deserialize<MapTile>(json)
-                        if data.Screenshots <> null && data.Screenshots.Length > 0 then
-                            // TODO representatives?
-                            let ts = data.Screenshots.[data.Screenshots.Length-1]
-                            let ssFile = ScreenshotFilenameFromTimestampId(ts)
-                            let bmp = System.Drawing.Bitmap.FromFile(ssFile) :?> System.Drawing.Bitmap
-                            bmps.[i,j] <- bmp
-                            minx <- min minx i
-                            miny <- min miny j
-                            maxx <- max maxx i
-                            maxy <- max maxy j
-#else
             let bmps = Array2D.zeroCreate 100 100
             let mutable minx,miny,maxx,maxy = 100,100,0,0
             for i = 0 to MAX-1 do
@@ -507,7 +471,6 @@ type MyWindow() as this =
                         miny <- min miny j
                         maxx <- max maxx i
                         maxy <- max maxy j
-#endif
             if maxx >= minx then // there was at least one screenshot
                 //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
                 for ma,fn in [MapArea,"printed_map.png"] do
@@ -650,12 +613,9 @@ type MyWindow() as this =
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
         all.Children.Add(mapPortion) |> ignore
         let bottom =
-            let dp = new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             refreshMetadataKeys()
             let rightColumn =
-                let rc = new DockPanel(LastChildFill=true)
-                rc.Children.Add(clipDP) |> ignore
-                DockPanel.SetDock(clipDP, Dock.Bottom)
+                let rc = (new DockPanel(LastChildFill=true)).AddBottom(clipDP)
                 let mutable iconKeys = MapIcons.MakeIconUI(this)
                 rc.Children.Add(iconKeys) |> ignore
                 MapIcons.redrawPanelEv.Publish.Add(fun _ ->
@@ -664,15 +624,8 @@ type MyWindow() as this =
                     rc.Children.Add(iconKeys) |> ignore
                     )
                 rc
-            let leftColumn = 
-                let lc = new DockPanel(LastChildFill=true, Background=Brushes.Yellow)
-                DockPanel.SetDock(metaAndScreenshotPanel, Dock.Bottom)
-                lc.Children.Add(metaAndScreenshotPanel) |> ignore
-                lc.Children.Add(summaryTB) |> ignore
-                lc
-            dp.Children.Add(rightColumn) |> ignore
-            DockPanel.SetDock(rightColumn, Dock.Right)
-            dp.Children.Add(leftColumn) |> ignore
+            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddBottom(metaAndScreenshotPanel).Add(summaryTB)
+            let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
             let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             r.Children.Add(dp) |> ignore
             r.Children.Add(bottomFloat) |> ignore
@@ -807,12 +760,7 @@ type MyWindow() as this =
                     let sb = new Button(Content=" Save ", Margin=Thickness(4.))
                     cb.Click.Add(fun _ -> closeEv.Trigger())
                     sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-                    let dp = new DockPanel(LastChildFill=true)
-                    dp.Children.Add(cb) |> ignore
-                    dp.Children.Add(sb) |> ignore
-                    dp.Children.Add(new DockPanel()) |> ignore
-                    DockPanel.SetDock(cb, Dock.Left)
-                    DockPanel.SetDock(sb, Dock.Right)
+                    let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
                     let sp = new StackPanel(Orientation=Orientation.Vertical)
                     sp.Children.Add(tb) |> ignore
                     sp.Children.Add(dp) |> ignore

@@ -1,4 +1,12 @@
-﻿crash when press '*'?
+﻿consider different UI:
+ - cursor seperate from zoom/viewport
+ - mousing moves cursor (what if mouseleave?)
+ - maybe shift-numpad moves viewport
+ - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor
+ - also how do I feature composited screenshots of a tile?
+
+
+crash when press '*'?
 
 what if my icons could include single letter/number/character?
 what if full rectangles of transparent color?

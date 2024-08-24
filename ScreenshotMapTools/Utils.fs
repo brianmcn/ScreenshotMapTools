@@ -16,6 +16,28 @@ module Win32 =
 open System.Windows
 open System.Windows.Controls
 
+module Extensions =
+    type DockPanel with
+        member this.AddLeft(x) =
+            DockPanel.SetDock(x, Dock.Left)
+            this.Children.Add(x) |> ignore
+            this
+        member this.AddRight(x) =
+            DockPanel.SetDock(x, Dock.Right)
+            this.Children.Add(x) |> ignore
+            this
+        member this.AddTop(x) =
+            DockPanel.SetDock(x, Dock.Top)
+            this.Children.Add(x) |> ignore
+            this
+        member this.AddBottom(x) =
+            DockPanel.SetDock(x, Dock.Bottom)
+            this.Children.Add(x) |> ignore
+            this
+        member this.Add(x) =
+            this.Children.Add(x) |> ignore
+            this
+
 let canvasAdd(c:Canvas,e,x,y) =
     Canvas.SetLeft(e,x)
     Canvas.SetTop(e,y)

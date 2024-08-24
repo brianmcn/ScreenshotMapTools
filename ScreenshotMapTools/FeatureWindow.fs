@@ -4,6 +4,7 @@ open System
 open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
+open Utils.Extensions
 
 let FEATUREW,FEATUREH = 1280.,720.
 [<AllowNullLiteral>]
@@ -244,7 +245,6 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
                         let TH = 24.
                         let HH = PICH - TH
                         let WW = HH * gameMapAspect
-                        let dp = new DockPanel(LastChildFill=true, Height=HH, Width=WW)
                         let locDesc = new TextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue,
                                                         FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, TextWrapping=TextWrapping.NoWrap, SelectionBrush=Brushes.Orange,
                                                         Height=TH, VerticalScrollBarVisibility=ScrollBarVisibility.Disabled)
@@ -253,14 +253,12 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
                                 sprintf "(%s)" BackingStoreData.theGame.ZoneNames.[loc.Zone]
                             else
                                 sprintf "(%s,%d,%d)" BackingStoreData.theGame.ZoneNames.[loc.Zone] loc.X loc.Y
-                        DockPanel.SetDock(locDesc, Dock.Bottom)
-                        dp.Children.Add(locDesc) |> ignore
                         let img = bmp |> Utils.BMPtoImage
                         img.Height <- HH
                         img.Width <- WW
                         img.Stretch <- Stretch.Uniform
                         img.Margin <- Thickness(0.,0.,4.,0.)
-                        dp.Children.Add(img) |> ignore
+                        let dp = (new DockPanel(LastChildFill=true, Height=HH, Width=WW)).AddBottom(locDesc).Add(img)
                         bottom.Children.Add(dp) |> ignore
                     if nonMainBmps.[i,j] <> null then
                         for bmp in nonMainBmps.[i,j] do
