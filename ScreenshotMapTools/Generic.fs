@@ -450,40 +450,65 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
-            let bmps = Array2D.zeroCreate 100 100
-            let mutable minx,miny,maxx,maxy = 100,100,0,0
+            let bmps = Array2D.zeroCreate MAX MAX
+            let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
             for i = 0 to MAX-1 do
                 for j = 0 to MAX-1 do
                     let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
                     if bmp <> null then
                         bmps.[i,j] <- bmp
-                        minx <- min minx i
-                        miny <- min miny j
-                        maxx <- max maxx i
-                        maxy <- max maxy j
-            if maxx >= minx then // there was at least one screenshot
-                //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
-                for ma,fn in [MapArea,"printed_map.png"] do
-                    let mx,my,mw,mh = ma
-                    let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
-                    let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                    for i = minx to maxx do
-                        printfn "[%d..%d] - %d" minx maxx i
-                        for j = miny to maxy do
-                            let bmp = bmps.[i,j]
-                            if bmp <> null then
-                                let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                                for x = 0 to mw-1 do
-                                    for y = 0 to mh-1 do
-                                        if x=mw-1 || y=mh-1 then
-                                            Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
-                                        else
-                                            Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data)
-                                bmp.UnlockBits(data)
-                    r.UnlockBits(rData)
-                    r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
-            else
-                printfn "no screenshots to print"
+                        gr.Extend(i,j)
+            let PrintRegion(bmps:System.Drawing.Bitmap[,], minx, miny, maxx, maxy, filename:string) =
+                if maxx >= minx then // there was at least one screenshot
+                    //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
+                    for ma,fn in [MapArea,filename] do
+                        let mx,my,mw,mh = ma
+                        let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
+                        let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                        for i = minx to maxx do
+                            printfn "[%d..%d] - %d" minx maxx i
+                            for j = miny to maxy do
+                                let bmp = bmps.[i,j]
+                                if bmp <> null then
+                                    let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                                    for x = 0 to mw-1 do
+                                        for y = 0 to mh-1 do
+                                            if x=mw-1 || y=mh-1 then
+                                                Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
+                                            else
+                                                Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data)
+                                    bmp.UnlockBits(data)
+                        r.UnlockBits(rData)
+                        r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
+            PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, "printed_map.png")
+            // other kinds
+            for k in screenshotKindUniverse do
+                if k <> MAIN_KIND then
+                    let workQ = new System.Collections.Generic.Queue<_>()
+                    for i = 0 to MAX-1 do
+                        for j = 0 to MAX-1 do
+                            let mt = zm.MapTiles.[i,j]
+                            let mutable r = []
+                            for ss in mt.ScreenshotsWithKinds do
+                                if ss.Kinds |> Array.contains k then
+                                    r <- bmpDict.[ss.Id] :: r
+                            match r with
+                            | [] -> ()
+                            | _ -> workQ.Enqueue((i,j), r)
+                    let bmps = Array2D.zeroCreate MAX MAX
+                    let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
+                    while workQ.Count <> 0 do
+                        let (i,j),list = workQ.Dequeue()
+                        let f(x,y) = if x>=0 && y>=0 && x<MAX && y<MAX && bmps.[x,y]=null then Some(x,y) else None
+                        let which = [(i,j); (i,j+1); (i,j-1); (i+1,j); (i-1,j)] |> Seq.tryPick f 
+                        match which,list with
+                        | None,_ -> ()
+                        | _, [] -> ()
+                        | Some(i,j),hd::tl ->
+                            bmps.[i,j] <- hd
+                            workQ.Enqueue((i,j),tl)
+                            gr.Extend(i,j)
+                    PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, sprintf "printed_map_%s.png" k)
             )
         updateClipboardView <- (fun () ->
             if not(System.String.IsNullOrEmpty(clipboardSSID)) then
@@ -570,9 +595,9 @@ type MyWindow() as this =
                 rInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then 
                                                 boundsInput.Focus() |> ignore
                                                 try
-                                                    let a,b,c,d = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
-                                                    let w,x,y,z = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
-                                                    boundsInput.Text <- sprintf "%d,%d,%d,%d" (min a w) (min b x) (max c y) (max d z)
+                                                    let gr1 = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
+                                                    let gr2 = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
+                                                    boundsInput.Text <- sprintf "%d,%d,%d,%d" (min gr1.MinX gr2.MinX) (min gr1.MinY gr2.MinY) (max gr1.MaxX gr2.MaxX) (max gr1.MaxY gr2.MaxY)
                                                     boundsInput.CaretIndex <- boundsInput.Text.Length
                                                 with _ -> ()
                                                 )
@@ -582,7 +607,7 @@ type MyWindow() as this =
                     let l = lInput.Text |> int
                     let r = rInput.Text |> int
                     let [|a;b;c;d|] = boundsInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> int s)
-                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), a,b,c,d)
+                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), FeatureWindow.GridRange(a,b,c,d))
                 with e ->
                     System.Console.Beep()
                     printfn "FEATURE error: %s" (e.ToString())

@@ -1,9 +1,21 @@
-﻿consider different UI:
+﻿idea for printing map of house interiors (need inside-first-shop screenshot, maybe also scuba)
+
+consider different UI:
  - cursor seperate from zoom/viewport
  - mousing moves cursor (what if mouseleave?)
+   - mousing moves mouse cursor, which affects bottom view and edit focus; keyboard cursor stays put
+   - on mouse leave, cursor jumps back to keyboard cursor
+   - on click, keyboard cursor jumps to mouse position
+   - on arrow, keyboard cursor moves, and mouse warps to new keyboard cursor position (if mouse within app)
+      - maybe '5' just warps mouse back, to give keyboard focus back from mouse
+   - on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects that where mouse was
  - maybe shift-numpad moves viewport
  - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor
  - also how do I feature composited screenshots of a tile?
+
+maybe make my own tiny abstract minimap projection window to overlay on HUD?
+ - hm, what are odds I can take constant screenshots and guess auto-tracking
+ - could just put human in loop, and show me green v red based on if it thinks cursor matches current location
 
 
 crash when press '*'?
@@ -11,7 +23,6 @@ crash when press '*'?
 what if my icons could include single letter/number/character?
 what if full rectangles of transparent color?
 
-maybe make my own minimap projection window to overlay on HUD?
 
 feature window could use an icon legend, somewhere, somehow
 

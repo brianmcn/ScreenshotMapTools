@@ -105,7 +105,10 @@ module Winterop =
     let VK_SUBTRACT = 0x6D
     let VK_DECIMAL = 0x6E
     let VK_DIVIDE = 0x6F
-    let MOD_NONE = 0u
+    let MOD_NONE    = 0x00u
+    let MOD_ALT     = 0x01u  // Either ALT key must be held down.
+    let MOD_CONTROL = 0x02u  // Either CTRL key must be held down.
+    let MOD_SHIFT   = 0x04u  // Either SHIFT key must be held do
     [<DllImport("User32.dll")>]
     extern bool RegisterHotKey(IntPtr hWnd,int id,uint32 fsModifiers,uint32 vk)
     [<DllImport("User32.dll")>]

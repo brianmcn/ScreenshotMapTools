@@ -32,9 +32,21 @@ let EnsureFeature(rootOwner, content) =
         FeatureWindow.TheFeatureWindow.SetContent(content)
         FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
 
+type GridRange(iminx,iminy,imaxx,imaxy) =
+    let mutable minx,miny,maxx,maxy = iminx,iminy,imaxx,imaxy
+    member this.MinX = minx
+    member this.MinY = miny
+    member this.MaxX = maxx
+    member this.MaxY = maxy
+    member this.Extend(i,j) =
+        minx <- min minx i
+        miny <- min miny j
+        maxx <- max maxx i
+        maxy <- max maxy j
+
 let MAX = 100
 let ComputeRange(zm:InMemoryStore.ZoneMemory) =
-    let mutable minx,miny,maxx,maxy = MAX,MAX,0,0
+    let r = GridRange(MAX,MAX,0,0)
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
             let mt = zm.MapTiles.[i,j]
@@ -44,11 +56,8 @@ let ComputeRange(zm:InMemoryStore.ZoneMemory) =
             if matches.Length > 0 || zm.FullImgArray.[i,j] <> null then
             *)
             if not mt.IsEmpty then
-                minx <- min minx i
-                miny <- min miny j
-                maxx <- max maxx i
-                maxy <- max maxy j
-    minx,miny,maxx,maxy
+                r.Extend(i,j)
+    r
 
 let DEL = 3.
 let animBrush = 
@@ -62,12 +71,12 @@ let makeHighlightRect() =
 
 
 open InMemoryStore
-let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, margin, onHover:Event<_>, onLeave:Event<_>, iconForNonMains) =
+let DrawCore(zm:ZoneMemory, gr:GridRange, eachWidth, eachHeight, gameMapAspect, margin, onHover:Event<_>, onLeave:Event<_>, iconForNonMains) =
     let mapBmps = Array2D.zeroCreate MAX MAX 
     let nonMainBmps = Array2D.zeroCreate MAX MAX
     let linkages = Array2D.init MAX MAX (fun _ _ -> ResizeArray())
-    for i = minx to maxx do
-        for j = miny to maxy do
+    for i = gr.MinX to gr.MaxX do
+        for j = gr.MinY to gr.MaxY do
             let mt = zm.MapTiles.[i,j]
             // nonMains
             let matches = mt.ScreenshotsWithKinds |> Array.filter (fun swk -> swk.Kinds |> Array.contains("main") |> not)
@@ -86,17 +95,17 @@ let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameM
                     linkages.[i,j].Add( (loc,bmp) )
     let LABELH = 18
     let w,h =
-        let fitWidth = (float eachWidth-margin) / float (maxx-minx+1)
-        let fitHeight = (float eachHeight-margin-float LABELH) / float (maxy-miny+1)
+        let fitWidth = (float eachWidth-margin) / float (gr.MaxX-gr.MinX+1)
+        let fitHeight = (float eachHeight-margin-float LABELH) / float (gr.MaxY-gr.MinY+1)
         if fitWidth / gameMapAspect > fitHeight then
             int(fitHeight * gameMapAspect), int(fitHeight)
         else
             int(fitWidth), int(fitWidth / gameMapAspect)
-    let r = new System.Drawing.Bitmap(w*(maxx-minx+1), h*(maxy-miny+1))
+    let r = new System.Drawing.Bitmap(w*(gr.MaxX-gr.MinX+1), h*(gr.MaxY-gr.MinY+1))
     let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
     let backBuffer, backBufferStride = Array.zeroCreate (r.Width*r.Height*4), r.Width*4   // for drawing overlay icons
-    for i = minx to maxx do
-        for j = miny to maxy do
+    for i = gr.MinX to gr.MaxX do
+        for j = gr.MinY to gr.MaxY do
             let bmp = mapBmps.[i,j]
             if bmp <> null then
                 let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(w,h))
@@ -104,27 +113,27 @@ let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameM
                 for x = 0 to w-1 do
                     for y = 0 to h-1 do
                         if x=w-1 || y=h-1 then
-                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y,rData, System.Drawing.Color.Gray)
+                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y,rData, System.Drawing.Color.Gray)
                         else
-                            Utils.SetAndGetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y, rData, x, y, data)
+                            Utils.SetAndGetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y, rData, x, y, data)
                 bmp.UnlockBits(data)
             elif not(zm.MapTiles.[i,j].IsEmpty) then
                 for x = 0 to w-1 do
                     for y = 0 to h-1 do
                         if x=w-1 || y=h-1 then
-                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y,rData, System.Drawing.Color.Gray)
+                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y,rData, System.Drawing.Color.Gray)
                         else
-                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y,rData, System.Drawing.Color.CornflowerBlue)
+                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y,rData, System.Drawing.Color.CornflowerBlue)
             else
                 for x = 0 to w-1 do
                     for y = 0 to h-1 do
                         if x=w-1 || y=h-1 then
-                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y,rData, System.Drawing.Color.Gray)
+                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y,rData, System.Drawing.Color.Gray)
                         else
-                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-minx) + x, h*(j-miny) + y,rData, System.Drawing.Color.LightGray)
+                            Utils.SetColorFromLockedFormat32BppArgb(w*(i-gr.MinX) + x, h*(j-gr.MinY) + y,rData, System.Drawing.Color.LightGray)
             // icons
             let draw(i,j,key) =
-                let xoff,yoff = w*(i-minx), h*(j-miny)
+                let xoff,yoff = w*(i-gr.MinX), h*(j-gr.MinY)
                 let bytes = MapIcons.mapMarkerCaches.[key].Get(w,h)
                 let stride = w*4
                 Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, xoff, yoff, bytes, stride, 0, 0, w, h)
@@ -174,7 +183,7 @@ let DrawCore(zm:ZoneMemory, minx, miny, maxx, maxy, eachWidth, eachHeight, gameM
         let pos = ea.GetPosition(img)
         let di, dj = int(pos.X / float w), int(pos.Y / float h)
         highlight(di,dj)
-        let i,j = di+minx, dj+miny
+        let i,j = di+gr.MinX, dj+gr.MinY
         onHover.Trigger(i,j)
         )
     img.MouseLeave.Add(fun _ ->
@@ -217,11 +226,11 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
             match zmo with
             | None -> ()
             | Some zm ->
-            let minx,miny,maxx,maxy = ComputeRange(zm)
-            if maxx >= minx then // there was at least one screenshot
+            let gr = ComputeRange(zm)
+            if gr.MaxX >= gr.MinX then // there was at least one screenshot
                 let WW = PICH / float GameSpecific.MapAreaRectangle.Height * float GameSpecific.MapAreaRectangle.Width
                 let onHover, onLeave = new Event<_>(), new Event<_>()
-                let imgCanvas, mapBmps, nonMainBmps, linkages, _, _ = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, true)
+                let imgCanvas, mapBmps, nonMainBmps, linkages, _, _ = DrawCore(zm, gr, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, true)
                 Utils.canvasAdd(c, imgCanvas, ulx, uly)
                 onHover.Publish.Add(fun (i,j) ->
                     // framing updates...
@@ -271,7 +280,7 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
                     )
     EnsureFeature(owner, c)
 
-let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, minx, miny, maxx, maxy) =
+let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, gr) =
     // framing layout
     let gameMapAspect = 
         let _mx,_my,mw,mh = GameSpecific.MapArea
@@ -293,7 +302,7 @@ let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, minx, miny, maxx, 
                 let ulx, uly = (if first then 0. else 640.), 0.  // where this zone tile begins
                 Utils.canvasAdd(c, mapBGcolor, ulx, uly)
                 let onHover, onLeave = new Event<_>(), new Event<_>()
-                let imgCanvas, mapBmps, _nonMainBmps, _linkages, hi, unhi = DrawCore(zm, minx, miny, maxx, maxy, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, false)
+                let imgCanvas, mapBmps, _nonMainBmps, _linkages, hi, unhi = DrawCore(zm, gr, eachWidth, eachHeight, gameMapAspect, MARGIN, onHover, onLeave, false)
                 Utils.canvasAdd(c, imgCanvas, ulx, uly)
                 yield onHover, onLeave, mapBmps, hi, unhi
         |]
@@ -312,8 +321,8 @@ let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, minx, miny, maxx, 
             highlightedPicture1.Children.Add(mb1.[i,j] |> fit) |> ignore
         if mb2.[i,j] <> null then
             highlightedPicture2.Children.Add(mb2.[i,j] |> fit) |> ignore
-        hi1(i-minx,j-miny)
-        hi2(i-minx,j-miny)
+        hi1(i-gr.MinX,j-gr.MinY)
+        hi2(i-gr.MinX,j-gr.MinY)
     let onLeave() =
         highlightedPicture1.Children.Clear()
         highlightedPicture2.Children.Clear()
