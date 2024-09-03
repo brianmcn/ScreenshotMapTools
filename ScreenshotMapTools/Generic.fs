@@ -450,15 +450,15 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
-            let bmps = Array2D.zeroCreate MAX MAX
+            let bmps = Array2D.create MAX MAX (null, -1)
             let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
             for i = 0 to MAX-1 do
                 for j = 0 to MAX-1 do
                     let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
                     if bmp <> null then
-                        bmps.[i,j] <- bmp
+                        bmps.[i,j] <- bmp, -1
                         gr.Extend(i,j)
-            let PrintRegion(bmps:System.Drawing.Bitmap[,], minx, miny, maxx, maxy, filename:string) =
+            let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], minx, miny, maxx, maxy, filename:string) =
                 if maxx >= minx then // there was at least one screenshot
                     //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
                     for ma,fn in [MapArea,filename] do
@@ -468,15 +468,25 @@ type MyWindow() as this =
                         for i = minx to maxx do
                             printfn "[%d..%d] - %d" minx maxx i
                             for j = miny to maxy do
-                                let bmp = bmps.[i,j]
+                                let bmp,ci = bmpcis.[i,j]
                                 if bmp <> null then
+                                    let tf = 
+                                        if ci = -1 then
+                                            id
+                                        else
+                                            (fun (a,r,g,b) ->
+                                                let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
+                                                let P = 0.8
+                                                let f(x,y) = float x * P + float y * (1.0-P) |> byte
+                                                f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
+                                            )
                                     let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
                                     for x = 0 to mw-1 do
                                         for y = 0 to mh-1 do
                                             if x=mw-1 || y=mh-1 then
                                                 Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
                                             else
-                                                Utils.SetAndGetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data)
+                                                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data, tf)
                                     bmp.UnlockBits(data)
                         r.UnlockBits(rData)
                         r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
@@ -485,6 +495,7 @@ type MyWindow() as this =
             for k in screenshotKindUniverse do
                 if k <> MAIN_KIND then
                     let workQ = new System.Collections.Generic.Queue<_>()
+                    let mutable colorIndex = 0
                     for i = 0 to MAX-1 do
                         for j = 0 to MAX-1 do
                             let mt = zm.MapTiles.[i,j]
@@ -494,19 +505,21 @@ type MyWindow() as this =
                                     r <- bmpDict.[ss.Id] :: r
                             match r with
                             | [] -> ()
-                            | _ -> workQ.Enqueue((i,j), r)
-                    let bmps = Array2D.zeroCreate MAX MAX
+                            | _ -> 
+                                workQ.Enqueue((i,j), r, colorIndex)
+                                colorIndex <- colorIndex + 1
+                    let bmps = Array2D.create MAX MAX (null,-1)
                     let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
                     while workQ.Count <> 0 do
-                        let (i,j),list = workQ.Dequeue()
-                        let f(x,y) = if x>=0 && y>=0 && x<MAX && y<MAX && bmps.[x,y]=null then Some(x,y) else None
+                        let (i,j),list,ci = workQ.Dequeue()
+                        let f(x,y) = if x>=0 && y>=0 && x<MAX && y<MAX && fst(bmps.[x,y])=null then Some(x,y) else None
                         let which = [(i,j); (i,j+1); (i,j-1); (i+1,j); (i-1,j)] |> Seq.tryPick f 
                         match which,list with
                         | None,_ -> ()
                         | _, [] -> ()
                         | Some(i,j),hd::tl ->
-                            bmps.[i,j] <- hd
-                            workQ.Enqueue((i,j),tl)
+                            bmps.[i,j] <- hd,ci
+                            workQ.Enqueue((i,j),tl,ci)
                             gr.Extend(i,j)
                     PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, sprintf "printed_map_%s.png" k)
             )

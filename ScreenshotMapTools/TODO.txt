@@ -1,4 +1,4 @@
-﻿idea for printing map of house interiors (need inside-first-shop screenshot, maybe also scuba)
+﻿for MK: print house interiors (need inside-first-shop screenshot, maybe also scuba)
 
 consider different UI:
  - cursor seperate from zoom/viewport
