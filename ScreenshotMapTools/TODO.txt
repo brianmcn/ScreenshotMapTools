@@ -1,15 +1,5 @@
-﻿for MK: print house interiors (need inside-first-shop screenshot, maybe also scuba)
+﻿maybe '55' would 'change center/zoom so that all this zone fits onscreen?
 
-consider different UI:
- - cursor seperate from zoom/viewport
- - mousing moves cursor (what if mouseleave?)
-   - mousing moves mouse cursor, which affects bottom view and edit focus; keyboard cursor stays put
-   - on mouse leave, cursor jumps back to keyboard cursor
-   - on click, keyboard cursor jumps to mouse position
-   - on arrow, keyboard cursor moves, and mouse warps to new keyboard cursor position (if mouse within app)
-      - maybe '5' just warps mouse back, to give keyboard focus back from mouse
-   - on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects that where mouse was
- - maybe shift-numpad moves viewport
  - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor
  - also how do I feature composited screenshots of a tile?
 
@@ -40,10 +30,18 @@ general:
    - DONE idea, in addition to e.g. (30,40) to go that that screen in this zone, also allow (zone02) or (zone02,30,40)
    - DONE and in feature, it should show those labeled with the coords and/or zone label
    - DONE and in app, should be clickable list to go there
+DONE different UI:
+ - cursor seperate from zoom/viewport
+ - mousing moves cursor
+   - mousing moves mouse cursor, which affects bottom view and edit focus; keyboard cursor stays put
+   - on mouse leave, cursor jumps back to keyboard cursor
+   - on click, keyboard cursor jumps to mouse position
+   - on arrow, keyboard cursor moves, and mouse warps to new keyboard cursor position (if mouse within app)
+      - '5' just warps mouse back to keyboard location, to give keyboard focus back from mouse
+   - on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects tile where mouse was
+ - ctrl-numpad moves viewport
 
-feature to interact with coords in text to go there, e.g. one way bubbleeater travel, or to fasttravel hub, etc
- - and then map out bottom right bubble eaters to test the visualization etc
-(all connectivity? like up left down right exits too?)
+
 
 are hashtags per zone or global? (should be global?) do testing
 

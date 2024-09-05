@@ -105,6 +105,7 @@ type MyWindow() as this =
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
+    let ARROWKEYS = [| VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8 |]
     let MAPX,MAPY = VIEWX,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
@@ -119,14 +120,20 @@ type MyWindow() as this =
         Utils.canvasAdd(r, mapMarkersHoverImage, float(-MAPX), float(-MAPY))
         r
     let RT = 4.
-    let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2.)
-    let bottomFloat = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)    // a place to draw over the bottom potion of the app
+    let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
+    let mutable mapCanvasMouseLeaveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
+    let mutable warpMouseTo = fun _ -> ()
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
     let mutable curZoom = 10
+    let mutable kbdX, kbdY = 0, 0    // last keyboarded cursor location
     let mutable hwndSource = null
+    let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
+        kbdX <- theGame.CurX
+        kbdY <- theGame.CurY
+    let warp() = warpMouseTo(theGame.CurX, theGame.CurY)
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add zone", Margin=Thickness(4.))
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
@@ -140,10 +147,6 @@ type MyWindow() as this =
                                     FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
                                     HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
                                     Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
-    let floatSummaryTB = new RichTextBox(IsReadOnly=true, FontSize=18., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
-                                            FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
-                                            HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
-                                            Height=180., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
     let mutable NavigateTo = (fun (loc:GenericMetadata.Location) -> ())
     let navigationFunc (o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
         let s = ea.Uri.AbsolutePath
@@ -180,7 +183,7 @@ type MyWindow() as this =
         for s in newKeys do
             metadataKeys.Add(s)
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
-    let mutable doZoom = fun _ -> ()
+    let mutable doZoom = fun () -> ()
     let mfsRefresh() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         metaAndScreenshotPanel.Children.Clear()
@@ -198,8 +201,10 @@ type MyWindow() as this =
             let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
             if cmt.NumScreenshots() > 0 then
                 DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm)
-                doZoom(theGame.CurX, theGame.CurY, curZoom)
+                doZoom()
             )
+        let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
+        updateTB(summaryTB, theGame.CurX, theGame.CurY, cmt)
     // zoom/refresh
     let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
@@ -209,7 +214,9 @@ type MyWindow() as this =
         )
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
-    let rec zoom(ci, cj, level) = // level = 1->1x1, 2->3x3, 3->5x5, etc    
+    let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
+    let rec zoom() = 
+        let level = curZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,pw,ph = 
             match curProjection with
@@ -217,128 +224,147 @@ type MyWindow() as this =
             | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
             | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"
-        let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
-        let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
-        let scale = float(2*(level-1)+1)
-        mapCanvas.Children.Clear()
-        mapMarkersImage.Source <- null
-        mapMarkersHoverImage.Source <- null
-        let W,H = float(VIEWX)/scale,float(VIEWY)/scale
-        let drawnLocations = ResizeArray()
-        for i = ci-level to ci+level do
-            for j = cj-level-kludge to cj+level+kludge do
-                if i>=0 && i<MAX && j>=0 && j<MAX then
-                    drawnLocations.Add(i,j)
-                    let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                    let IW,IH = int(W),(max 1 (int H))
-                    let stride = IW*4
-                    if zm.FullImgArray.[i,j] <> null then
-                        let bytes = ia.GetRaw(i,j,IW,IH)
-                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, IW, IH)
-                    else
-                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, IW, IH)
-                        let tb = zoomTextboxes.[i,j]
-                        Utils.deparent(tb)
-                        tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.CornflowerBlue)
-                        tb.Width <- W
-                        tb.Height<- H
-                        Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-                else
-                    Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
-        writeableBitmapImage.Source <- bitmapSource
-        let cursor = new Shapes.Rectangle(Stroke=Brushes.Yellow, StrokeThickness=RT, Width=W + RT*2., Height=H + RT*2.)
-        Utils.canvasAdd(mapCanvas, cursor, DX-W+float(level)*W-RT, DY-H+float(level)*H-RT)
-        let cmt = zm.MapTiles.[ci,cj]
-        updateTB(summaryTB, ci, cj, cmt)
-        mfsRefresh()
-        do
-            mouseCursor.Width <- W + RT
-            mouseCursor.Height <- H + RT
-            mapCanvas.Children.Add(mouseCursor) |> ignore
-            do
-                // map icons
-                redrawMapIconsFunc <- (fun _ ->
-                    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
-                    let draw(i,j,key) =
+        // ensure cursor is fully on-screen
+        while theGame.CurX <= theGame.CenterX - level do
+            theGame.CenterX <- theGame.CenterX - 1
+        while theGame.CurX >= theGame.CenterX + level do
+            theGame.CenterX <- theGame.CenterX + 1
+        while theGame.CurY <= theGame.CenterY - level - kludge do
+            theGame.CenterY <- theGame.CenterY - 1
+        while theGame.CurY >= theGame.CenterY + level + kludge do
+            theGame.CenterY <- theGame.CenterY + 1
+        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel then   // see if we need to redraw anything
+            priorCenterX <- theGame.CenterX
+            priorCenterY <- theGame.CenterY
+            priorZone <- theGame.CurZone
+            priorLevel <- level
+            let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
+            let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
+            let scale = float(2*(level-1)+1)
+            mapCanvas.Children.Clear()
+            mapMarkersImage.Source <- null
+            mapMarkersHoverImage.Source <- null
+            let W,H = float(VIEWX)/scale,float(VIEWY)/scale
+            let drawnLocations = ResizeArray()
+            let ci, cj = theGame.CenterX, theGame.CenterY
+            for i = ci-level to ci+level do
+                for j = cj-level-kludge to cj+level+kludge do
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        drawnLocations.Add(i,j)
                         let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                        let W,H = int(W),int(H)
-                        let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
-                        let stride = W*4
-                        Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                    if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
-                        do
-                            // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
-                            if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
-                                let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
+                        let IW,IH = int(W),(max 1 (int H))
+                        let stride = IW*4
+                        if zm.FullImgArray.[i,j] <> null then
+                            let bytes = ia.GetRaw(i,j,IW,IH)
+                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, IW, IH)
+                        else
+                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, IW, IH)
+                            let tb = zoomTextboxes.[i,j]
+                            Utils.deparent(tb)
+                            tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.CornflowerBlue)
+                            tb.Width <- W
+                            tb.Height<- H
+                            Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                    else
+                        Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+            let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+            writeableBitmapImage.Source <- bitmapSource
+            mfsRefresh()
+            do
+                mouseCursor.Width <- W + RT
+                mouseCursor.Height <- H + RT
+                mapCanvas.Children.Add(mouseCursor) |> ignore
+                do
+                    // map icons
+                    redrawMapIconsFunc <- (fun _ ->
+                        let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
+                        let draw(i,j,key) =
+                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                            let W,H = int(W),int(H)
+                            let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
+                            let stride = W*4
+                            Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                        if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
+                            do
+                                // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
+                                if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
+                                    let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
+                                    for i,j in drawnLocations do
+                                        let note = zm.MapTiles.[i,j].Note
+                                        if note <> null && re.IsMatch(note) then
+                                            draw(i,j,MapIcons.REGEX_DUMMY)
+                            let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
+                            for k in keys do
+                                let locs = metadataStore.LocationsForKey(k)
                                 for i,j in drawnLocations do
-                                    let note = zm.MapTiles.[i,j].Note
-                                    if note <> null && re.IsMatch(note) then
-                                        draw(i,j,MapIcons.REGEX_DUMMY)
-                        let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
-                        for k in keys do
-                            let locs = metadataStore.LocationsForKey(k)
-                            for i,j in drawnLocations do
-                                let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                if locs.Contains(loc) then
-                                    match MapIcons.keyDrawFuncs.[k] with
-                                    | Some _ -> draw(i,j,k)
-                                    | _ -> ()
-                    let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
-                    mapMarkersImage.Source <- bitmapSource
-                    )
-                redrawMapIconsHoverOnlyFunc <- (fun _ ->
-                    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
-                    if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
-                        // TODO consider hover for userRegex
-                        for i = ci-level to ci+level do
-                            for j = cj-level-kludge to cj+level+kludge do
-                                if i>=0 && i<MAX && j>=0 && j<MAX then
                                     let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                    if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
-                                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                        let W,H = int(W),int(H)
-                                        let bytes = MapIcons.mapMarkerCaches.[MapIcons.HOVER_DUMMY].Get(W,H)
-                                        let stride = W*4
-                                        Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                    let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
-                    mapMarkersHoverImage.Source <- bitmapSource
+                                    if locs.Contains(loc) then
+                                        match MapIcons.keyDrawFuncs.[k] with
+                                        | Some _ -> draw(i,j,k)
+                                        | _ -> ()
+                        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+                        mapMarkersImage.Source <- bitmapSource
+                        )
+                    redrawMapIconsHoverOnlyFunc <- (fun _ ->
+                        let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
+                        if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
+                            // TODO consider hover for userRegex
+                            for i = ci-level to ci+level do
+                                for j = cj-level-kludge to cj+level+kludge do
+                                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                                        if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
+                                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                            let W,H = int(W),int(H)
+                                            let bytes = MapIcons.mapMarkerCaches.[MapIcons.HOVER_DUMMY].Get(W,H)
+                                            let stride = W*4
+                                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+                        mapMarkersHoverImage.Source <- bitmapSource
+                        )
+                mapCanvasMouseLeaveFunc <- (fun _ ->
+                    theGame.CurX <- kbdX
+                    theGame.CurY <- kbdY
+                    // draw mouse cursor
+                    Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
+                    Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
+                    // update bottom panel
+                    mfsRefresh()
                     )
-            mapCanvasMouseMoveFunc <- (fun (x,y) ->
-                // compute which index we are over
-                let i = (ci - level) + int((x - DX + W)/W)
-                let j = (cj - level) + int((y - DY + H)/H)
-                // draw mouse cursor
-                Canvas.SetLeft(mouseCursor, DX-W+float(i-ci+level)*W-RT/2.)
-                Canvas.SetTop(mouseCursor, DY-H+float(j-cj+level)*H-RT/2.)
-                mouseCursor.Stroke <- Brushes.Cyan
-                // draw quick hover data
-                bottomFloat.Children.Clear()
-                if i>=0 && i<MAX && j>=0 && j<MAX && zm.FullImgArray.[i,j] <> null then
-                    let largeImage = Utils.ImageProjection(ia.[i,j],(0,0,pw,ph))
-                    let cmt = zm.MapTiles.[i,j]
-                    updateTB(floatSummaryTB, i, j, cmt)
-                    Utils.deparent(floatSummaryTB)
-                    let dp = (new DockPanel(Width=float APP_WIDTH - float KEYS_LIST_BOX_WIDTH - 40., Height=BOTTOM_HEIGHT - 40., Background=Brushes.Cyan, LastChildFill=true))
-                                .AddBottom(largeImage).Add(floatSummaryTB)
-                    Utils.canvasAdd(bottomFloat, new Border(Child=dp, BorderBrush=Brushes.Cyan, BorderThickness=Thickness(4.)), 0., 0.)
-                )
-            mapCanvasMouseDownFunc <- (fun (me,x,y) ->
-                // compute which index we are over
-                let i = (ci - level) + int((x - DX + W)/W)
-                let j = (cj - level) + int((y - DY + H)/H)
-                if i>=0 && i<MAX && j>=0 && j<MAX then
-                    theGame.CurX <- i
-                    theGame.CurY <- j
-                    UpdateGameFile()
-                    zoom(theGame.CurX,theGame.CurY, curZoom)
-                    let pos = mapCanvas.TranslatePoint(Point(DX+float(level)*W-W/2.,DY+float(level)*H-H/2.),this)   // center of the center tile (which is what we just clicked)
+                mapCanvasMouseMoveFunc <- (fun (x,y) ->
+                    // compute which index we are over
+                    let i = (ci - level) + int((x - DX + W)/W)
+                    let j = (cj - level) + int((y - DY + H)/H)
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        theGame.CurX <- i
+                        theGame.CurY <- j
+                        // draw mouse cursor
+                        Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
+                        Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
+                        // update bottom panel
+                        mfsRefresh()
+                    else    // e.g. they are mousing on the canvas where -1,50 would be, center is like 0,50, left half of screen is blank and mouse into blank, behave like a Leave()
+                        mapCanvasMouseLeaveFunc()
+                    )
+                mapCanvasMouseDownFunc <- (fun (me,x,y) ->
+                    // compute which index we are over
+                    let i = (ci - level) + int((x - DX + W)/W)
+                    let j = (cj - level) + int((y - DY + H)/H)
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        theGame.CurX <- i
+                        theGame.CurY <- j
+                        setCursor()
+                        UpdateGameFile()
+                        zoom()
+                        if me.RightButton = Input.MouseButtonState.Pressed then
+                            Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
+                    )
+                warpMouseTo <- (fun (i,j) ->
+                    let pos = mapCanvas.TranslatePoint(Point(DX+float(i-ci+level)*W-W/2.,DY+float(j-cj+level)*H-H/2.),this)  // center of i,j   // TODO might be offscreen
                     Utils.SilentlyWarpMouseCursorTo(pos)
-                    if me.RightButton = Input.MouseButtonState.Pressed then
-                        Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
-                )
-        MapIcons.redrawMapIconsEv.Trigger()
-        MapIcons.redrawMapIconHoverOnly.Trigger()
+                    )
+            MapIcons.redrawMapIconsEv.Trigger()
+            MapIcons.redrawMapIconHoverOnly.Trigger()
     and UpdateGameFile() =
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
         let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
@@ -348,16 +374,15 @@ type MyWindow() as this =
         SerializeMapTile(theGame.CurX,theGame.CurY,zm)
         metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
         refreshMetadataKeys()
-        zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
+        mfsRefresh()   // redraw note preview in summary area
     do
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
-        mapCanvas.MouseLeave.Add(fun _ -> mouseCursor.Stroke <- Brushes.Transparent; bottomFloat.Children.Clear())
+        mapCanvas.MouseLeave.Add(fun _ -> mapCanvasMouseLeaveFunc())
         mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
         MapIcons.redrawMapIconsEv.Publish.Add(fun () -> redrawMapIconsFunc())
         MapIcons.redrawMapIconHoverOnly.Publish.Add(fun () -> redrawMapIconsHoverOnlyFunc())
         summaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
-        floatSummaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
         // init zones and ensure directories
         LoadRootGameData()
         do
@@ -380,6 +405,7 @@ type MyWindow() as this =
             totalMapTileCount <- totalMapTileCount + maptileCount
         printfn "...done! %d total screenshots, %d total map tiles" totalBmpCount totalMapTileCount
         theGame.CurZone <- savedZone
+        setCursor()
         // populate images for initial map
         let mutable zm = ZoneMemory.Get(theGame.CurZone)
         zoneComboBox.ItemsSource <- zoneOptions
@@ -395,8 +421,11 @@ type MyWindow() as this =
                 refreshMetadataKeys()   // to update counts 
                 theGame.CurX <- loc.X
                 theGame.CurY <- loc.Y
+                kbdX <- loc.X
+                kbdY <- loc.Y
                 UpdateGameFile()
-                zoom(theGame.CurX, theGame.CurY, curZoom)
+                zoom()
+                warp()
             )
         zoneComboBox.Focusable <- false                // prevent accidents
         zoneComboBox.SelectionChanged.Add(fun _ ->
@@ -405,7 +434,7 @@ type MyWindow() as this =
                 UpdateGameFile()
                 zm <- ZoneMemory.Get(theGame.CurZone)
                 refreshMetadataKeys()   // to update counts 
-                zoom(theGame.CurX, theGame.CurY, curZoom)
+                zoom()
             )
         addNewZoneButton.Focusable <- false            // prevent accidents
         addNewZoneButton.Click.Add(fun _ ->
@@ -418,7 +447,7 @@ type MyWindow() as this =
             selectionChangeIsDisabled <- false
             theGame.CurZone <- zoneComboBox.SelectedIndex
             zm <- ZoneMemory.Get(theGame.CurZone)
-            zoom(theGame.CurX, theGame.CurY, curZoom)
+            zoom()
             )
         renameZoneButton.Click.Add(fun _ ->
             let orig = GetZoneName(theGame.CurZone)
@@ -647,7 +676,6 @@ type MyWindow() as this =
             let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
             let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             r.Children.Add(dp) |> ignore
-            r.Children.Add(bottomFloat) |> ignore
             r
         all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
@@ -656,7 +684,8 @@ type MyWindow() as this =
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
             Utils.setup(this)
-            zoom(theGame.CurX,theGame.CurY,curZoom)
+            zoom()
+            mapCanvasMouseLeaveFunc()  // to move the drawn cursor to correct spot on-screen
             this.Activate() |> ignore
             )
     override this.OnSourceInitialized(e) =
@@ -676,80 +705,127 @@ type MyWindow() as this =
         for k in KEYS do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID, MOD_NONE, uint32 k))) then
                 failwithf "could not register hotkey %A" k
+        for k in ARROWKEYS do
+            if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1, MOD_CONTROL, uint32 k))) then
+                failwithf "could not register hotkey %A" k
     member this.UnregisterHotKey() =
         let helper = new System.Windows.Interop.WindowInteropHelper(this)
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore
+        Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1) |> ignore
     member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
         if Utils.aModalDialogIsOpen then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
         let zm = ZoneMemory.Get(theGame.CurZone)
-        if msg = WM_HOTKEY && wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
+        if msg = WM_HOTKEY && (wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID || wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID+1) then
             if currentlyRunningAHotkeyCommand then
                 System.Console.Beep()
             else
                 currentlyRunningAHotkeyCommand <- true
-                //let ctrl_bits = lParam.ToInt32() &&& 0xF  // see WM_HOTKEY docs
+                let ctrl_bits = lParam.ToInt32() &&& 0xF
                 let key = lParam.ToInt32() >>> 16
                 if false then
                     for k in KEYS do
                         if key = k then
-                            printfn "key %A was pressed" k
+                            printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
                 if key = VK_SUBTRACT && zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
+                    setCursor()
                     let id = (zm.MapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
                     zm.MapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom(theGame.CurX,theGame.CurY, curZoom)
+                    zoom()
                     // update disk
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
+                    setCursor()
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom(theGame.CurX,theGame.CurY, curZoom)
+                    zoom()
                 if key = VK_MULTIPLY then
                     curProjection <- curProjection + 1
                     if curProjection >= 3 then
                         curProjection <- 0
-                    zoom(theGame.CurX,theGame.CurY, curZoom)
+                    zoom()
                 if key = VK_NUMPAD4 then
-                    if theGame.CurX > 0 then
-                        theGame.CurX <- theGame.CurX - 1
-                        UpdateGameFile()
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                    if ctrl_bits = int MOD_CONTROL then
+                        if theGame.CenterX > 0 then
+                            theGame.CenterX <- theGame.CenterX - 1
+                            UpdateGameFile()
+                            zoom()
+                    else
+                        if theGame.CurX > 0 then
+                            theGame.CurX <- theGame.CurX - 1
+                            UpdateGameFile()
+                            zoom()
+                    setCursor()
+                    warp()
                 if key = VK_NUMPAD6 then
-                    if theGame.CurX < 99 then
-                        theGame.CurX <- theGame.CurX + 1
-                        UpdateGameFile()
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                    if ctrl_bits = int MOD_CONTROL then
+                        if theGame.CenterX < 99 then
+                            theGame.CenterX <- theGame.CenterX + 1
+                            UpdateGameFile()
+                            zoom()
+                    else
+                        if theGame.CurX < 99 then
+                            theGame.CurX <- theGame.CurX + 1
+                            UpdateGameFile()
+                            zoom()
+                    setCursor()
+                    warp()
                 if key = VK_NUMPAD8 then
-                    if theGame.CurY > 0 then
-                        theGame.CurY <- theGame.CurY - 1
-                        UpdateGameFile()
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                    if ctrl_bits = int MOD_CONTROL then
+                        if theGame.CenterY > 0 then
+                            theGame.CenterY <- theGame.CenterY - 1
+                            UpdateGameFile()
+                            zoom()
+                    else
+                        if theGame.CurY > 0 then
+                            theGame.CurY <- theGame.CurY - 1
+                            UpdateGameFile()
+                            zoom()
+                    setCursor()
+                    warp()
                 if key = VK_NUMPAD2 then
-                    if theGame.CurY < 99 then
-                        theGame.CurY <- theGame.CurY + 1
-                        UpdateGameFile()
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                    if ctrl_bits = int MOD_CONTROL then
+                        if theGame.CenterY < 99 then
+                            theGame.CenterY <- theGame.CenterY + 1
+                            UpdateGameFile()
+                            zoom()
+                    else
+                        if theGame.CurY < 99 then
+                            theGame.CurY <- theGame.CurY + 1
+                            UpdateGameFile()
+                            zoom()
+                    setCursor()
+                    warp()
                 if key = VK_NUMPAD0 then
+                    setCursor()
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom(theGame.CurX,theGame.CurY, curZoom)
+                    zoom()
                 if key = VK_NUMPAD7 then
+                    setCursor()
                     if curZoom > 1 then
                         curZoom <- curZoom - 1
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                        zoom()
+                    warp()
                 if key = VK_NUMPAD9 then
+                    setCursor()
                     if curZoom < MAX/2 then
                         curZoom <- curZoom + 1
-                        zoom(theGame.CurX,theGame.CurY, curZoom)
+                        zoom()
+                    warp()
                 if key = VK_NUMPAD5 then
+                    // warp mouse back to last keyboard location
+                    theGame.CurX <- kbdX
+                    theGame.CurY <- kbdY
+                    warp()   
                     // temp kludge, shift things up one y
                     if false then
                         if theGame.CurY > 0 && zm.MapTiles.[theGame.CurX,theGame.CurY-1].IsEmpty then
@@ -763,10 +839,11 @@ type MyWindow() as this =
                             RecomputeImage(theGame.CurX,theGame.CurY,zm)
                             //metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
                             //refreshMetadataKeys()
-                            zoom(theGame.CurX,theGame.CurY, curZoom)   // redraw note preview in summary area
+                            zoom()   // redraw note preview in summary area
                         else
                             System.Console.Beep()
                 if key = VK_DIVIDE then
+                    setCursor()
                     Utils.Win32.SetForegroundWindow(_hwnd) |> ignore
                     let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
@@ -791,6 +868,7 @@ type MyWindow() as this =
                     if save then
                         UpdateCurrentNote(orig, tb.Text, zm)
                 if key = VK_DECIMAL then
+                    setCursor()
                     let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
                     let orig = if orig = null then "" else orig
                     //let special = "#TODO"

@@ -43,9 +43,13 @@ let WriteAllText(filename, text) =
 type Game() =   // e.g. Zelda
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
     member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
+    member val CurZone : int = 0 with get,set
+    // cursor
     member val CurX : int = 50 with get,set
     member val CurY : int = 50 with get,set
-    member val CurZone : int = 0 with get,set
+    // center of zoomed view
+    member val CenterX : int = 50 with get,set
+    member val CenterY : int = 50 with get,set
 
 // load root game data
 let theGame = Game()
@@ -60,9 +64,11 @@ let LoadRootGameData() =
         let data = System.Text.Json.JsonSerializer.Deserialize<Game>(json)
         theGame.ZoneNames <- data.ZoneNames
         theGame.MetadataNames <- theGame.MetadataNames
+        theGame.CurZone <- data.CurZone
         theGame.CurX <- data.CurX
         theGame.CurY <- data.CurY
-        theGame.CurZone <- data.CurZone
+        theGame.CenterX <- data.CenterX
+        theGame.CenterY <- data.CenterY
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
