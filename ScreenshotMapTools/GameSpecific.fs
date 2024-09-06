@@ -55,7 +55,7 @@ let WINDOW_TITLE = "Side Scape"  // of the process to find
 let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
 let GAMESCREENW, GAMESCREENH = 768, 704
 let MapArea  = 0, 63, 768, 641         // x,y,w,h
-let MetaArea = 0, 0, 100, 1
+let MetaArea = 200, 0, 10, 1
 
 #endif
 

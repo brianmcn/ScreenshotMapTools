@@ -65,6 +65,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
         sp.Children.Add(dp) |> ignore
         allBorders.Add(border)
         border.MouseDown.Add(fun ea ->
+            ea.Handled <- true
             if ea.RightButton = System.Windows.Input.MouseButtonState.Pressed then
                 let img = Utils.BMPtoImage(bmp)
                 img.Width <- 1280.
@@ -180,22 +181,21 @@ type MyWindow() as this =
         metadataKeys.Clear()
         for s in newKeys do
             metadataKeys.Add(s)
-    let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.), LastChildFill=true)
+    let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
     let mutable doZoom = fun () -> ()
     let mfsRefresh() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         metaAndScreenshotPanel.Children.Clear()
-        let child : UIElement = 
-            if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
+        if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
+            match MetaArea with
+            | _,_,_,1 -> ()  // meta height of 1 means there is none, skip it
+            | _ ->
                 let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
                 metaAndScreenshotPanel.AddTop(top) |> ignore
-                upcast Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
-            else
-                let w = float(APP_WIDTH - KEYS_LIST_BOX_WIDTH - 2*4)
-                let h = w / 16. * 9.
-                upcast new DockPanel(Background=Brushes.DarkSlateBlue, Width=w, Height=h)
-        metaAndScreenshotPanel.Children.Add(child) |> ignore
-        child.MouseDown.Add(fun _ ->
+            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
+            metaAndScreenshotPanel.Children.Add(main) |> ignore
+        metaAndScreenshotPanel.MouseDown.Add(fun ea ->
+            ea.Handled <- true
             let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
             if cmt.NumScreenshots() > 0 then
                 DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm)
@@ -384,7 +384,7 @@ type MyWindow() as this =
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
         mapCanvas.MouseLeave.Add(fun _ -> mapCanvasMouseLeaveFunc())
-        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseDownFunc(me, p.X, p.Y))
+        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in (me.Handled <- true; mapCanvasMouseDownFunc(me, p.X, p.Y)))
         MapIcons.redrawMapIconsEv.Publish.Add(fun () -> redrawMapIconsFunc())
         MapIcons.redrawMapIconHoverOnly.Publish.Add(fun () -> redrawMapIconsHoverOnlyFunc())
         summaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
@@ -677,7 +677,7 @@ type MyWindow() as this =
                     rc.Children.Add(iconKeys) |> ignore
                     )
                 rc
-            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddBottom(metaAndScreenshotPanel).Add(summaryTB)
+            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddTop(summaryTB).Add(metaAndScreenshotPanel)
             let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
             let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             r.Children.Add(dp) |> ignore
