@@ -144,10 +144,7 @@ type MyWindow() as this =
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
     // summary of current selection
-    let summaryTB = new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
-                                    FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
-                                    HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
-                                    Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(4.))
+    let summaryTB = MinimapWindow.MakeRichTextBox(4.)
     let mutable NavigateTo = (fun (loc:GenericMetadata.Location) -> ())
     let navigationFunc (o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
         let s = ea.Uri.AbsolutePath
@@ -155,22 +152,6 @@ type MyWindow() as this =
         let x = s.Substring(4,2) |> int
         let y = s.Substring(7,2) |> int
         NavigateTo(GenericMetadata.Location(zone,x,y))
-    let updateTB(tb:RichTextBox, i, j, mt:MapTile) =
-        let fd = new System.Windows.Documents.FlowDocument()
-        let p = new System.Windows.Documents.Paragraph()
-        p.Inlines.Add(sprintf "(%02d,%02d)        %d screenshots\n" i j (mt.NumScreenshots()))
-        let mutable note = mt.Note
-        if note <> null then
-            let linkages = GenericMetadata.FindAllLinkages(mt.Note, theGame.CurZone, i, j)
-            while linkages.Count > 0 do
-                let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
-                linkages.RemoveAt(li)
-                p.Inlines.Add(note.Substring(0,si))
-                p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
-                note <- note.Substring(si+substr.Length)
-            p.Inlines.Add(note)
-        fd.Blocks.Add(p)
-        tb.Document <- fd
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
     let clipView = new Border(Width=float(MAPX/5), Height=float(MAPX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
@@ -204,7 +185,7 @@ type MyWindow() as this =
                 doZoom()
             )
         let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
-        updateTB(summaryTB, theGame.CurX, theGame.CurY, cmt)
+        MinimapWindow.UpdateRichTextBox(summaryTB, theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
     //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
     let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
@@ -704,6 +685,9 @@ type MyWindow() as this =
                 )
             let mini = new MinimapWindow.MinimapWindow(this.Owner, 3, uev.Publish)
             mini.Show()
+            // notes
+            let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
+            notes.Show()
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)

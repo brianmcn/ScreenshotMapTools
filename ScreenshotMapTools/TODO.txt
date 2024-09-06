@@ -14,6 +14,9 @@ what if my icons could include single letter/number/character?
 what if icons could be full rectangles of semi-transparent color?
 
 
+get 'native' scale working again
+
+
 feature window could use an icon legend, somewhere, somehow
 
 for master key:

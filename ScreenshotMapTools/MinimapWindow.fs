@@ -25,6 +25,8 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Loaded.Add(fun _ ->
             theMinimapWindow <- this
+            this.Left <- 850.
+            this.Top <- 50.
             )
         this.Closed.Add(fun _ ->
             theMinimapWindow <- null
@@ -57,4 +59,57 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
                     else
                         bs.[di,dj].Child <- null
             )
-    static member TheFeatureWindow with get() = theMinimapWindow and set(x) = theMinimapWindow <- x
+    static member TheMinimapWindow with get() = theMinimapWindow and set(x) = theMinimapWindow <- x
+
+///////////////////////////////////////////////////////
+
+let MakeRichTextBox(margin) = 
+    new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
+                                HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
+                                Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
+let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
+    let fd = new System.Windows.Documents.FlowDocument()
+    let p = new System.Windows.Documents.Paragraph()
+    p.Inlines.Add(sprintf "(%02d,%02d)        %d screenshots\n" i j (mt.NumScreenshots()))
+    let mutable note = mt.Note
+    if note <> null then
+        let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
+        while linkages.Count > 0 do
+            let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
+            linkages.RemoveAt(li)
+            p.Inlines.Add(note.Substring(0,si))
+            p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
+            note <- note.Substring(si+substr.Length)
+        p.Inlines.Add(note)
+    fd.Blocks.Add(p)
+    tb.Document <- fd
+
+///////////////////////////////////////////////////////
+
+[<AllowNullLiteral>]
+type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+    inherit Window()
+    static let mutable theNotesWindow : NotesWindow = null
+    do
+        this.Owner <- owner
+        this.Title <- "NOTES"
+        this.SizeToContent <- SizeToContent.WidthAndHeight
+        this.Loaded.Add(fun _ ->
+            theNotesWindow <- this
+            this.Left <- 850.
+            this.Top <- 500.
+            )
+        this.Closed.Add(fun _ ->
+            theNotesWindow <- null
+            )
+        let b = new Border(Width=420., Height=300., BorderThickness=Thickness(0.), Background=Brushes.Black)
+        this.Content <- b
+        let tb = MakeRichTextBox(0.)
+        tb.Height <- System.Double.NaN
+        b.Child <- tb
+        updateEv.Add(fun (x,y,zm) ->
+            UpdateRichTextBox(tb, x, y, zm.Zone, zm.MapTiles.[x,y])
+            )
+    static member TheNotesWindow with get() = theNotesWindow and set(x) = theNotesWindow <- x
+
