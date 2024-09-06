@@ -12,6 +12,51 @@ module Win32 =
 
 //////////////////////////////////////////////////////
 
+type IEventingReader<'T> =
+    abstract Value : 'T with get
+    abstract Changed : IEvent<unit>
+type Eventing<'T when 'T:equality>(orig:'T) =
+    let mutable state = orig
+    let e = new Event<unit>()
+    member this.Value with get() = state and set(x) = let orig=state in state <- x; if orig<>state then e.Trigger()
+    member this.Changed = e.Publish
+    interface IEventingReader<'T> with
+        member this.Value with get() = this.Value
+        member this.Changed = this.Changed
+type EventingBool = Eventing<bool>
+type EventingInt = Eventing<int>
+type SyntheticEventingBool(recompute, changesToWatch:seq<IEvent<unit>>) =
+    let b = new EventingBool(recompute())
+    do
+        for e in changesToWatch do
+            e.Add(fun _ -> b.Value <- recompute())
+    member this.Value = b.Value
+    member this.Changed = b.Changed
+    interface IEventingReader<bool> with
+        member this.Value with get() = this.Value
+        member this.Changed = this.Changed
+
+type UISettlingEvent(ms, evs:IEvent<unit>[]) =
+    let e = new Event<unit>()
+    let mutable dt = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Loaded, Interval=System.TimeSpan.FromMilliseconds(float ms))
+    let mutable moreEvents = false
+    let trigger() =
+        moreEvents <- true
+        if not dt.IsEnabled then
+            dt.Start()
+    do
+        dt.Tick.Add(fun _ -> 
+            if not moreEvents then
+                dt.Stop()
+                e.Trigger()
+            else
+                moreEvents <- false
+            )
+        for ev in evs do
+            ev.Add(fun _ -> trigger())
+    member this.ChangedAndSettled = e.Publish
+
+/////////////////////////////////////////////////////
 
 open System.Windows
 open System.Windows.Controls

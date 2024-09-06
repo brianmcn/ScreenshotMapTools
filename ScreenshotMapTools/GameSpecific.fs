@@ -54,7 +54,7 @@ let GAME = "Side Scape"          // name of save folder for this program's asset
 let WINDOW_TITLE = "Side Scape"  // of the process to find
 let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
 let GAMESCREENW, GAMESCREENH = 768, 704
-let MapArea  = 0, 63, 768, 641         // x,y,w,h
+let MapArea  = 0, 64, 768, 640         // x,y,w,h
 let MetaArea = 200, 0, 10, 1
 
 #endif

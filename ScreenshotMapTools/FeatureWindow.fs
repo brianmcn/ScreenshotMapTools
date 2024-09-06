@@ -1,6 +1,5 @@
 ﻿module FeatureWindow
 
-open System
 open System.Windows
 open System.Windows.Controls
 open System.Windows.Media

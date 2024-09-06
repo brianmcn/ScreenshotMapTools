@@ -127,11 +127,13 @@ type MyWindow() as this =
     let mutable warpMouseTo = fun _ -> ()
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
-    let mutable kbdX, kbdY = 0, 0    // last keyboarded cursor location
+    let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // last keyboarded cursor location
+    let curZoneChanged = new Event<unit>()
+    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish |])
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
-        kbdX <- theGame.CurX
-        kbdY <- theGame.CurY
+        kbdX.Value <- theGame.CurX
+        kbdY.Value <- theGame.CurY
     let warp() = warpMouseTo(theGame.CurX, theGame.CurY)
     // current zone combobox
     let addNewZoneButton = new Button(Content="Add zone", Margin=Thickness(4.))
@@ -328,8 +330,8 @@ type MyWindow() as this =
                         mapMarkersHoverImage.Source <- bitmapSource
                         )
                 mapCanvasMouseLeaveFunc <- (fun _ ->
-                    theGame.CurX <- kbdX
-                    theGame.CurY <- kbdY
+                    theGame.CurX <- kbdX.Value
+                    theGame.CurY <- kbdY.Value
                     // draw mouse cursor
                     Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
                     Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
@@ -422,12 +424,13 @@ type MyWindow() as this =
                 zoneComboBox.SelectedIndex <- loc.Zone
                 selectionChangeIsDisabled <- false
                 theGame.CurZone <- zoneComboBox.SelectedIndex
+                curZoneChanged.Trigger()
                 zm <- ZoneMemory.Get(theGame.CurZone)
                 refreshMetadataKeys()   // to update counts 
                 theGame.CurX <- loc.X
                 theGame.CurY <- loc.Y
-                kbdX <- loc.X
-                kbdY <- loc.Y
+                kbdX.Value <- loc.X
+                kbdY.Value <- loc.Y
                 UpdateGameFile()
                 zoom()
                 warp()
@@ -436,6 +439,7 @@ type MyWindow() as this =
         zoneComboBox.SelectionChanged.Add(fun _ ->
             if not selectionChangeIsDisabled then
                 theGame.CurZone <- zoneComboBox.SelectedIndex
+                curZoneChanged.Trigger()
                 UpdateGameFile()
                 zm <- ZoneMemory.Get(theGame.CurZone)
                 refreshMetadataKeys()   // to update counts 
@@ -451,6 +455,7 @@ type MyWindow() as this =
             zoneComboBox.SelectedIndex <- n
             selectionChangeIsDisabled <- false
             theGame.CurZone <- zoneComboBox.SelectedIndex
+            curZoneChanged.Trigger()
             zm <- ZoneMemory.Get(theGame.CurZone)
             zoom()
             )
@@ -692,6 +697,13 @@ type MyWindow() as this =
             zoom()
             mapCanvasMouseLeaveFunc()  // to move the drawn cursor to correct spot on-screen
             this.Activate() |> ignore
+            // minimap
+            let uev = new Event<_>()
+            uise.ChangedAndSettled.Add(fun _ ->
+                uev.Trigger(kbdX.Value, kbdY.Value, zm)
+                )
+            let mini = new MinimapWindow.MinimapWindow(this.Owner, 3, uev.Publish)
+            mini.Show()
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)
@@ -836,8 +848,8 @@ type MyWindow() as this =
                     warp()
                 if key = VK_NUMPAD5 then
                     // warp mouse back to last keyboard location
-                    theGame.CurX <- kbdX
-                    theGame.CurY <- kbdY
+                    theGame.CurX <- kbdX.Value
+                    theGame.CurY <- kbdY.Value
                     warp()   
                     // temp kludge, shift things up one y
                     if false then
