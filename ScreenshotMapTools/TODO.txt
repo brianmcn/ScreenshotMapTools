@@ -1,6 +1,6 @@
-﻿maybe '55' would 'change center/zoom so that all this zone fits onscreen?
+﻿maybe '55' would 'change center/zoom so that all this zone fits onscreen? (what if keyboard cursor still off?)
 
- - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor
+ - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor (updates when kbdX/kbdY changes)
  - also how do I feature composited screenshots of a tile?
 
 maybe make my own tiny abstract minimap projection window to overlay on HUD?
@@ -11,7 +11,7 @@ maybe make my own tiny abstract minimap projection window to overlay on HUD?
 crash when press '*'?
 
 what if my icons could include single letter/number/character?
-what if full rectangles of transparent color?
+what if icons could be full rectangles of semi-transparent color?
 
 
 feature window could use an icon legend, somewhere, somehow

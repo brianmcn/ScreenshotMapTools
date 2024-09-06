@@ -39,12 +39,25 @@ let MetaArea = 0, 0, 100, 1
 
 #else
 
+#if QUX
+
 let GAME = "Master Key"          // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "Master Key"  // of the process to find
 let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
 let GAMESCREENW, GAMESCREENH = 1136, 640
 let MapArea  = 176, 0, 960, 640         // x,y,w,h
 let MetaArea = 0, 0, 100, 1
+
+#else
+
+let GAME = "Side Scape"          // name of save folder for this program's assets (screenshots etc)
+let WINDOW_TITLE = "Side Scape"  // of the process to find
+let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
+let GAMESCREENW, GAMESCREENH = 768, 704
+let MapArea  = 0, 63, 768, 641         // x,y,w,h
+let MetaArea = 0, 0, 100, 1
+
+#endif
 
 #endif 
 

@@ -4,7 +4,6 @@ let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
 let APP_HEIGHT = 980. + 16. + 20.
 let BOTTOM_HEIGHT = 480.
 let KEYS_LIST_BOX_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH
-let VIEWX = APP_WIDTH
 
 //////////////////////////////////////////////////////////
 
@@ -106,7 +105,7 @@ type MyWindow() as this =
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let ARROWKEYS = [| VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8 |]
-    let MAPX,MAPY = VIEWX,420
+    let MAPX,MAPY = APP_WIDTH,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
@@ -127,7 +126,6 @@ type MyWindow() as this =
     let mutable warpMouseTo = fun _ -> ()
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
-    let mutable curZoom = 10
     let mutable kbdX, kbdY = 0, 0    // last keyboarded cursor location
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
@@ -172,7 +170,7 @@ type MyWindow() as this =
         tb.Document <- fd
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
-    let clipView = new Border(Width=float(VIEWX/5), Height=float(VIEWX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
+    let clipView = new Border(Width=float(MAPX/5), Height=float(MAPX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
     let clipDP = (new DockPanel(LastChildFill=true)).AddTop(clipTB).Add(clipView)
     // meta and full summary of current tile
     let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
@@ -205,8 +203,6 @@ type MyWindow() as this =
             )
         let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
         updateTB(summaryTB, theGame.CurX, theGame.CurY, cmt)
-    // zoom/refresh
-    let mutable curProjection = 1  // 0=full, 1=map, 2=meta
     //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
     let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
@@ -214,12 +210,12 @@ type MyWindow() as this =
         )
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
-    let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
+    let mutable priorCenterX, priorCenterY, priorZone, priorLevel, pictureChanged = -999,-999,-999,-999,false
     let rec zoom() = 
-        let level = curZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
+        let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,pw,ph = 
-            match curProjection with
+            match theGame.CurProjection with
             | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMENATIVEW, GAMENATIVEH
             | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
             | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
@@ -233,12 +229,19 @@ type MyWindow() as this =
             theGame.CenterY <- theGame.CenterY - 1
         while theGame.CurY >= theGame.CenterY + level + kludge do
             theGame.CenterY <- theGame.CenterY + 1
-        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel then   // see if we need to redraw anything
+        // see if we need to redraw anything
+        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel || pictureChanged then   
             priorCenterX <- theGame.CenterX
             priorCenterY <- theGame.CenterY
             priorZone <- theGame.CurZone
             priorLevel <- level
-            let VIEWY = System.Math.Floor((float(VIEWX)/aspect) + 0.83) |> int
+            pictureChanged <- false
+            let VIEWX,VIEWY = 
+                let mapAspect = float MAPX / float MAPY
+                if aspect > mapAspect then
+                    MAPX, System.Math.Floor((float(MAPX)/aspect) + 0.83) |> int
+                else
+                    System.Math.Floor((float(MAPY)*aspect) + 0.83) |> int, MAPY
             let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
             let scale = float(2*(level-1)+1)
             mapCanvas.Children.Clear()
@@ -273,6 +276,8 @@ type MyWindow() as this =
             do
                 mouseCursor.Width <- W + RT
                 mouseCursor.Height <- H + RT
+                Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
+                Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
                 mapCanvas.Children.Add(mouseCursor) |> ignore
                 do
                     // map icons
@@ -453,7 +458,7 @@ type MyWindow() as this =
             let orig = GetZoneName(theGame.CurZone)
             let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                     Foreground=Brushes.Black, Background=Brushes.White,
-                                    Width=float(VIEWX/2), Height=20., TextWrapping=TextWrapping.NoWrap, AcceptsReturn=false, 
+                                    Width=float(MAPX/2), Height=20., TextWrapping=TextWrapping.NoWrap, AcceptsReturn=false, 
                                     Margin=Thickness(5.))
             let closeEv = new Event<unit>()
             let mutable save = false
@@ -718,7 +723,8 @@ type MyWindow() as this =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if msg = WM_HOTKEY && (wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID || wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID+1) then
             if currentlyRunningAHotkeyCommand then
-                System.Console.Beep()
+                () 
+                //System.Console.Beep()
             else
                 currentlyRunningAHotkeyCommand <- true
                 let ctrl_bits = lParam.ToInt32() &&& 0xF
@@ -734,6 +740,7 @@ type MyWindow() as this =
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
+                    pictureChanged <- true
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
                     // update disk
@@ -741,13 +748,16 @@ type MyWindow() as this =
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
                     setCursor()
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
+                    pictureChanged <- true
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
                 if key = VK_MULTIPLY then
-                    curProjection <- curProjection + 1
-                    if curProjection >= 3 then
-                        curProjection <- 0
+                    theGame.CurProjection <- theGame.CurProjection + 1
+                    if theGame.CurProjection >= 3 then
+                        theGame.CurProjection <- 0
+                    UpdateGameFile()
+                    pictureChanged <- true
                     zoom()
                 if key = VK_NUMPAD4 then
                     if ctrl_bits = int MOD_CONTROL then
@@ -806,19 +816,22 @@ type MyWindow() as this =
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
+                    pictureChanged <- true
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
                 if key = VK_NUMPAD7 then
                     setCursor()
-                    if curZoom > 1 then
-                        curZoom <- curZoom - 1
+                    if theGame.CurZoom > 1 then
+                        theGame.CurZoom <- theGame.CurZoom - 1
+                        UpdateGameFile()
                         zoom()
                     warp()
                 if key = VK_NUMPAD9 then
                     setCursor()
-                    if curZoom < MAX/2 then
-                        curZoom <- curZoom + 1
+                    if theGame.CurZoom < MAX/2 then
+                        theGame.CurZoom <- theGame.CurZoom + 1
+                        UpdateGameFile()
                         zoom()
                     warp()
                 if key = VK_NUMPAD5 then
@@ -848,7 +861,7 @@ type MyWindow() as this =
                     let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
                     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
                                             Foreground=Brushes.Black, Background=Brushes.White,
-                                            Width=float(VIEWX/2), Height=float(VIEWX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                                            Width=float(MAPX/2), Height=float(MAPX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
                                             VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
                     let closeEv = new Event<unit>()
                     let mutable save = false
