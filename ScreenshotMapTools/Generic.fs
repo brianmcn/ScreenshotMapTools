@@ -129,7 +129,8 @@ type MyWindow() as this =
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
     let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // last keyboarded cursor location
     let curZoneChanged = new Event<unit>()
-    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish |])
+    let pictureChanged = new Utils.EventingBool(false)
+    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
         kbdX.Value <- theGame.CurX
@@ -193,7 +194,7 @@ type MyWindow() as this =
         )
     let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
-    let mutable priorCenterX, priorCenterY, priorZone, priorLevel, pictureChanged = -999,-999,-999,-999,false
+    let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
@@ -213,12 +214,12 @@ type MyWindow() as this =
         while theGame.CurY >= theGame.CenterY + level + kludge do
             theGame.CenterY <- theGame.CenterY + 1
         // see if we need to redraw anything
-        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel || pictureChanged then   
+        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel || pictureChanged.Value then   
             priorCenterX <- theGame.CenterX
             priorCenterY <- theGame.CenterY
             priorZone <- theGame.CurZone
             priorLevel <- level
-            pictureChanged <- false
+            pictureChanged.Value <- false
             let VIEWX,VIEWY = 
                 let mapAspect = float MAPX / float MAPY
                 if aspect > mapAspect then
@@ -736,7 +737,7 @@ type MyWindow() as this =
                     clipboardSSID <- id
                     updateClipboardView()
                     // update current tile view
-                    pictureChanged <- true
+                    pictureChanged.Value <- true
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
                     // update disk
@@ -744,7 +745,7 @@ type MyWindow() as this =
                 if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
                     setCursor()
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
-                    pictureChanged <- true
+                    pictureChanged.Value <- true
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
@@ -753,7 +754,7 @@ type MyWindow() as this =
                     if theGame.CurProjection >= 3 then
                         theGame.CurProjection <- 0
                     UpdateGameFile()
-                    pictureChanged <- true
+                    pictureChanged.Value <- true
                     zoom()
                 if key = VK_NUMPAD4 then
                     if ctrl_bits = int MOD_CONTROL then
@@ -812,7 +813,7 @@ type MyWindow() as this =
                     let img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
-                    pictureChanged <- true
+                    pictureChanged.Value <- true
                     SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                     RecomputeImage(theGame.CurX,theGame.CurY,zm)
                     zoom()
