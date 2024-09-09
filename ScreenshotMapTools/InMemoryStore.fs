@@ -47,6 +47,11 @@ type ImgArrayCache(proj,zone) =
             CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
         rawCaches.[x,y].Clear()
+    member this.HasBmp(x,y) =
+        let file = GetCacheFilename(x,y)
+        let r = System.IO.File.Exists(file)
+        //printfn "has(%d,%d)=%A" x y r
+        r
     member this.GetCopyOfBmp(x,y) =
         let file = GetCacheFilename(x,y)
         if System.IO.File.Exists(file) then

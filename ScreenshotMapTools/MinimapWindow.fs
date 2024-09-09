@@ -39,14 +39,14 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
         this.Content <- c
         let g = Utils.makeGrid(N+2, N+2, W, H)
         Utils.canvasAdd(c, g, WE - float W, HE - float H)
-        // TODO move
-        Utils.canvasAdd(c, new Shapes.Rectangle(Width=float(W+1), Height=float(H+1), Stroke=Brushes.Yellow, StrokeThickness=1.), WE + float(W*(N/2)), HE + float(H*(N/2)))
+        let cursorRect = new Shapes.Rectangle(Width=float(W+1), Height=float(H+1), Stroke=Brushes.Yellow, StrokeThickness=3.)
+        Utils.canvasAdd(c, cursorRect, WE + float(W*(N/2)), HE + float(H*(N/2)))
         let bs = Array2D.init (N+2) (N+2) (fun x y -> 
-            let r = new Border(BorderThickness=Thickness(1.,1.,0.,0.), Background=Brushes.DarkSlateBlue, Width=float W, Height=float H)
+            let r = new Border(BorderThickness=Thickness(1.,1.,0.,0.), Background=Brushes.DarkOliveGreen, Width=float W, Height=float H)
             Utils.gridAdd(g, r, x, y)
             r
             )
-        updateEv.Add(fun (x,y,zm) ->
+        let drawViewCenteredAt(x,y,zm:InMemoryStore.ZoneMemory) =
             for di = 0 to N+1 do
                 for dj = 0 to N+1 do
                     let i = x-zoomLevel+di
@@ -60,6 +60,26 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
                                                                                                 i)
                     else
                         bs.[di,dj].Child <- null
+        updateEv.Add(fun (x,y,zm) -> 
+            let mutable dx,dy = 0,0
+            let yRange = [|y-zoomLevel .. y-zoomLevel+N+1|]
+            let leftEdgeIsEmpty() = yRange |> Array.exists (fun j -> zm.MapImgArray.HasBmp(x+dx-zoomLevel+1, j)) |> not
+            let rightEdgeIsEmpty() = yRange |> Array.exists (fun j -> zm.MapImgArray.HasBmp(x+dx-zoomLevel+N, j)) |> not
+            while dx < zoomLevel-1 && leftEdgeIsEmpty() && not(rightEdgeIsEmpty()) do
+                dx <- dx + 1
+            while dx > -zoomLevel+1 && not(leftEdgeIsEmpty()) && rightEdgeIsEmpty() do
+                dx <- dx - 1
+            let xRange = [|x-zoomLevel .. x-zoomLevel+N+1|]
+            let topEdgeIsEmpty() = xRange |> Array.exists (fun i -> zm.MapImgArray.HasBmp(i, y+dy-zoomLevel+1)) |> not
+            let bottomEdgeIsEmpty() = xRange |> Array.exists (fun i -> zm.MapImgArray.HasBmp(i, y+dy-zoomLevel+N)) |> not
+            while dy < zoomLevel-1 && topEdgeIsEmpty() && not(bottomEdgeIsEmpty()) do
+                dy <- dy + 1
+            while dy > -zoomLevel+1 && not(topEdgeIsEmpty()) && bottomEdgeIsEmpty() do
+                dy <- dy - 1
+            printfn "dx,dy = %d,%d" dx dy
+            drawViewCenteredAt(x+dx,y+dy,zm)
+            Canvas.SetLeft(cursorRect, WE + float(W*(N/2 - dx)))
+            Canvas.SetTop(cursorRect, HE + float(H*(N/2 - dy)))
             )
     static member TheMinimapWindow with get() = theMinimapWindow and set(x) = theMinimapWindow <- x
 
