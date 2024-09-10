@@ -51,7 +51,18 @@ let main argv =
     printfn "%A" (GenericMetadata.AllHashtags("yadda #bar baz #qux yadda"))
     printfn "%A" (GenericMetadata.AllHashtags("#_ #a #b #c #1 #f4 #"))
     printfn "%A" (GenericMetadata.AllHashtags("yadda #bar ## ###a #qux yadda"))
+
+
+    let _,n = System.Numerics.BigInteger.TryParse("2926619871974812")
+    let mutable r = n
+    while not r.IsZero do
+        let x,y = System.Numerics.BigInteger.DivRem(r, System.Numerics.BigInteger(36))
+        let i = int y - 10
+        printfn "%c" (char(i + int 'A'))
+        r <- x
     *)
+
+        
 
     let app = new Application()
     //app.Run(new Elephantasy.MyWindow())

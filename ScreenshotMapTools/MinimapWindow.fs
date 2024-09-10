@@ -7,7 +7,8 @@ open Utils.Extensions
 
 let MAX = InMemoryStore.MAX
 
-let WIDTH = 420.   // how wide want minimap to be; height will be based on aspect ratio
+let WIDTH = 492.   // how wide want minimap to be; height will be based on aspect ratio
+let LEFT = 785.
 
 let MAP_ASPECT = 
     let _,_,w,h = GameSpecific.MapArea
@@ -26,7 +27,7 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Loaded.Add(fun _ ->
             theMinimapWindow <- this
-            this.Left <- 850.
+            this.Left <- LEFT
             this.Top <- 50.
             )
         this.Closed.Add(fun _ ->
@@ -35,14 +36,14 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
         let NE = float N+2.*EXTRA
         let W,H = int(MMW_W/NE), int(MMW_H/NE)
         let WE,HE = float W*EXTRA, float H*EXTRA
-        let c = new Canvas(Width=float(W)*NE, Height=float(H)*NE, Background=Brushes.Black)
+        let c = new Canvas(Width=float(W)*NE, Height=float(H)*NE, Background=new SolidColorBrush(Color.FromRgb(0x60uy,0x60uy,0x60uy))) // Brushes.Black)
         this.Content <- c
         let g = Utils.makeGrid(N+2, N+2, W, H)
         Utils.canvasAdd(c, g, WE - float W, HE - float H)
         let cursorRect = new Shapes.Rectangle(Width=float(W+1), Height=float(H+1), Stroke=Brushes.Yellow, StrokeThickness=3.)
         Utils.canvasAdd(c, cursorRect, WE + float(W*(N/2)), HE + float(H*(N/2)))
         let bs = Array2D.init (N+2) (N+2) (fun x y -> 
-            let r = new Border(BorderThickness=Thickness(1.,1.,0.,0.), Background=Brushes.DarkOliveGreen, Width=float W, Height=float H)
+            let r = new Border(BorderThickness=Thickness(1.,1.,0.,0.), Width=float W, Height=float H, Background=new SolidColorBrush(Color.FromRgb(0x30uy,0uy,0x50uy))) // Brushes.DarkOliveGreen)
             Utils.gridAdd(g, r, x, y)
             r
             )
@@ -56,7 +57,7 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
                                                                                                 let i = Utils.BMPtoImage bmp
                                                                                                 i.Width <- float(W-1)
                                                                                                 i.Height <- float(H-1)
-                                                                                                i.Stretch <- Stretch.Uniform
+                                                                                                i.Stretch <- Stretch.Fill
                                                                                                 i)
                     else
                         bs.[di,dj].Child <- null
@@ -76,7 +77,7 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
                 dy <- dy + 1
             while dy > -zoomLevel+1 && not(topEdgeIsEmpty()) && bottomEdgeIsEmpty() do
                 dy <- dy - 1
-            printfn "dx,dy = %d,%d" dx dy
+            //printfn "dx,dy = %d,%d" dx dy
             drawViewCenteredAt(x+dx,y+dy,zm)
             Canvas.SetLeft(cursorRect, WE + float(W*(N/2 - dx)))
             Canvas.SetTop(cursorRect, HE + float(H*(N/2 - dy)))
@@ -119,13 +120,13 @@ type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as thi
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Loaded.Add(fun _ ->
             theNotesWindow <- this
-            this.Left <- 850.
+            this.Left <- LEFT
             this.Top <- 500.
             )
         this.Closed.Add(fun _ ->
             theNotesWindow <- null
             )
-        let b = new Border(Width=420., Height=300., BorderThickness=Thickness(0.), Background=Brushes.Black)
+        let b = new Border(Width=WIDTH, Height=300., BorderThickness=Thickness(0.), Background=Brushes.Black)
         this.Content <- b
         let tb = MakeRichTextBox(0.)
         tb.Height <- System.Double.NaN

@@ -231,6 +231,8 @@ type MyWindow() as this =
             mapCanvas.Children.Clear()
             mapMarkersImage.Source <- null
             mapMarkersHoverImage.Source <- null
+            for i = 0 to backBuffer.Length-1 do
+                backBuffer.[i] <- 0uy
             let W,H = float(VIEWX)/scale,float(VIEWY)/scale
             let drawnLocations = ResizeArray()
             let ci, cj = theGame.CenterX, theGame.CenterY
@@ -684,7 +686,7 @@ type MyWindow() as this =
             uise.ChangedAndSettled.Add(fun _ ->
                 uev.Trigger(kbdX.Value, kbdY.Value, zm)
                 )
-            let mini = new MinimapWindow.MinimapWindow(this.Owner, 3, uev.Publish)
+            let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
             mini.Show()
             // notes
             let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
@@ -877,6 +879,7 @@ type MyWindow() as this =
                     Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
                     if save then
                         UpdateCurrentNote(orig, tb.Text, zm)
+                        pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
                 if key = VK_DECIMAL then
                     setCursor()
                     let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
