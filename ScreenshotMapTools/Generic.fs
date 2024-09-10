@@ -559,6 +559,7 @@ type MyWindow() as this =
         this.Left <- 1290.
         this.Top <- 4.
         //this.Topmost <- true
+        this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
         //this.SizeToContent <- SizeToContent.Manual
         //this.Width <- float APP_WIDTH
@@ -688,6 +689,9 @@ type MyWindow() as this =
                 )
             let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
             mini.Show()
+            // abstract minimap
+            let amini = new MinimapWindow.AbstractFixedMinimapWindow(this.Owner, uev.Publish)
+            amini.Show()
             // notes
             let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
             notes.Show()

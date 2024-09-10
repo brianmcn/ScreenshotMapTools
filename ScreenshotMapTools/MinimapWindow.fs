@@ -15,7 +15,7 @@ let MAP_ASPECT =
     float w / float h
 
 let MMW_W, MMW_H = WIDTH, WIDTH/MAP_ASPECT
-let EXTRA = 0.2
+let EXTRA = 0.35
 [<AllowNullLiteral>]
 type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
     inherit Window()
@@ -25,10 +25,11 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
         this.Owner <- owner
         this.Title <- "MINIMAP"
         this.SizeToContent <- SizeToContent.WidthAndHeight
+        this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
             theMinimapWindow <- this
             this.Left <- LEFT
-            this.Top <- 50.
+            this.Top <- 10.
             )
         this.Closed.Add(fun _ ->
             theMinimapWindow <- null
@@ -86,6 +87,60 @@ type MinimapWindow(owner,zoomLevel,updateEv:IEvent<int*int*InMemoryStore.ZoneMem
 
 ///////////////////////////////////////////////////////
 
+type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+    inherit Window()
+    do
+        this.Owner <- owner
+        this.Title <- "ABSTRACT MINIMAP"
+        this.SizeToContent <- SizeToContent.WidthAndHeight
+        this.UseLayoutRounding <- true
+        this.Loaded.Add(fun _ ->
+            this.Left <- LEFT
+            this.Top <- 470.
+            )
+        let minx,maxx = 49,66
+        let miny,maxy = 49,62
+        let nx, ny = maxx-minx+1, maxy-miny+1
+        let W = int(0.6 * MMW_W/float(nx))
+        let H = int(float W / MAP_ASPECT)
+        let c = new Canvas(Width=float(W*nx), Height=float(H*ny), Background=new SolidColorBrush(Color.FromRgb(0x60uy,0x60uy,0x60uy))) // Brushes.Black)
+        this.Content <- c
+        let g = Utils.makeGrid(nx, ny, W, H)
+        Utils.canvasAdd(c, g, 0., 0.)
+        let cursorRect = new Shapes.Rectangle(Width=float(W+1), Height=float(H+1), Stroke=Brushes.Yellow, StrokeThickness=3.)
+        Utils.canvasAdd(c, cursorRect, 0., 0.)
+        // area lines
+        for i = 0 to 4 do
+            Utils.canvasAdd(c, new Shapes.Line(X1=0., X2=0., Y1=0., Y2=float(H*(ny-2)), StrokeThickness=1., Stroke=Brushes.Red), float(W*(4*i+1)), float H)
+        for j = 0 to 3 do
+            Utils.canvasAdd(c, new Shapes.Line(X1=0., X2=float(W*(nx-2)), Y1=0., Y2=0., StrokeThickness=1., Stroke=Brushes.Red), float W, float(H*(4*j+1)))
+        let borderBg = new SolidColorBrush(Color.FromRgb(0x30uy,0uy,0x50uy)) // Brushes.DarkOliveGreen)
+        let bs = Array2D.init nx ny (fun x y -> 
+            let r = new Border(BorderThickness=Thickness(1.,1.,0.,0.), Width=float W, Height=float H, Background=borderBg)
+            Utils.gridAdd(g, r, x, y)
+            r
+            )
+        let draw(x,y,zm:InMemoryStore.ZoneMemory) =
+            let ok = zm.Zone = 1
+            let saves = InMemoryStore.metadataStore.LocationsForKey("save") |> Seq.filter (fun k -> k.Zone = 1) |> Seq.map (fun k -> k.X,k.Y) |> Seq.toArray
+            for i = minx to maxx do
+                for j = miny to maxy do
+                    bs.[i-minx, j-miny].Background <- 
+                        if ok && zm.MapImgArray.HasBmp(i,j) then
+                            if saves |> Array.contains (i,j) then
+                                Brushes.Green
+                            else
+                                Brushes.CornflowerBlue
+                        else
+                            borderBg
+        updateEv.Add(fun (x,y,zm) -> 
+            draw(x,y,zm)
+            Canvas.SetLeft(cursorRect, float(W*(x-minx)))
+            Canvas.SetTop(cursorRect, float(H*(y-miny)))
+            )
+
+///////////////////////////////////////////////////////
+
 let MakeRichTextBox(margin) = 
     new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
@@ -117,16 +172,17 @@ type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as thi
     do
         this.Owner <- owner
         this.Title <- "NOTES"
+        this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Loaded.Add(fun _ ->
             theNotesWindow <- this
             this.Left <- LEFT
-            this.Top <- 500.
+            this.Top <- 700.
             )
         this.Closed.Add(fun _ ->
             theNotesWindow <- null
             )
-        let b = new Border(Width=WIDTH, Height=300., BorderThickness=Thickness(0.), Background=Brushes.Black)
+        let b = new Border(Width=WIDTH, Height=150., BorderThickness=Thickness(0.), Background=Brushes.Black)
         this.Content <- b
         let tb = MakeRichTextBox(0.)
         tb.Height <- System.Double.NaN
