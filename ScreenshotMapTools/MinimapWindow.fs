@@ -149,7 +149,7 @@ let MakeRichTextBox(margin) =
 let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
     let fd = new System.Windows.Documents.FlowDocument()
     let p = new System.Windows.Documents.Paragraph()
-    p.Inlines.Add(sprintf "(%02d,%02d)        %d screenshots\n" i j (mt.NumScreenshots()))
+    p.Inlines.Add(sprintf "(%02d,%02d) %d screenshots\n" i j (mt.NumScreenshots()))
     let mutable note = mt.Note
     if note <> null then
         let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
@@ -182,7 +182,7 @@ type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as thi
         this.Closed.Add(fun _ ->
             theNotesWindow <- null
             )
-        let b = new Border(Width=WIDTH, Height=150., BorderThickness=Thickness(0.), Background=Brushes.Black)
+        let b = new Border(Width=WIDTH, Height=140., BorderThickness=Thickness(0.), Background=Brushes.Black)
         this.Content <- b
         let tb = MakeRichTextBox(0.)
         tb.Height <- System.Double.NaN

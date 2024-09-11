@@ -366,6 +366,8 @@ type MyWindow() as this =
         metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
         refreshMetadataKeys()
         mfsRefresh()   // redraw note preview in summary area
+        MapIcons.redrawMapIconsEv.Trigger()
+        MapIcons.redrawMapIconHoverOnly.Trigger()
     do
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
