@@ -99,9 +99,9 @@ type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.Zone
             this.Top <- 470.
             )
         let minx,maxx = 49,66
-        let miny,maxy = 49,62
+        let miny,maxy = 49,66
         let nx, ny = maxx-minx+1, maxy-miny+1
-        let W = int(0.6 * MMW_W/float(nx))
+        let W = int(0.5 * MMW_W/float(nx))
         let H = int(float W / MAP_ASPECT)
         let c = new Canvas(Width=float(W*nx), Height=float(H*ny), Background=new SolidColorBrush(Color.FromRgb(0x60uy,0x60uy,0x60uy))) // Brushes.Black)
         this.Content <- c
@@ -112,7 +112,7 @@ type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.Zone
         // area lines
         for i = 0 to 4 do
             Utils.canvasAdd(c, new Shapes.Line(X1=0., X2=0., Y1=0., Y2=float(H*(ny-2)), StrokeThickness=1., Stroke=Brushes.Red), float(W*(4*i+1)), float H)
-        for j = 0 to 3 do
+        for j = 0 to 4 do
             Utils.canvasAdd(c, new Shapes.Line(X1=0., X2=float(W*(nx-2)), Y1=0., Y2=0., StrokeThickness=1., Stroke=Brushes.Red), float W, float(H*(4*j+1)))
         let borderBg = new SolidColorBrush(Color.FromRgb(0x30uy,0uy,0x50uy)) // Brushes.DarkOliveGreen)
         let bs = Array2D.init nx ny (fun x y -> 

@@ -496,7 +496,7 @@ type MyWindow() as this =
                                 let bmp,ci = bmpcis.[i,j]
                                 if bmp <> null then
                                     let tf = 
-                                        if ci = -1 then
+                                        if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
                                             id
                                         else
                                             (fun (a,r,g,b) ->
