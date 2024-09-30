@@ -50,12 +50,25 @@ let MetaArea = 0, 0, 100, 1
 
 #else
 
+#if SS
+
 let GAME = "Side Scape"          // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "Side Scape"  // of the process to find
 let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
 let GAMESCREENW, GAMESCREENH = 768, 704
 let MapArea  = 0, 64, 768, 640         // x,y,w,h
 let MetaArea = 200, 0, 10, 1
+
+#else
+
+let GAME = "IoSaS"               // name of save folder for this program's assets (screenshots etc)
+let WINDOW_TITLE = "Isles of Sea and Sky"  // of the process to find
+let NATIVE_FACTOR = 1            // e.g. I am running it at 1x native pixel size
+let GAMESCREENW, GAMESCREENH = 1152, 648
+let MapArea  = 0, 96, 1152, 552         // x,y,w,h
+let MetaArea = 200, 0, 10, 1
+
+#endif
 
 #endif
 
