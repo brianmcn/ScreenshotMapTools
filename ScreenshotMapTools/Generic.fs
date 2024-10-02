@@ -841,10 +841,22 @@ type MyWindow() as this =
                         zoom()
                     warp()
                 if key = VK_NUMPAD5 then
-                    // warp mouse back to last keyboard location
-                    theGame.CurX <- kbdX.Value
-                    theGame.CurY <- kbdY.Value
-                    warp()   
+                    if theGame.CurX=kbdX.Value && theGame.CurY=kbdY.Value then
+                        // center the current map
+                        let gr = FeatureWindow.ComputeRange(zm)
+                        let x = gr.MinX + (gr.MaxX-gr.MinX)/2 
+                        let y = gr.MinY + (gr.MaxY-gr.MinY)/2 
+                        theGame.CurX <- x
+                        theGame.CurY <- y
+                        theGame.CenterX <- x
+                        theGame.CenterY <- y
+                        zoom()
+                        warp()
+                    else
+                        // warp mouse back to last keyboard location
+                        theGame.CurX <- kbdX.Value
+                        theGame.CurY <- kbdY.Value
+                        warp()   
                     // temp kludge, shift things up one y
                     if false then
                         if theGame.CurY > 0 && zm.MapTiles.[theGame.CurX,theGame.CurY-1].IsEmpty then

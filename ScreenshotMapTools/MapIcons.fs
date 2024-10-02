@@ -264,6 +264,10 @@ let MakeIconUI(parentWindow) =
                     tooltip <- tooltip + sprintf "%d zone%02d: %s\n" zoneCounts.[i] i BackingStoreData.theGame.ZoneNames.[i]
             textBox.IsHitTestVisible <- true
             ToolTipService.SetToolTip(textBox, tooltip)
+            textBox.PreviewMouseDown.Add(fun me ->
+                if me.RightButton = Input.MouseButtonState.Pressed then
+                    () //System.Console.Beep() // TODO window of all of them with previews
+                )
             dp.Children.Add(textBox) |> ignore
         let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, i)
