@@ -45,7 +45,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
         let ssid = swk.Id
         let bmp = bmpDict.[ssid]
         let img = Utils.BMPtoImage(bmp)
-        let largeImage = Utils.ImageProjection(img,(0,0,GAMENATIVEW,GAMENATIVEH))
+        let largeImage = Utils.ImageProjection(img,(0,0,GAMESCREENW,GAMESCREENH))
         let border = new Border(BorderThickness=Thickness(TH), Child=largeImage)
         let kindPanel = new StackPanel(Orientation=Orientation.Vertical, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0.,0.,4.,0.))
         for k in BackingStoreData.screenshotKindUniverse do
@@ -176,7 +176,7 @@ type MyWindow() as this =
             | _ ->
                 let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
                 metaAndScreenshotPanel.AddTop(top) |> ignore
-            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMENATIVEW,GAMENATIVEH))
+            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMESCREENW,GAMESCREENH))
             metaAndScreenshotPanel.Children.Add(main) |> ignore
         metaAndScreenshotPanel.MouseDown.Add(fun ea ->
             ea.Handled <- true
@@ -200,7 +200,7 @@ type MyWindow() as this =
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,pw,ph = 
             match theGame.CurProjection with
-            | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMENATIVEW, GAMENATIVEH
+            | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMESCREENW, GAMESCREENH
             | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
             | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"

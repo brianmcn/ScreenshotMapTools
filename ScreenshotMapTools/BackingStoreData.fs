@@ -116,17 +116,8 @@ let TakeNewScreenshot() =
         match r with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, GAMESCREENW, GAMESCREENH)
         | None -> failwith "window not found"
-    let nativeBmp = 
-        if NATIVE_FACTOR <> 1 then
-            let r = new System.Drawing.Bitmap(GAMENATIVEW, GAMENATIVEH)
-            for i = 0 to GAMENATIVEW-1 do
-                for j = 0 to GAMENATIVEH-1 do
-                    r.SetPixel(i, j, bmp.GetPixel(i*NATIVE_FACTOR, j*NATIVE_FACTOR))
-            r
-        else
-            bmp
-    let id,img = SaveScreenshot(nativeBmp)
-    img, nativeBmp, id
+    let id,img = SaveScreenshot(bmp)
+    img, bmp, id
 
 //////////////////////////////////////////////////////////////////////////
 
