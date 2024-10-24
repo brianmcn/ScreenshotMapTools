@@ -24,6 +24,7 @@
     <Compile Include="MinimapWindow.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
+    <Compile Include="Glass.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

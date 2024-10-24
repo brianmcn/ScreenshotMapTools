@@ -21,12 +21,14 @@ module Screenshot =
     [<Struct>]
     [<StructLayout(LayoutKind.Sequential)>]
     type RECT =
-        val left:int
-        val top:int
-        val right:int
-        val bottom:int
+        val mutable left:int
+        val mutable top:int
+        val mutable right:int
+        val mutable bottom:int
     [<DllImport("user32.dll", SetLastError = true)>]
     extern [<return: MarshalAs(UnmanagedType.Bool)>] bool GetWindowRect(IntPtr hWnd, [<Out>] RECT& lpRect)
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern [<return: MarshalAs(UnmanagedType.Bool)>] bool GetClientRect(IntPtr hWnd, [<Out>] RECT& lpRect)
 
     let GetOpenWindows() =
         let shellWindow = GetShellWindow()

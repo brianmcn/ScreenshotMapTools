@@ -9,6 +9,12 @@ module Win32 =
     open System.Runtime.InteropServices
     [<DllImport("USER32.DLL")>]
     extern bool SetForegroundWindow(IntPtr hwnd)
+    [<DllImport("USER32.DLL")>]
+    extern bool ShowWindow(IntPtr hWnd, int nCmdShow)
+    [<DllImport("USER32.DLL")>]
+    extern IntPtr SetWindowLongPtrA(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+    [<DllImport("USER32.DLL")>]
+    extern IntPtr GetWindowLongPtrA(IntPtr hWnd, int nIndex)
 
 //////////////////////////////////////////////////////
 
