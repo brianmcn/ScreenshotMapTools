@@ -5,6 +5,9 @@
 
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OtherFlags>--warnon:1182</OtherFlags>
+  </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="HS.fs" />

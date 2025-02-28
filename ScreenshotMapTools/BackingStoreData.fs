@@ -110,7 +110,7 @@ let rec GetZoneName(zoneNum) =
 let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
-        for KeyValue(hwnd,(title,rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+        for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
             if title.StartsWith(WINDOW_TITLE) then
                 r <- Some hwnd
         match r with

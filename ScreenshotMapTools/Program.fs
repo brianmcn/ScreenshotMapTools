@@ -29,7 +29,7 @@ type DummyWindow() as this =
 
 [<STAThread>]
 [<EntryPoint>]
-let main argv =
+let main _argv =
     (*
     let app = new Application()
     app.Run(new Knytt.MyWindow())

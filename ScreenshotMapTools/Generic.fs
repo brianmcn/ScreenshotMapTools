@@ -146,8 +146,8 @@ type MyWindow() as this =
     let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = MinimapWindow.MakeRichTextBox(4.)
-    let mutable NavigateTo = (fun (loc:GenericMetadata.Location) -> ())
-    let navigationFunc (o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
+    let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
+    let navigationFunc (_o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
         let s = ea.Uri.AbsolutePath
         let zone = s.Substring(1,2) |> int
         let x = s.Substring(4,2) |> int
@@ -192,13 +192,12 @@ type MyWindow() as this =
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
         new TextBlock(IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, Foreground=Brushes.Black)  // TextBlock is much lighter weight (perf), but lacks alignment centering
         )
-    let mutable mapIconHoverRedraw = fun _ -> ()
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
-        let aspect,kludge,ia,pw,ph = 
+        let aspect,kludge,ia,_pw,_ph = 
             match theGame.CurProjection with
             | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMESCREENW, GAMESCREENH
             | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
@@ -819,7 +818,7 @@ type MyWindow() as this =
                     warp()
                 if key = VK_NUMPAD0 then
                     setCursor()
-                    let img,bmp,id = TakeNewScreenshot()
+                    let _img,bmp,id = TakeNewScreenshot()
                     bmpDict.Add(id, bmp)
                     zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
                     pictureChanged.Value <- true

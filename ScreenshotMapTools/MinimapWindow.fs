@@ -120,7 +120,7 @@ type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.Zone
             Utils.gridAdd(g, r, x, y)
             r
             )
-        let draw(x,y,zm:InMemoryStore.ZoneMemory) =
+        let draw(_x,_y,zm:InMemoryStore.ZoneMemory) =
             let ok = zm.Zone = 1
             let saves = InMemoryStore.metadataStore.LocationsForKey("save") |> Seq.filter (fun k -> k.Zone = 1) |> Seq.map (fun k -> k.X,k.Y) |> Seq.toArray
             for i = minx to maxx do

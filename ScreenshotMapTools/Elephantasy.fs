@@ -33,7 +33,7 @@ module Screenshot =
     let GetOpenWindows() =
         let shellWindow = GetShellWindow()
         let windows = new Dictionary<HWND, string*RECT>()
-        let perWindow(hWnd : HWND, lParam : HWND) : bool =
+        let perWindow(hWnd : HWND, _lParam : HWND) : bool =
             if hWnd = shellWindow then true
             elif not(IsWindowVisible(hWnd)) then true
             else
@@ -51,7 +51,7 @@ module Screenshot =
 
     let findElephantasyWindowLeftTop() =
         let mutable r = None
-        for KeyValue(hwnd,(title,rect)) in GetOpenWindows() do
+        for KeyValue(_hwnd,(title,rect)) in GetOpenWindows() do
             if title = "Elephantasy" then
                 r <- Some(rect.left, rect.top)
         r

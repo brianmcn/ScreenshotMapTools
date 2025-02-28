@@ -174,7 +174,7 @@ type SharedBitmapSource(bmp:System.Drawing.Bitmap) as this =
 
     override this.Finalize() = this.Dispose(false)
 
-    override this.CopyPixels(sourceRect:Int32Rect, pixels : System.Array, stride:int, offset:int) =
+    override this.CopyPixels(sourceRect:Int32Rect, pixels : System.Array, _stride:int, _offset:int) =
         let sourceData = bmp.LockBits(new System.Drawing.Rectangle(sourceRect.X, sourceRect.Y, sourceRect.Width, sourceRect.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, bmp.PixelFormat)
         let length = sourceData.Stride * sourceData.Height
         match box pixels with
@@ -324,7 +324,7 @@ let ConvertBmpToBGRA(bmp:System.Drawing.Bitmap) =
     let numBytes = data.Stride * bmp.Height
     let byteArray : byte[] = Array.zeroCreate numBytes
     System.Runtime.InteropServices.Marshal.Copy(data.Scan0, byteArray, 0, numBytes)
-    let w,h,stride = bmp.Width, bmp.Height, data.Stride
+    //let w,h,stride = bmp.Width, bmp.Height, data.Stride
     bmp.UnlockBits(data)
     byteArray
 

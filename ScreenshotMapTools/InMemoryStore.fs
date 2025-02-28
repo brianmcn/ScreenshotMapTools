@@ -205,7 +205,6 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     // recompute bitmaps that were not cached
     let cde = new System.Threading.CountdownEvent(bgWork.Count)
     let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
-    let ctxt = System.Threading.SynchronizationContext.Current
     for (i,j) in bgWork do
         async {
             let bmp = RecomputeBitmap(i,j,zm)
