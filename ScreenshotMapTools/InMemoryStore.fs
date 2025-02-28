@@ -20,20 +20,32 @@ type ImgArrayCache(proj,zone) =
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
-    let GetCacheFilename(x,y) = System.IO.Path.Combine(GetZoneFolder(zone), prefix, sprintf "%02d-%02d.png" x y)
+    let ownedBmps = Array2D.zeroCreate MAX MAX
+    let downsampledBmps = Array2D.zeroCreate MAX MAX
+    let cachedFilenames = Array2D.zeroCreate MAX MAX
+    let doesFileExist = Array2D.zeroCreate MAX MAX         // 0=unknown, 111=yes, 222=no
+    let GetCacheFilename(x,y) = 
+        if cachedFilenames.[x,y] = null then
+            cachedFilenames.[x,y] <- System.IO.Path.Combine(GetZoneFolder(zone), prefix, sprintf "%02d-%02d.png" x y)
+        cachedFilenames.[x,y]
     let CacheToDisk(x,y,bmp : System.Drawing.Bitmap) =
         let file = GetCacheFilename(x,y)
         System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
         if bmp = null then
             System.IO.File.Delete(file)
+            doesFileExist.[x,y] <- 222
         else
             bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
+            doesFileExist.[x,y] <- 111
     member this.TryReadFromDisk(x,y) =
         async {
             let file = GetCacheFilename(x,y)
             if System.IO.File.Exists(file) then
                 let bmp = new System.Drawing.Bitmap(file)
+                doesFileExist.[x,y] <- 111
                 let bi = bmp |> Utils.BMPtoBitmapImage
+                ownedBmps.[x,y] <- bmp
+                downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))
                 return Some(fun() -> 
                                 let img = new System.Windows.Controls.Image(Source=bi, Width=float bmp.Width, Height=float bmp.Height)
                                 imgArray.[x,y] <- img
@@ -42,27 +54,48 @@ type ImgArrayCache(proj,zone) =
                 return None
         }
     member this.Item with get(x,y) = imgArray.[x,y]
-    member this.Set(x,y,bmp,writeToDisk) = 
-        if writeToDisk then
-            CacheToDisk(x,y,bmp)
+    member this.Set(x,y,bmp) = 
+        CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
         rawCaches.[x,y].Clear()
+        ownedBmps.[x,y] <- if bmp=null then null else new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
+        downsampledBmps.[x,y] <- if bmp=null then null else new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))
     member this.HasBmp(x,y) =
-        let file = GetCacheFilename(x,y)
-        let r = System.IO.File.Exists(file)
-        //printfn "has(%d,%d)=%A" x y r
-        r
+        match doesFileExist.[x,y] with
+        | 0 ->
+            let file = GetCacheFilename(x,y)
+            let r = System.IO.File.Exists(file)
+            //printfn "has(%d,%d)=%A" x y r
+            if r then
+                doesFileExist.[x,y] <- 111
+            else
+                doesFileExist.[x,y] <- 222
+            r
+        | 111 -> true
+        | 222 -> false
+        | _ -> failwith "impossible doesFileExist value"
     member this.GetCopyOfBmp(x,y) =
-        let file = GetCacheFilename(x,y)
-        if System.IO.File.Exists(file) then
-            Utils.LoadBitmapWithoutLockingFile(file)
+        if ownedBmps.[x,y] <> null then
+            let bmp = ownedBmps.[x,y]
+            new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
         else
-            null
+            match doesFileExist.[x,y] with 
+            | 222 -> null
+            | _ ->
+                let file = GetCacheFilename(x,y)
+                if System.IO.File.Exists(file) then
+                    doesFileExist.[x,y] <- 111
+                    let bmp = Utils.LoadBitmapWithoutLockingFile(file)
+                    ownedBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
+                    downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width/2,bmp.Height/2))
+                    bmp
+                else
+                    doesFileExist.[x,y] <- 222
+                    null
     member this.GetRaw(x, y, width, height) =
         match rawCaches.[x,y].TryGetValue((width,height)) with
         | false, _ ->
-            let bmp = this.GetCopyOfBmp(x,y)
-            let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(width,height))
+            let bmp = new System.Drawing.Bitmap(downsampledBmps.[x,y], System.Drawing.Size(width,height))
             let byteArray = Utils.ConvertBmpToBGRA(bmp)
             bmp.Dispose()
             rawCaches.[x,y].Add((width,height), byteArray)
@@ -105,9 +138,9 @@ let RecomputeBitmap(i,j,zm:ZoneMemory) =
         null
 
 let RecomputeImageCore(i,j,bmp,zm:ZoneMemory) =
-    zm.FullImgArray.Set(i,j,bmp,true)
-    zm.MapImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MapAreaRectangle),true)
-    zm.MetaImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MetaAreaRectangle),true)
+    zm.FullImgArray.Set(i,j,bmp)
+    zm.MapImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MapAreaRectangle))
+    zm.MetaImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MetaAreaRectangle))
 let RecomputeImage(i,j,zm:ZoneMemory) =
     let bmp = RecomputeBitmap(i,j,zm)
     RecomputeImageCore(i,j,bmp,zm)
@@ -121,9 +154,6 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     let mutable mapTileCount = 0
     for i = 0 to MAX-1 do
         for j = 0 to MAX-1 do
-            zm.FullImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
-            zm.MapImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
-            zm.MetaImgArray.Set(i,j,null,false)    // we might have changed zones, null out old value
             let file = MapTileFilename(i,j,zm.Zone)
             if System.IO.File.Exists(file) then
                 let json = System.IO.File.ReadAllText(file)

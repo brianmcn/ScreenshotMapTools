@@ -1,4 +1,62 @@
-﻿two minimaps? nearby view and full zone view? abstract or screenshots?
+﻿
+for incremental loading
+
+each z,x,y needs its own loading work (background disk stuff, foreground image ui stuff followup)
+each need to know which LoadedState it is in
+ - unloaded
+ - loading in progress
+ - data (or nullness) is loaded
+
+prioritizing loading the data that would be in the display view is done via throttling
+there is a high priority list of requests that the UI has made to display, that will kickoff loading work
+        JJJ it could kick them all off, but if the user changes the view in the meantime, it can't prioritize unless the high priority stuff is also throttled; probably dont worry about that now
+there is a low-priority list of 'everything else' that will kick off, say, 30 more items at a time, but only when there is no outstanding background work
+
+when the UI wants to redraw (if JJJ, then remove any queueud unstarted work items from high pri queue), it can ask each item for itself KKK, which will
+ - unloaded -> send a hi-pri request to the throttle, return a dummy 'loading' image
+ - loading -> return a dummy 'loading' image
+ - loaded -> return the actual data
+
+as background work emerges from the throttle, the throttle can batch up items to do on the UI thread and then like once every 0.3s or something run the current-ready batch
+ - each item would update its UI-thread-local instance variables with data, and
+ - KKK when the UI got back the dummy images, it should have also requested a coda to run once the image is ready, so run the coda too, which would e.g. draw the new data on 
+        the canvas (if no viewport-change/redraw has happened in the meantime, maybe use a monotonic integer 'redraw-timestamp' to run the coda only if redraw-timestamp unchanged)
+
+the throttle can also do low priority work, which is, at app load time, try to load everything
+we'd queue up everything
+we'd only run the low-pri queue when the high-pri queue is empty
+we'd only run a small batch (say, 30) of items in the low-pri queue at a time
+each item, when kicked off, must first check to see if it is already loading or has been loaded (maybe hi-pri got to it first), so we need some threadsafe way for LoadedState to be read 
+    from UI thread and read/written on throttle thread, I guess? (throttle is probably a mailbox processor)
+
+
+
+ACTUALLY
+
+Charlie points out that a single MailboxProcessor running a priority queue means all the bg work only contends with that background thread, and locking is unlikely to slow stuff down much.
+UI thread can fire and forget requests (item x priority) and MP can order the work and BG threads can schedule all the async reads and then queue up their UI codas, and a periodic rendevouz
+with the UI thread can scrape N codas off that queue to run them and update the UI.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+two minimaps? nearby view and full zone view? abstract or screenshots?
 
 
 maybe '55' would 'change center/zoom so that all this zone fits onscreen? (what if keyboard cursor still off?)

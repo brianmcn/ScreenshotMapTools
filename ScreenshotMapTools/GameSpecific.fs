@@ -17,7 +17,7 @@ let MetaArea = 230,  0, 120,  14
 
 #else
 
-#if BAR
+#if !BAR
 
 let GAME = "Animal Well"          // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "ANIMAL WELL"  // of the process to find
