@@ -41,9 +41,21 @@ type ImgArrayCache(proj,zone) =
         async {
             let file = GetCacheFilename(x,y)
             if System.IO.File.Exists(file) then
-                let bmp = new System.Drawing.Bitmap(file)
                 doesFileExist.[x,y] <- 111
-                let bi = bmp |> Utils.BMPtoBitmapImage
+                (*
+                //let bmp = new System.Drawing.Bitmap(file)
+                //let bi = bmp |> Utils.BMPtoBitmapImage
+                use fs = System.IO.File.Open(file, System.IO.FileMode.Open)
+                let bytes = Array.zeroCreate (int fs.Length)
+                let! _ = fs.ReadAsync(bytes, 0, int fs.Length) |> Async.AwaitTask
+                let ms = new System.IO.MemoryStream(bytes)
+                let bmp = new System.Drawing.Bitmap(ms)
+                ms.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore
+                let decoder = new System.Windows.Media.Imaging.PngBitmapDecoder(ms, System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad)
+                let bi = decoder.Frames.[0]
+                *)
+                let bmp = new System.Drawing.Bitmap(file)
+                let bi = new Utils.SharedBitmapSource(bmp)
                 ownedBmps.[x,y] <- bmp
                 downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))
                 return Some(fun() -> 

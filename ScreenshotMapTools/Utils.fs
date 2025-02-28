@@ -153,6 +153,51 @@ let BMPtoBitmapImage(bmp:System.Drawing.Bitmap) =  // can be done on background 
     bmimage.EndInit()
     bmimage.Freeze()  // makes threadsafe
     bmimage
+///////////////////
+// from https://stackoverflow.com/a/32841840/5599927
+type SharedBitmapSource(bmp:System.Drawing.Bitmap) as this =
+    inherit System.Windows.Media.Imaging.BitmapSource()
+
+    let mutable disposed  = false
+    do  
+        if bmp.PixelFormat <> System.Drawing.Imaging.PixelFormat.Format32bppArgb then
+            failwith "bad pixel fmt"
+        this.Freeze()
+
+    member this.Bmp = bmp
+    override this.DpiX = float bmp.HorizontalResolution
+    override this.DpiY = float bmp.VerticalResolution
+    override this.PixelHeight = bmp.Height
+    override this.PixelWidth = bmp.Width
+    override this.Format = System.Windows.Media.PixelFormats.Bgra32  // NOTE only works with these
+    override this.Palette = null
+
+    override this.Finalize() = this.Dispose(false)
+
+    override this.CopyPixels(sourceRect:Int32Rect, pixels : System.Array, stride:int, offset:int) =
+        let sourceData = bmp.LockBits(new System.Drawing.Rectangle(sourceRect.X, sourceRect.Y, sourceRect.Width, sourceRect.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, bmp.PixelFormat)
+        let length = sourceData.Stride * sourceData.Height
+        match box pixels with
+        | :? (byte[]) as bytes -> System.Runtime.InteropServices.Marshal.Copy(sourceData.Scan0, bytes, 0, length)
+        | _ -> ()
+        bmp.UnlockBits(sourceData)
+
+    override this.CreateInstanceCore() = System.Activator.CreateInstance(this.GetType()) :?> Freezable
+
+    member this.Dispose(disposing) =
+        if not disposed then
+            if disposing then
+                // Free other state (managed objects).
+                ()
+            // Free your own state (unmanaged objects).
+            // Set large fields to null.
+            disposed <- true
+    interface System.IDisposable with
+        member this.Dispose() = 
+            this.Dispose(true)
+            System.GC.SuppressFinalize(this)
+
+///////////////////
 let ImageProjection(img:System.Windows.Controls.Image,(x,y,w,h)) =
     let src = img.Source :?> System.Windows.Media.Imaging.BitmapSource
     let crop = new System.Windows.Media.Imaging.CroppedBitmap(src, System.Windows.Int32Rect(x,y,w,h))
