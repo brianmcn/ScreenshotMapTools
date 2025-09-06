@@ -194,7 +194,7 @@ let DrawCore(zm:ZoneMemory, gr:GridRange, eachWidth, eachHeight, gameMapAspect, 
 let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
     // framing layout
     let gameMapAspect = 
-        let _mx,_my,mw,mh = GameSpecific.MapArea
+        let _mx,_my,mw,mh = GameSpecific.TheChosenGame.MapArea
         float mw / float mh
     let PICH = 300.                     // height of pictures on the bottom
     let PICW = PICH * gameMapAspect       // width of left strip to preserve
@@ -282,7 +282,7 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
 let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, gr) =
     // framing layout
     let gameMapAspect = 
-        let _mx,_my,mw,mh = GameSpecific.MapArea
+        let _mx,_my,mw,mh = GameSpecific.TheChosenGame.MapArea
         float mw / float mh
     let PICH = 350.                     // height of pictures on the bottom
     let PICW = PICH * gameMapAspect       // width of bottom pics

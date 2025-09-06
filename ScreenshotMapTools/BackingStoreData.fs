@@ -31,7 +31,7 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
 open GameSpecific
 
 //let rootFolder = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, GAME)
-let rootFolder = System.IO.Path.Combine(GAME)
+let rootFolder = System.IO.Path.Combine(TheChosenGame.GAME)
 let GetRootFolder() = rootFolder
 
 let WriteAllText(filename, text) =
@@ -111,10 +111,10 @@ let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
         for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-            if title.StartsWith(WINDOW_TITLE) then
+            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
                 r <- Some hwnd
         match r with
-        | Some(hwnd) -> GetWindowScreenshot(hwnd, GAMESCREENW, GAMESCREENH)
+        | Some(hwnd) -> GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
         | None -> failwith "window not found"
     let id,img = SaveScreenshot(bmp)
     img, bmp, id

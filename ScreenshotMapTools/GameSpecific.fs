@@ -5,13 +5,48 @@
 //let GAME = "Void Stranger"
 //let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
 
+[<AllowNullLiteral>]
+type ChosenGameJson() =
+    member val GameFolder : string = null with get,set              // name of save folder for this program's assets (screenshots etc)
+    member val WindowTitle : string = null with get,set             // of the process to find
+    member val GameWidth : int = 0 with get,set     
+    member val GameHeight : int = 0 with get,set    
+    member val MapArea : int*int*int*int = 0,0,0,0 with get,set     // x,y,w,h
+    member val MetaArea : int*int*int*int = 0,0,0,0 with get,set  
+
+type ChosenGame() =
+    let gameFile = "CurrentGame.json"
+    (*
+    let oneTime =
+        let cgj = ChosenGameJson()
+        cgj.GameFolder <- "IoSaS"
+        cgj.WindowTitle <- "Isles of Sea and Sky"
+        cgj.GameWidth <- 1152
+        cgj.GameHeight <- 648
+        cgj.MapArea <- 0, 96, 1152, 552
+        cgj.MetaArea <- 200, 0, 10, 1
+        let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(cgj)
+        System.IO.File.WriteAllText(gameFile, json)
+    *)
+    let json = System.IO.File.ReadAllText(gameFile)
+    let data = System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
+    member this.GAME = data.GameFolder
+    member this.WINDOW_TITLE = data.WindowTitle
+    member this.GAMESCREENW = data.GameWidth
+    member this.GAMESCREENH = data.GameHeight
+    member this.MapArea  = data.MapArea
+    member this.MetaArea = data.MetaArea
+let TheChosenGame = ChosenGame()
+
 #if !IOSAS
 
+(*
 let GAME = "IoSaS"               // name of save folder for this program's assets (screenshots etc)
 let WINDOW_TITLE = "Isles of Sea and Sky"  // of the process to find
 let GAMESCREENW, GAMESCREENH = 1152, 648
 let MapArea  = 0, 96, 1152, 552         // x,y,w,h
 let MetaArea = 200, 0, 10, 1
+*)
 
 #else
 
@@ -90,15 +125,15 @@ let MetaArea = 200, 0, 10, 1
 #endif
 
 let MapAreaRectangle =
-    let x,y,w,h = MapArea
+    let x,y,w,h = TheChosenGame.MapArea
     new System.Drawing.Rectangle(x,y,w,h)
 let MetaAreaRectangle =
-    let x,y,w,h = MetaArea
+    let x,y,w,h = TheChosenGame.MetaArea
     new System.Drawing.Rectangle(x,y,w,h)
 
 //////////////////////////////////////////////////////////////////////////
 // common computations
 
-let GAMEASPECT = float(GAMESCREENW) / float(GAMESCREENH)
+let GAMEASPECT = float(TheChosenGame.GAMESCREENW) / float(TheChosenGame.GAMESCREENH)
 
 

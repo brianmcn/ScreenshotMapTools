@@ -45,7 +45,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
         let ssid = swk.Id
         let bmp = bmpDict.[ssid]
         let img = Utils.BMPtoImage(bmp)
-        let largeImage = Utils.ImageProjection(img,(0,0,GAMESCREENW,GAMESCREENH))
+        let largeImage = Utils.ImageProjection(img,(0,0,TheChosenGame.GAMESCREENW,TheChosenGame.GAMESCREENH))
         let border = new Border(BorderThickness=Thickness(TH), Child=largeImage)
         let kindPanel = new StackPanel(Orientation=Orientation.Vertical, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0.,0.,4.,0.))
         for k in BackingStoreData.screenshotKindUniverse do
@@ -171,12 +171,12 @@ type MyWindow() as this =
         let zm = ZoneMemory.Get(theGame.CurZone)
         metaAndScreenshotPanel.Children.Clear()
         if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
-            match MetaArea with
+            match TheChosenGame.MetaArea with
             | _,_,_,1 -> ()  // meta height of 1 means there is none, skip it
             | _ ->
-                let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],MetaArea)
+                let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],TheChosenGame.MetaArea)
                 metaAndScreenshotPanel.AddTop(top) |> ignore
-            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,GAMESCREENW,GAMESCREENH))
+            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,TheChosenGame.GAMESCREENW,TheChosenGame.GAMESCREENH))
             metaAndScreenshotPanel.Children.Add(main) |> ignore
         metaAndScreenshotPanel.MouseDown.Add(fun ea ->
             ea.Handled <- true
@@ -192,16 +192,16 @@ type MyWindow() as this =
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
         new TextBlock(IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, Foreground=Brushes.Black)  // TextBlock is much lighter weight (perf), but lacks alignment centering
         )
-    let allZeroes : byte[] = Array.zeroCreate (GameSpecific.GAMESCREENW * GameSpecific.GAMESCREENH * 4)
+    let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,kludge,ia,_pw,_ph = 
             match theGame.CurProjection with
-            | 0 -> GAMEASPECT, 0, zm.FullImgArray, GAMESCREENW, GAMESCREENH
-            | 1 -> let _,_,w,h = MapArea in float w / float h, 0, zm.MapImgArray, w, h
-            | 2 -> let _,_,w,h = MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
+            | 0 -> GAMEASPECT, 0, zm.FullImgArray, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH
+            | 1 -> let _,_,w,h = TheChosenGame.MapArea in float w / float h, 0, zm.MapImgArray, w, h
+            | 2 -> let _,_,w,h = TheChosenGame.MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"
         // ensure cursor is fully on-screen
         while theGame.CurX <= theGame.CenterX - level do
@@ -485,7 +485,7 @@ type MyWindow() as this =
             let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], minx, miny, maxx, maxy, filename:string) =
                 if maxx >= minx then // there was at least one screenshot
                     //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
-                    for ma,fn in [MapArea,filename] do
+                    for ma,fn in [TheChosenGame.MapArea,filename] do
                         let mx,my,mw,mh = ma
                         let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
                         let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)

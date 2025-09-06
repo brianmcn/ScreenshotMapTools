@@ -11,7 +11,7 @@ let WIDTH = 492.   // how wide want minimap to be; height will be based on aspec
 let LEFT = 785.
 
 let MAP_ASPECT = 
-    let _,_,w,h = GameSpecific.MapArea
+    let _,_,w,h = GameSpecific.TheChosenGame.MapArea
     float w / float h
 
 let MMW_W, MMW_H = WIDTH, WIDTH/MAP_ASPECT
