@@ -54,7 +54,13 @@ type ImgArrayCache(proj,zone) =
                 let decoder = new System.Windows.Media.Imaging.PngBitmapDecoder(ms, System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad)
                 let bi = decoder.Frames.[0]
                 *)
-                let bmp = new System.Drawing.Bitmap(file)
+                let bmp =
+                    if true then // load to memory but do not lock file on disk, so can overwrite it later
+                        use fs = new System.IO.FileStream(file, System.IO.FileMode.Open, System.IO.FileAccess.Read)
+                        use tempImage = System.Drawing.Image.FromStream(fs)
+                        new System.Drawing.Bitmap(tempImage) // create in-memory copy
+                    else
+                        new System.Drawing.Bitmap(file)
                 let bi = new Utils.SharedBitmapSource(bmp)
                 ownedBmps.[x,y] <- bmp
                 downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))

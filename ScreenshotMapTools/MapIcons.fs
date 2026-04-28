@@ -92,7 +92,7 @@ let LoadMapIconData() =
     if not(System.IO.File.Exists(iconFile)) then
         let sample = new Icon(Hashtag="thisIsASample", HexColorRGB="00aaFF", Shape="LargeOval", IsEnabled=true)
         let json = System.Text.Json.JsonSerializer.Serialize<Icon[]>( [|sample|] )
-        BackingStoreData.WriteAllText(iconFile, json)
+        GameSpecific.WriteAllText(iconFile, json)
         new System.Collections.Generic.Dictionary<_,_>()
     else
         let json = System.IO.File.ReadAllText(iconFile)
@@ -133,7 +133,7 @@ let SaveMapIconData() =
     let file = GetIconFilename()
     let icons = [| for k in mapIconData.Keys do yield mapIconData.[k] |] |> Array.sortBy (fun i -> i.Hashtag)
     let json = System.Text.Json.JsonSerializer.Serialize<Icon[]>(icons)
-    BackingStoreData.WriteAllText(file, json)
+    GameSpecific.WriteAllText(file, json)
 /////////////////////////
 type SingleMapMarkerCache(origDraw) =    // caches a drawn map marker (BGRA pixel array) at a given W,H size
     let cache = new System.Collections.Generic.Dictionary<int*int,byte[]>()

@@ -43,7 +43,7 @@ module Screenshot =
                     let builder = new StringBuilder(length)
                     GetWindowText(hWnd, builder, length + 1) |> ignore
                     let mutable r : RECT = Unchecked.defaultof<_>
-                    if GetWindowRect(hWnd, &r) = false then failwith "bad window"
+                    if GetClientRect(hWnd, &r) = false then failwith "bad window"
                     windows.[hWnd] <- (builder.ToString(), r)
                     true
         EnumWindows(new EnumWindowsProc(fun h l -> perWindow(h,l)), IntPtr.Zero) |> ignore
@@ -66,7 +66,7 @@ module Screenshot =
         // with Elephantasy drawn at +4 size, everything in 5x5 pixel groups
         let w,h = 640,640   // how big the area to screenshot
         let left,top = findElephantasyWindowLeftTop().Value
-        let left, top = left+8, top+32-1  // upper left of drawn area
+        let left, top = left+8, top+32-1  // upper left of drawn area           // TODO: would probably change now that I just get client area
         let left,top = left+80, top+80
         let gameArea = getScreenBitmap(w,h,left,top)
         let screenName = getScreenBitmap(400, 80, left, top-80)

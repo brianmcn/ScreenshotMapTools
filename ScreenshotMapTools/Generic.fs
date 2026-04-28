@@ -683,6 +683,12 @@ type MyWindow() as this =
             zoom()
             mapCanvasMouseLeaveFunc()  // to move the drawn cursor to correct spot on-screen
             this.Activate() |> ignore
+            async {
+                let ctxt = System.Threading.SynchronizationContext.Current
+                do! Async.Sleep(500)
+                do! Async.SwitchToContext(ctxt)
+                GameSpecific.ActivateGameWindow()
+            } |> Async.StartImmediate
             if false then   // this was useful for sidescape, which had empty screen area
                 // minimap
                 let uev = new Event<_>()

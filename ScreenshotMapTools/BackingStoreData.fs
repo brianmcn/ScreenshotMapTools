@@ -34,11 +34,6 @@ open GameSpecific
 let rootFolder = System.IO.Path.Combine(TheChosenGame.GAME)
 let GetRootFolder() = rootFolder
 
-let WriteAllText(filename, text) =
-    let dir = System.IO.Path.GetDirectoryName(filename)
-    System.IO.Directory.CreateDirectory(dir) |> ignore   // ensure directory exists
-    System.IO.File.WriteAllText(filename, text)
-
 [<AllowNullLiteral>]
 type Game() =   // e.g. Zelda
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
