@@ -121,6 +121,8 @@ type MyWindow() as this =
         r
     let RT = 4.
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
+    let mutable minitPlayerFinderAgentIsRunning = false
+    let minitAutoTrackerInfo = new TextBox(FontSize=12., IsReadOnly=true, Text="AUTO", Foreground=Brushes.Red, Visibility=Visibility.Hidden, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center)
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseLeaveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
@@ -141,7 +143,7 @@ type MyWindow() as this =
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
     let makeZoneName(z) = sprintf "%02d: %s" z (theGame.ZoneNames.[z])
     let mutable selectionChangeIsDisabled = false
-    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=200., Margin=Thickness(4.))
+    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=180., Margin=Thickness(4.))
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
     let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
     // summary of current selection
@@ -652,6 +654,7 @@ type MyWindow() as this =
 
                 )
             sp.Children.Add(dualFeatureButton) |> ignore
+            sp.Children.Add(minitAutoTrackerInfo) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
@@ -688,6 +691,65 @@ type MyWindow() as this =
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
                 GameSpecific.ActivateGameWindow()
+                do! Async.Sleep(500)
+                do! Async.SwitchToContext(ctxt)
+                // Minit player finder agent
+                let dt = new System.Windows.Threading.DispatcherTimer()
+                dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
+                let hwnd = 
+                    let mutable r = None
+                    for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+                        if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
+                            r <- Some hwnd
+                    match r with
+                    | Some(hwnd) -> hwnd
+                    | None -> failwith "window not found"
+                let sw = System.Diagnostics.Stopwatch.StartNew()
+                let mutable priorX, priorY = -1, -1
+                let DEBUG_AUTO = true
+                dt.Tick.Add(fun _ea ->
+                    if minitPlayerFinderAgentIsRunning then
+                        let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
+                        let w,h = bmp.Width, bmp.Height
+                        let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                        let N=4
+                        let mutable foundX, foundY = -1,-1
+                        for i = 0 to (w-1)/N do
+                            for j = 0 to (h-1)/N do
+                                let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
+                                if color.R = 252uy then
+                                    foundX <- i
+                                    foundY <- j
+                        let ts = sw.ElapsedMilliseconds
+                        if foundX <> -1 then
+                            if priorX <> -1 then
+                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" ts foundX foundY
+                                let mutable moved = false
+                                // Minit is 320x240 base resolution
+                                if priorX > 280 && foundX < 40 then
+                                    if DEBUG_AUTO then printfn "MOVE RIGHT"
+                                    this.MoveRight(false)
+                                    moved <- true
+                                if priorX < 40 && foundX > 280 then
+                                    if DEBUG_AUTO then printfn "MOVE LEFT"
+                                    this.MoveLeft(false)
+                                    moved <- true
+                                if priorY > 200 && foundY < 40 then
+                                    if DEBUG_AUTO then printfn "MOVE DOWN"
+                                    this.MoveDown(false)
+                                    moved <- true
+                                if priorY < 40 && foundY > 200 then
+                                    if DEBUG_AUTO then printfn "MOVE UP"
+                                    this.MoveUp(false)
+                                    moved <- true
+                                if moved then
+                                    let zm = ZoneMemory.Get(theGame.CurZone)
+                                    if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
+                                        this.DoScreenshot()
+                            priorX <- foundX
+                            priorY <- foundY
+                    )
+                dt.Start()
             } |> Async.StartImmediate
             if false then   // this was useful for sidescape, which had empty screen area
                 // minimap
@@ -731,7 +793,6 @@ type MyWindow() as this =
     member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
         if Utils.aModalDialogIsOpen then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
-        let zm = ZoneMemory.Get(theGame.CurZone)
         if msg = WM_HOTKEY && (wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID || wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID+1) then
             if currentlyRunningAHotkeyCommand then
                 () 
@@ -744,176 +805,215 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
-                if key = VK_SUBTRACT && zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
-                    setCursor()
-                    let id = (zm.MapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
-                    zm.MapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
-                    clipboardSSID <- id
-                    updateClipboardView()
-                    // update current tile view
-                    pictureChanged.Value <- true
-                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom()
-                    // update disk
-                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-                if key = VK_ADD && not(System.String.IsNullOrEmpty(clipboardSSID)) then
-                    setCursor()
-                    zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
-                    pictureChanged.Value <- true
-                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom()
+                if key = VK_SUBTRACT then
+                    this.DoCut()
+                if key = VK_ADD then
+                    this.DoPaste()
                 if key = VK_MULTIPLY then
-                    theGame.CurProjection <- theGame.CurProjection + 1
-                    if theGame.CurProjection >= 3 then
-                        theGame.CurProjection <- 0
-                    UpdateGameFile()
-                    pictureChanged.Value <- true
-                    zoom()
+                    this.CycleProjection()
                 if key = VK_NUMPAD4 then
-                    if ctrl_bits = int MOD_CONTROL then
-                        if theGame.CenterX > 0 then
-                            theGame.CenterX <- theGame.CenterX - 1
-                            UpdateGameFile()
-                            zoom()
-                    else
-                        if theGame.CurX > 0 then
-                            theGame.CurX <- theGame.CurX - 1
-                            UpdateGameFile()
-                            zoom()
-                    setCursor()
-                    warp()
+                    this.MoveLeft((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD6 then
-                    if ctrl_bits = int MOD_CONTROL then
-                        if theGame.CenterX < 99 then
-                            theGame.CenterX <- theGame.CenterX + 1
-                            UpdateGameFile()
-                            zoom()
-                    else
-                        if theGame.CurX < 99 then
-                            theGame.CurX <- theGame.CurX + 1
-                            UpdateGameFile()
-                            zoom()
-                    setCursor()
-                    warp()
+                    this.MoveRight((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD8 then
-                    if ctrl_bits = int MOD_CONTROL then
-                        if theGame.CenterY > 0 then
-                            theGame.CenterY <- theGame.CenterY - 1
-                            UpdateGameFile()
-                            zoom()
-                    else
-                        if theGame.CurY > 0 then
-                            theGame.CurY <- theGame.CurY - 1
-                            UpdateGameFile()
-                            zoom()
-                    setCursor()
-                    warp()
+                    this.MoveUp((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD2 then
-                    if ctrl_bits = int MOD_CONTROL then
-                        if theGame.CenterY < 99 then
-                            theGame.CenterY <- theGame.CenterY + 1
-                            UpdateGameFile()
-                            zoom()
-                    else
-                        if theGame.CurY < 99 then
-                            theGame.CurY <- theGame.CurY + 1
-                            UpdateGameFile()
-                            zoom()
-                    setCursor()
-                    warp()
+                    this.MoveDown((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD0 then
-                    setCursor()
-                    let _img,bmp,id = TakeNewScreenshot()
-                    bmpDict.Add(id, bmp)
-                    zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
-                    pictureChanged.Value <- true
-                    SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-                    RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                    zoom()
+                    this.DoScreenshot()
                 if key = VK_NUMPAD7 then
-                    setCursor()
-                    if theGame.CurZoom > 1 then
-                        theGame.CurZoom <- theGame.CurZoom - 1
-                        UpdateGameFile()
-                        zoom()
-                    warp()
+                    this.ZoomOut()
                 if key = VK_NUMPAD9 then
-                    setCursor()
-                    if theGame.CurZoom < MAX/2 then
-                        theGame.CurZoom <- theGame.CurZoom + 1
-                        UpdateGameFile()
-                        zoom()
-                    warp()
+                    this.ZoomIn()
                 if key = VK_NUMPAD5 then
-                    if theGame.CurX=kbdX.Value && theGame.CurY=kbdY.Value then
-                        // center the current map
-                        let gr = FeatureWindow.ComputeRange(zm)
-                        let x = gr.MinX + (gr.MaxX-gr.MinX)/2 
-                        let y = gr.MinY + (gr.MaxY-gr.MinY)/2 
-                        theGame.CurX <- x
-                        theGame.CurY <- y
-                        theGame.CenterX <- x
-                        theGame.CenterY <- y
-                        zoom()
-                        warp()
-                    else
-                        // warp mouse back to last keyboard location
-                        theGame.CurX <- kbdX.Value
-                        theGame.CurY <- kbdY.Value
-                        warp()   
-                    // temp kludge, shift things up one y
-                    if false then
-                        if theGame.CurY > 0 && zm.MapTiles.[theGame.CurX,theGame.CurY-1].IsEmpty then
-                            zm.MapTiles.[theGame.CurX,theGame.CurY-1] <- zm.MapTiles.[theGame.CurX,theGame.CurY]
-                            let e = MapTile()
-                            e.Canonicalize()
-                            zm.MapTiles.[theGame.CurX,theGame.CurY] <- e
-                            SerializeMapTile(theGame.CurX,theGame.CurY-1,zm)
-                            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-                            RecomputeImage(theGame.CurX,theGame.CurY-1,zm)
-                            RecomputeImage(theGame.CurX,theGame.CurY,zm)
-                            //metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
-                            //refreshMetadataKeys()
-                            zoom()   // redraw note preview in summary area
-                        else
-                            System.Console.Beep()
+                    this.DoCentering()
                 if key = VK_DIVIDE then
-                    setCursor()
-                    Utils.Win32.SetForegroundWindow(_hwnd) |> ignore
-                    let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-                    let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
-                                            Foreground=Brushes.Black, Background=Brushes.White,
-                                            Width=float(MAPX/2), Height=float(MAPX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
-                                            VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
-                    let closeEv = new Event<unit>()
-                    let mutable save = false
-                    let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
-                    let sb = new Button(Content=" Save ", Margin=Thickness(4.))
-                    cb.Click.Add(fun _ -> closeEv.Trigger())
-                    sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-                    let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
-                    let sp = new StackPanel(Orientation=Orientation.Vertical)
-                    sp.Children.Add(tb) |> ignore
-                    sp.Children.Add(dp) |> ignore
-                    tb.Loaded.Add(fun _ ->
-                        tb.Select(tb.Text.Length, 0)   // position the cursor at the end
-                        System.Windows.Input.Keyboard.Focus(tb) |> ignore
-                        )
-                    Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
-                    if save then
-                        UpdateCurrentNote(orig, tb.Text, zm)
-                        pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+                    this.EditNotes()
                 if key = VK_DECIMAL then
-                    setCursor()
-                    let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-                    let orig = if orig = null then "" else orig
-                    //let special = "#TODO"
-                    //let special = "#UV"
-                    let special = "#NOW"
-                    if orig.EndsWith(special) then
-                        UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
-                    else
-                        UpdateCurrentNote(orig, orig+"\n"+special, zm)
+                    this.DoSpecial()
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
+    member this.DoCut() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        if zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them
+            setCursor()
+            let id = (zm.MapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds |> Array.last).Id
+            zm.MapTiles.[theGame.CurX,theGame.CurY].CutScreenshot(id)
+            clipboardSSID <- id
+            updateClipboardView()
+            // update current tile view
+            pictureChanged.Value <- true
+            RecomputeImage(theGame.CurX,theGame.CurY,zm)
+            zoom()
+            // update disk
+            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+    member this.DoPaste() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        if not(System.String.IsNullOrEmpty(clipboardSSID)) then
+            setCursor()
+            zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
+            pictureChanged.Value <- true
+            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+            RecomputeImage(theGame.CurX,theGame.CurY,zm)
+            zoom()
+    member this.CycleProjection() =
+        theGame.CurProjection <- theGame.CurProjection + 1
+        if theGame.CurProjection >= 3 then
+            theGame.CurProjection <- 0
+        UpdateGameFile()
+        pictureChanged.Value <- true
+        zoom()
+    member this.MoveLeft(ctrl) =
+        if ctrl then
+            if theGame.CenterX > 0 then
+                theGame.CenterX <- theGame.CenterX - 1
+                UpdateGameFile()
+                zoom()
+        else
+            if theGame.CurX > 0 then
+                theGame.CurX <- theGame.CurX - 1
+                UpdateGameFile()
+                zoom()
+        setCursor()
+        warp()
+    member this.MoveRight(ctrl) =
+        if ctrl then
+            if theGame.CenterX < 99 then
+                theGame.CenterX <- theGame.CenterX + 1
+                UpdateGameFile()
+                zoom()
+        else
+            if theGame.CurX < 99 then
+                theGame.CurX <- theGame.CurX + 1
+                UpdateGameFile()
+                zoom()
+        setCursor()
+        warp()
+    member this.MoveUp(ctrl) =
+        if ctrl then
+            if theGame.CenterY > 0 then
+                theGame.CenterY <- theGame.CenterY - 1
+                UpdateGameFile()
+                zoom()
+        else
+            if theGame.CurY > 0 then
+                theGame.CurY <- theGame.CurY - 1
+                UpdateGameFile()
+                zoom()
+        setCursor()
+        warp()
+    member this.MoveDown(ctrl) =
+        if ctrl then
+            if theGame.CenterY < 99 then
+                theGame.CenterY <- theGame.CenterY + 1
+                UpdateGameFile()
+                zoom()
+        else
+            if theGame.CurY < 99 then
+                theGame.CurY <- theGame.CurY + 1
+                UpdateGameFile()
+                zoom()
+        setCursor()
+        warp()
+    member this.DoScreenshot() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        setCursor()
+        let _img,bmp,id = TakeNewScreenshot()
+        bmpDict.Add(id, bmp)
+        zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
+        pictureChanged.Value <- true
+        SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+        RecomputeImage(theGame.CurX,theGame.CurY,zm)
+        zoom()
+    member this.ZoomOut() =
+        setCursor()
+        if theGame.CurZoom > 1 then
+            theGame.CurZoom <- theGame.CurZoom - 1
+            UpdateGameFile()
+            zoom()
+        warp()
+    member this.ZoomIn() =
+        setCursor()
+        if theGame.CurZoom < MAX/2 then
+            theGame.CurZoom <- theGame.CurZoom + 1
+            UpdateGameFile()
+            zoom()
+        warp()
+    member this.DoCentering() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        if theGame.CurX=kbdX.Value && theGame.CurY=kbdY.Value then
+            // center the current map
+            let gr = FeatureWindow.ComputeRange(zm)
+            let x = gr.MinX + (gr.MaxX-gr.MinX)/2 
+            let y = gr.MinY + (gr.MaxY-gr.MinY)/2 
+            theGame.CurX <- x
+            theGame.CurY <- y
+            theGame.CenterX <- x
+            theGame.CenterY <- y
+            zoom()
+            warp()
+        else
+            // warp mouse back to last keyboard location
+            theGame.CurX <- kbdX.Value
+            theGame.CurY <- kbdY.Value
+            warp()   
+        // temp kludge, shift things up one y
+        if false then
+            let zm = ZoneMemory.Get(theGame.CurZone)
+            if theGame.CurY > 0 && zm.MapTiles.[theGame.CurX,theGame.CurY-1].IsEmpty then
+                zm.MapTiles.[theGame.CurX,theGame.CurY-1] <- zm.MapTiles.[theGame.CurX,theGame.CurY]
+                let e = MapTile()
+                e.Canonicalize()
+                zm.MapTiles.[theGame.CurX,theGame.CurY] <- e
+                SerializeMapTile(theGame.CurX,theGame.CurY-1,zm)
+                SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+                RecomputeImage(theGame.CurX,theGame.CurY-1,zm)
+                RecomputeImage(theGame.CurX,theGame.CurY,zm)
+                //metadataStore.ChangeNote(GenericMetadata.Location(theGame.CurZone,theGame.CurX,theGame.CurY), origNote, newNote)
+                //refreshMetadataKeys()
+                zoom()   // redraw note preview in summary area
+            else
+                System.Console.Beep()
+    member this.EditNotes() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        setCursor()
+        Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+        let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
+        let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
+                                Foreground=Brushes.Black, Background=Brushes.White,
+                                Width=float(MAPX/2), Height=float(MAPX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                                VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
+        let closeEv = new Event<unit>()
+        let mutable save = false
+        let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
+        let sb = new Button(Content=" Save ", Margin=Thickness(4.))
+        cb.Click.Add(fun _ -> closeEv.Trigger())
+        sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+        let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
+        let sp = new StackPanel(Orientation=Orientation.Vertical)
+        sp.Children.Add(tb) |> ignore
+        sp.Children.Add(dp) |> ignore
+        tb.Loaded.Add(fun _ ->
+            tb.Select(tb.Text.Length, 0)   // position the cursor at the end
+            System.Windows.Input.Keyboard.Focus(tb) |> ignore
+            )
+        Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
+        if save then
+            UpdateCurrentNote(orig, tb.Text, zm)
+            pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+    member this.DoSpecial() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        if false then
+            setCursor()
+            let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
+            let orig = if orig = null then "" else orig
+            //let special = "#TODO"
+            //let special = "#UV"
+            let special = "#NOW"
+            if orig.EndsWith(special) then
+                UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
+            else
+                UpdateCurrentNote(orig, orig+"\n"+special, zm)
+        else
+            minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
+            minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden

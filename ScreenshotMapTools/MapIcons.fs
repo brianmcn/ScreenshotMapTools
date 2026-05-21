@@ -186,24 +186,26 @@ do
 let mutable currentlyHoveredHashtagKey = null
 let CW, CH = 32., 18.
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,option<(Canvas*_*_->_)> >()
+let BG = Brushes.LightSteelBlue
 let MakeIconUI(parentWindow) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
     let g = Utils.makeGrid(1, keys.Length+2, KEYS_LIST_BOX_WIDTH, 20)  // +2 for (disable all,regex)
-    let mkTxt(s) = new TextBox(IsReadOnly=true, FontSize=12., Text=s, BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=Brushes.White, IsHitTestVisible=false)
+    g.Background <- BG
+    let mkTxt(s) = new TextBox(IsReadOnly=true, FontSize=12., Text=s, BorderThickness=Thickness(0.), Foreground=Brushes.Black, Background=BG, IsHitTestVisible=false)
     let AddBorderMouseEnterLeaveBehaviors(b:Border, enterFunc, leaveFunc) =
         b.MouseEnter.Add(fun _ -> b.BorderBrush <- Brushes.Cyan; enterFunc())
         b.MouseLeave.Add(fun _ -> b.BorderBrush <- Brushes.Transparent; leaveFunc())
     do
-        let dp = new DockPanel(LastChildFill=true)
+        let dp = new DockPanel(LastChildFill=true, Background=BG)
         DockPanel.SetDock(allIconsDisabledCheckbox, Dock.Left)
         Utils.deparent(allIconsDisabledCheckbox)
         dp.Children.Add(allIconsDisabledCheckbox) |> ignore
         dp.Children.Add(mkTxt("(disable all)")) |> ignore
-        let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
+        let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=BG)
         Utils.gridAdd(g, b, 0, 0)
     let mutable i = 1
     for k in Seq.append [REGEX_DUMMY] keys do
-        let dp = new DockPanel(LastChildFill=true)
+        let dp = new DockPanel(LastChildFill=true, Background=BG)
         let c = new Canvas(Width=CW, Height=CH, Margin=Thickness(0.,0.,4.,0.), Background=Brushes.Black)
         let eval() =
             c.Children.Clear()
@@ -229,7 +231,7 @@ let MakeIconUI(parentWindow) =
             regexButton.Click.Add(fun _ ->
                 let label = mkTxt("Type a regex")
                 label.Margin <- Thickness(2.)
-                let edit = new TextBox(IsReadOnly=false, FontSize=12., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Text=userRegex, Margin=Thickness(2.))
+                let edit = new TextBox(IsReadOnly=false, FontSize=12., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=BG, Text=userRegex, Margin=Thickness(2.))
                 let closeEv = new Event<unit>()
                 let closeButton = new Button(Content="Done", Margin=Thickness(2.))
                 closeButton.Click.Add(fun _ -> closeEv.Trigger())
@@ -269,7 +271,7 @@ let MakeIconUI(parentWindow) =
                     () //System.Console.Beep() // TODO window of all of them with previews
                 )
             dp.Children.Add(textBox) |> ignore
-        let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Transparent, Background=Brushes.White)
+        let b = new Border(Child=dp, BorderThickness=Thickness(1.), BorderBrush=Brushes.Gray, Background=Brushes.White)
         Utils.gridAdd(g, b, 0, i)
         i <- i + 1
         AddBorderMouseEnterLeaveBehaviors(b, 
