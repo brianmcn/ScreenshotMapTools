@@ -121,7 +121,7 @@ type MyWindow() as this =
         r
     let RT = 4.
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
-    let mutable minitPlayerFinderAgentIsRunning = false
+    let mutable minitPlayerFinderAgentHasBeenCreated,minitPlayerFinderAgentIsRunning = false,false
     let minitAutoTrackerInfo = new TextBox(FontSize=12., IsReadOnly=true, Text="AUTO", Foreground=Brushes.Red, Visibility=Visibility.Hidden, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center)
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseLeaveFunc = fun _ -> ()
@@ -698,64 +698,6 @@ type MyWindow() as this =
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
                 GameSpecific.ActivateGameWindow()
-                do! Async.Sleep(500)
-                do! Async.SwitchToContext(ctxt)
-                // Minit player finder agent
-                let dt = new System.Windows.Threading.DispatcherTimer()
-                dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
-                let hwnd = 
-                    let mutable r = None
-                    for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-                        if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
-                            r <- Some hwnd
-                    match r with
-                    | Some(hwnd) -> hwnd
-                    | None -> failwith "window not found"
-                //let sw = System.Diagnostics.Stopwatch.StartNew()
-                let mutable priorX, priorY = -1, -1
-                let DEBUG_AUTO = true
-                dt.Tick.Add(fun _ea ->
-                    if minitPlayerFinderAgentIsRunning then
-                        let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
-                        let w,h = bmp.Width, bmp.Height
-                        let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                        let N=4
-                        let mutable foundX, foundY = -1,-1
-                        for i = 0 to (w-1)/N do
-                            for j = 0 to (h-1)/N do
-                                let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
-                                if color.R = 252uy then
-                                    foundX <- i
-                                    foundY <- j
-                        if foundX <> -1 then
-                            if priorX <> -1 then
-                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
-                                let mutable moved = false
-                                // Minit is 320x240 base resolution
-                                if priorX > 280 && foundX < 40 then
-                                    if DEBUG_AUTO then printfn "MOVE RIGHT"
-                                    this.MoveRight(false)
-                                    moved <- true
-                                if priorX < 40 && foundX > 280 then
-                                    if DEBUG_AUTO then printfn "MOVE LEFT"
-                                    this.MoveLeft(false)
-                                    moved <- true
-                                if priorY > 200 && foundY < 40 then
-                                    if DEBUG_AUTO then printfn "MOVE DOWN"
-                                    this.MoveDown(false)
-                                    moved <- true
-                                if priorY < 40 && foundY > 200 then
-                                    if DEBUG_AUTO then printfn "MOVE UP"
-                                    this.MoveUp(false)
-                                    moved <- true
-                                if moved then
-                                    let zm = ZoneMemory.Get(theGame.CurZone)
-                                    if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
-                                        this.DoScreenshot()
-                            priorX <- foundX
-                            priorY <- foundY
-                    )
-                dt.Start()
             } |> Async.StartImmediate
             if false then   // this was useful for sidescape, which had empty screen area
                 // minimap
@@ -1026,3 +968,62 @@ type MyWindow() as this =
         else
             minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
             minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden
+            if minitPlayerFinderAgentIsRunning && not(minitPlayerFinderAgentHasBeenCreated) then
+                minitPlayerFinderAgentHasBeenCreated <- true
+                // Minit player finder agent
+                let dt = new System.Windows.Threading.DispatcherTimer()
+                dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
+                let hwnd = 
+                    let mutable r = None
+                    for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+                        if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
+                            r <- Some hwnd
+                    match r with
+                    | Some(hwnd) -> hwnd
+                    | None -> failwith "window not found"
+                //let sw = System.Diagnostics.Stopwatch.StartNew()
+                let mutable priorX, priorY = -1, -1
+                let DEBUG_AUTO = true
+                dt.Tick.Add(fun _ea ->
+                    if minitPlayerFinderAgentIsRunning then
+                        let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
+                        let w,h = bmp.Width, bmp.Height
+                        let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                        let N=4
+                        let mutable foundX, foundY = -1,-1
+                        for i = 0 to (w-1)/N do
+                            for j = 0 to (h-1)/N do
+                                let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
+                                if color.R = 252uy then
+                                    foundX <- i
+                                    foundY <- j
+                        if foundX <> -1 then
+                            if priorX <> -1 then
+                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
+                                let mutable moved = false
+                                // Minit is 320x240 base resolution
+                                if priorX > 280 && foundX < 40 then
+                                    if DEBUG_AUTO then printfn "MOVE RIGHT"
+                                    this.MoveRight(false)
+                                    moved <- true
+                                if priorX < 40 && foundX > 280 then
+                                    if DEBUG_AUTO then printfn "MOVE LEFT"
+                                    this.MoveLeft(false)
+                                    moved <- true
+                                if priorY > 200 && foundY < 40 then
+                                    if DEBUG_AUTO then printfn "MOVE DOWN"
+                                    this.MoveDown(false)
+                                    moved <- true
+                                if priorY < 40 && foundY > 200 then
+                                    if DEBUG_AUTO then printfn "MOVE UP"
+                                    this.MoveUp(false)
+                                    moved <- true
+                                if moved then
+                                    let zm = ZoneMemory.Get(theGame.CurZone)
+                                    if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
+                                        this.DoScreenshot()
+                            priorX <- foundX
+                            priorY <- foundY
+                    )
+                dt.Start()
+
