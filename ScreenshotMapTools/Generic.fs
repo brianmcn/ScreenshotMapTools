@@ -169,6 +169,7 @@ type MyWindow() as this =
             metadataKeys.Add(s)
     let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
     let mutable doZoom = fun () -> ()
+    let mutable cycleZone = fun () -> ()
     let mfsRefresh() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         metaAndScreenshotPanel.Children.Clear()
@@ -421,6 +422,12 @@ type MyWindow() as this =
                 UpdateGameFile()
                 zoom()
                 warp()
+            )
+        cycleZone <- (fun() ->
+                if theGame.ZoneNames.Length > 1 then
+                    let newZone = (theGame.CurZone + 1) % theGame.ZoneNames.Length
+                    let newLoc = GenericMetadata.Location(newZone, theGame.CurX, theGame.CurY)
+                    NavigateTo(newLoc)
             )
         zoneComboBox.Focusable <- false                // prevent accidents
         zoneComboBox.SelectionChanged.Add(fun _ ->
@@ -704,7 +711,7 @@ type MyWindow() as this =
                     match r with
                     | Some(hwnd) -> hwnd
                     | None -> failwith "window not found"
-                let sw = System.Diagnostics.Stopwatch.StartNew()
+                //let sw = System.Diagnostics.Stopwatch.StartNew()
                 let mutable priorX, priorY = -1, -1
                 let DEBUG_AUTO = true
                 dt.Tick.Add(fun _ea ->
@@ -720,10 +727,9 @@ type MyWindow() as this =
                                 if color.R = 252uy then
                                     foundX <- i
                                     foundY <- j
-                        let ts = sw.ElapsedMilliseconds
                         if foundX <> -1 then
                             if priorX <> -1 then
-                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" ts foundX foundY
+                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
                                 let mutable moved = false
                                 // Minit is 320x240 base resolution
                                 if priorX > 280 && foundX < 40 then
@@ -810,7 +816,7 @@ type MyWindow() as this =
                 if key = VK_ADD then
                     this.DoPaste()
                 if key = VK_MULTIPLY then
-                    this.CycleProjection()
+                    this.CycleZoneOrProjection((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD4 then
                     this.MoveLeft((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD6 then
@@ -856,13 +862,16 @@ type MyWindow() as this =
             SerializeMapTile(theGame.CurX,theGame.CurY,zm)
             RecomputeImage(theGame.CurX,theGame.CurY,zm)
             zoom()
-    member this.CycleProjection() =
-        theGame.CurProjection <- theGame.CurProjection + 1
-        if theGame.CurProjection >= 3 then
-            theGame.CurProjection <- 0
-        UpdateGameFile()
-        pictureChanged.Value <- true
-        zoom()
+    member this.CycleZoneOrProjection(ctrl) =
+        if ctrl then // cycle projection
+            theGame.CurProjection <- theGame.CurProjection + 1
+            if theGame.CurProjection >= 3 then
+                theGame.CurProjection <- 0
+            UpdateGameFile()
+            pictureChanged.Value <- true
+            zoom()
+        else    // cycle zone
+            cycleZone()
     member this.MoveLeft(ctrl) =
         if ctrl then
             if theGame.CenterX > 0 then
