@@ -954,13 +954,13 @@ type MyWindow() as this =
             pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
     member this.DoSpecial() =
         let zm = ZoneMemory.Get(theGame.CurZone)
-        if false then
+        if true then
             setCursor()
             let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
             let orig = if orig = null then "" else orig
-            //let special = "#TODO"
+            let special = "#TODO"
             //let special = "#UV"
-            let special = "#NOW"
+            //let special = "#NOW"
             if orig.EndsWith(special) then
                 UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
             else
