@@ -229,7 +229,9 @@ type MyWindow() as this =
                 else
                     System.Math.Floor((float(MAPY)*aspect) + 0.83) |> int, MAPY
             let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
-            let scale = float(2*(level-1)+1)
+            let howMany = 2*(level-1)+1          // how many we fit across the screen, e.g. 1, 3, 5, ... at the various zoom levels
+            //let scale = if howMany = 1 then 1.2 else float(howMany)                               // scale kludge for level 1
+            let scale = float(howMany)
             mapCanvas.Children.Clear()
             mapMarkersImage.Source <- null
             mapMarkersHoverImage.Source <- null
@@ -243,6 +245,7 @@ type MyWindow() as this =
                     if i>=0 && i<MAX && j>=0 && j<MAX then
                         drawnLocations.Add(i,j)
                         let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                        //let xoff,yoff = if howMany=1 then xoff+W/10.,yoff+H/10. else xoff,yoff      // offset kludge for level 1
                         let IW,IH = int(W),(max 1 (int H))
                         let stride = IW*4
                         if zm.FullImgArray.[i,j] <> null then
@@ -264,8 +267,8 @@ type MyWindow() as this =
             do
                 mouseCursor.Width <- W + RT
                 mouseCursor.Height <- H + RT
-                Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
-                Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
+                Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.) // + if howMany=1 then W/10. else 0.)   // offset kludge for
+                Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.) // + if howMany=1 then H/10. else 0.)    // level 1 mouse cursor
                 mapCanvas.Children.Add(mouseCursor) |> ignore
                 do
                     // map icons
