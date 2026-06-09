@@ -1,5 +1,7 @@
 ﻿module StitchView
 
+#if STITCHING
+
 open Utils
 open System
 open System.Windows
@@ -378,3 +380,4 @@ let svMain() =
         app.Run(new StitchView.MyWindow()) |> ignore
 *)
     0
+#endif

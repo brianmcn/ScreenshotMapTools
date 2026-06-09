@@ -1,5 +1,7 @@
 ﻿module HS
 
+#if HERO_SPIRIT_QR
+
 let qrdata = """
 XXXXXXX..X..XXX...XXXXXXX
 X.....X.X..XX.X...X.....X
@@ -72,3 +74,5 @@ type QRWindow() as this =
                 gridAdd(g,c,x,y)
 
         this.Content <- g
+
+#endif

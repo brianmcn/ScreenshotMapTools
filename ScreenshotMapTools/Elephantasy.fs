@@ -127,6 +127,9 @@ module Winterop =
     [<DllImport("user32.dll")>]
     extern IntPtr SetActiveWindow(IntPtr hWnd)
 
+
+#if ELEPHANTASY
+
 open System.Windows.Controls
 open System.Windows.Shapes
 open System.Windows.Media
@@ -586,5 +589,6 @@ thinking about e.g. using on ESA
    so that when there's a warp from here to (12,23) you could click the text or something?  the circles got too noisy and also didn't carry enough info, need an arbitrary 
    'category set' and also arbitrary extra data ideally, hm
 
-
 *)
+
+#endif

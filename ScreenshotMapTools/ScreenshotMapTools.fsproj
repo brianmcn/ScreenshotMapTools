@@ -12,10 +12,8 @@
   <ItemGroup>
     <Compile Include="HS.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="Knytt.fs" />
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
-    <Compile Include="DeepRune.fs" />
     <Compile Include="Elephantasy.fs" />
     <Compile Include="GenericMetadata.fs" />
     <Compile Include="GameSpecific.fs" />

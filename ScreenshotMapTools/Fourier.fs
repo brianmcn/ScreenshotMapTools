@@ -1,5 +1,7 @@
 ﻿module Fourier
 
+#if STITCHING
+
 open System.Numerics
 
 let dft(a:Complex[]) =
@@ -158,3 +160,5 @@ let ewssd(a:Complex[,], b:Complex[,], wa:int[,], wb:int[,]) =
 
     let scale = a.GetLength(0) * a.GetLength(1) // answer seems to get scaled by this much, fix it
     fft2(fewssd, true) |> Array2D.map (fun z -> Complex(z.Real / float scale, z.Imaginary / float scale))
+
+#endif
