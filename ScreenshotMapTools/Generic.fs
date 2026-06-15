@@ -145,7 +145,8 @@ type MyWindow() as this =
     let mutable selectionChangeIsDisabled = false
     let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=180., Margin=Thickness(4.))
     let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
-    let printCurrentZoneButton = new Button(Content="Print zone", Margin=Thickness(4.))
+    let printCurrentZoneButtonDefaultContent = "Print zone"
+    let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=Thickness(4.))
     // summary of current selection
     let summaryTB = MinimapWindow.MakeRichTextBox(4.)
     let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
@@ -197,6 +198,7 @@ type MyWindow() as this =
         )
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
+    let mutable specialText = "#TODO"
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
@@ -486,14 +488,6 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
-            let bmps = Array2D.create MAX MAX (null, -1)
-            let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
-            for i = 0 to MAX-1 do
-                for j = 0 to MAX-1 do
-                    let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
-                    if bmp <> null then
-                        bmps.[i,j] <- bmp, -1
-                        gr.Extend(i,j)
             let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], minx, miny, maxx, maxy, filename:string) =
                 if maxx >= minx then // there was at least one screenshot
                     //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
@@ -526,39 +520,57 @@ type MyWindow() as this =
                                     bmp.UnlockBits(data)
                         r.UnlockBits(rData)
                         r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
-            PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, "printed_map.png")
-            // other kinds
-            for k in screenshotKindUniverse do
-                if k <> MAIN_KIND then
-                    let workQ = new System.Collections.Generic.Queue<_>()
-                    let mutable colorIndex = 0
-                    for i = 0 to MAX-1 do
-                        for j = 0 to MAX-1 do
-                            let mt = zm.MapTiles.[i,j]
-                            let mutable r = []
-                            for ss in mt.ScreenshotsWithKinds do
-                                if ss.Kinds |> Array.contains k then
-                                    r <- bmpDict.[ss.Id] :: r
-                            match r with
-                            | [] -> ()
-                            | _ -> 
-                                workQ.Enqueue((i,j), r, colorIndex)
-                                colorIndex <- colorIndex + 1
-                    let bmps = Array2D.create MAX MAX (null,-1)
-                    let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
-                    while workQ.Count <> 0 do
-                        let (i,j),list,ci = workQ.Dequeue()
-                        let f(x,y) = if x>=0 && y>=0 && x<MAX && y<MAX && fst(bmps.[x,y])=null then Some(x,y) else None
-                        let which = [(i,j); (i,j+1); (i,j-1); (i+1,j); (i-1,j)] |> Seq.tryPick f 
-                        match which,list with
-                        | None,_ -> ()
-                        | _, [] -> ()
-                        | Some(i,j),hd::tl ->
-                            bmps.[i,j] <- hd,ci
-                            workQ.Enqueue((i,j),tl,ci)
+            async {
+                printCurrentZoneButton.IsEnabled <- false
+                printCurrentZoneButton.Content <- ". . ."
+                let ctxt = System.Threading.SynchronizationContext.Current
+                do! Async.SwitchToThreadPool()
+                do! Async.Sleep(500) // pump UI thread to update button
+                do! Async.SwitchToContext(ctxt)
+                let bmps = Array2D.create MAX MAX (null, -1)
+                let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
+                for i = 0 to MAX-1 do
+                    for j = 0 to MAX-1 do
+                        let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
+                        if bmp <> null then
+                            bmps.[i,j] <- bmp, -1
                             gr.Extend(i,j)
-                    PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, sprintf "printed_map_%s.png" k)
-            )
+                PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, "printed_map.png")
+                // other kinds
+                for k in screenshotKindUniverse do
+                    if k <> MAIN_KIND then
+                        let workQ = new System.Collections.Generic.Queue<_>()
+                        let mutable colorIndex = 0
+                        for i = 0 to MAX-1 do
+                            for j = 0 to MAX-1 do
+                                let mt = zm.MapTiles.[i,j]
+                                let mutable r = []
+                                for ss in mt.ScreenshotsWithKinds do
+                                    if ss.Kinds |> Array.contains k then
+                                        r <- bmpDict.[ss.Id] :: r
+                                match r with
+                                | [] -> ()
+                                | _ -> 
+                                    workQ.Enqueue((i,j), r, colorIndex)
+                                    colorIndex <- colorIndex + 1
+                        let bmps = Array2D.create MAX MAX (null,-1)
+                        let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
+                        while workQ.Count <> 0 do
+                            let (i,j),list,ci = workQ.Dequeue()
+                            let f(x,y) = if x>=0 && y>=0 && x<MAX && y<MAX && fst(bmps.[x,y])=null then Some(x,y) else None
+                            let which = [(i,j); (i,j+1); (i,j-1); (i+1,j); (i-1,j)] |> Seq.tryPick f 
+                            match which,list with
+                            | None,_ -> ()
+                            | _, [] -> ()
+                            | Some(i,j),hd::tl ->
+                                bmps.[i,j] <- hd,ci
+                                workQ.Enqueue((i,j),tl,ci)
+                                gr.Extend(i,j)
+                        PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, sprintf "printed_map_%s.png" k)
+                printCurrentZoneButton.Content <- printCurrentZoneButtonDefaultContent
+                printCurrentZoneButton.IsEnabled <- true
+                System.Diagnostics.Process.Start(AppContext.BaseDirectory) |> ignore    // open program folder, where printed map is
+            } |> Async.StartImmediate )
         updateClipboardView <- (fun () ->
             if not(System.String.IsNullOrEmpty(clipboardSSID)) then
                 let img = bmpDict.[clipboardSSID] |> Utils.BMPtoImage
@@ -780,8 +792,10 @@ type MyWindow() as this =
                     this.DoCentering()
                 if key = VK_DIVIDE then
                     this.EditNotes()
+                if key = VK_NUMPAD3 then    // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
+                    this.DoSpecial(true)
                 if key = VK_DECIMAL then
-                    this.DoSpecial()
+                    this.DoSpecial(false)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
     member this.DoCut() =
@@ -933,100 +947,87 @@ type MyWindow() as this =
         setCursor()
         Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
         let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-        let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
-                                Foreground=Brushes.Black, Background=Brushes.White,
-                                Width=float(MAPX/2), Height=float(MAPX/2), TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
-                                VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
-        let closeEv = new Event<unit>()
-        let mutable save = false
-        let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
-        let sb = new Button(Content=" Save ", Margin=Thickness(4.))
-        cb.Click.Add(fun _ -> closeEv.Trigger())
-        sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-        let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
-        let sp = new StackPanel(Orientation=Orientation.Vertical)
-        sp.Children.Add(tb) |> ignore
-        sp.Children.Add(dp) |> ignore
-        tb.Loaded.Add(fun _ ->
-            tb.Select(tb.Text.Length, 0)   // position the cursor at the end
-            System.Windows.Input.Keyboard.Focus(tb) |> ignore
-            )
-        Utils.DoModalDialog(this, sp, "Edit note", closeEv.Publish)
+        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2))
         if save then
-            UpdateCurrentNote(orig, tb.Text, zm)
+            UpdateCurrentNote(orig, result, zm)
             pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
-    member this.DoSpecial() =
+    member this.DoSpecial(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
-        if true then
+        if ctrl then
+            printfn "here"
             setCursor()
-            let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-            let orig = if orig = null then "" else orig
-            let special = "#TODO"
-            //let special = "#UV"
-            //let special = "#NOW"
-            if orig.EndsWith(special) then
-                UpdateCurrentNote(orig, orig.Substring(0,orig.Length-special.Length), zm)
-            else
-                UpdateCurrentNote(orig, orig+"\n"+special, zm)
+            Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2))
+            if save then
+                specialText <- result
         else
-            minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
-            minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden
-            if minitPlayerFinderAgentIsRunning && not(minitPlayerFinderAgentHasBeenCreated) then
-                minitPlayerFinderAgentHasBeenCreated <- true
-                // Minit player finder agent
-                let dt = new System.Windows.Threading.DispatcherTimer()
-                dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
-                let hwnd = 
-                    let mutable r = None
-                    for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-                        if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
-                            r <- Some hwnd
-                    match r with
-                    | Some(hwnd) -> hwnd
-                    | None -> failwith "window not found"
-                //let sw = System.Diagnostics.Stopwatch.StartNew()
-                let mutable priorX, priorY = -1, -1
-                let DEBUG_AUTO = true
-                dt.Tick.Add(fun _ea ->
-                    if minitPlayerFinderAgentIsRunning then
-                        let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
-                        let w,h = bmp.Width, bmp.Height
-                        let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                        let N=4
-                        let mutable foundX, foundY = -1,-1
-                        for i = 0 to (w-1)/N do
-                            for j = 0 to (h-1)/N do
-                                let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
-                                if color.R = 252uy then
-                                    foundX <- i
-                                    foundY <- j
-                        if foundX <> -1 then
-                            if priorX <> -1 then
-                                //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
-                                let mutable moved = false
-                                // Minit is 320x240 base resolution
-                                if priorX > 280 && foundX < 40 then
-                                    if DEBUG_AUTO then printfn "MOVE RIGHT"
-                                    this.MoveRight(false)
-                                    moved <- true
-                                if priorX < 40 && foundX > 280 then
-                                    if DEBUG_AUTO then printfn "MOVE LEFT"
-                                    this.MoveLeft(false)
-                                    moved <- true
-                                if priorY > 200 && foundY < 40 then
-                                    if DEBUG_AUTO then printfn "MOVE DOWN"
-                                    this.MoveDown(false)
-                                    moved <- true
-                                if priorY < 40 && foundY > 200 then
-                                    if DEBUG_AUTO then printfn "MOVE UP"
-                                    this.MoveUp(false)
-                                    moved <- true
-                                if moved then
-                                    let zm = ZoneMemory.Get(theGame.CurZone)
-                                    if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
-                                        this.DoScreenshot()
-                            priorX <- foundX
-                            priorY <- foundY
-                    )
-                dt.Start()
+            if true then
+                setCursor()
+                let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
+                let orig = if orig = null then "" else orig
+                if orig.EndsWith(specialText) then
+                    UpdateCurrentNote(orig, orig.Substring(0,orig.Length-specialText.Length), zm)
+                else
+                    UpdateCurrentNote(orig, orig+"\n"+specialText, zm)
+            else
+                minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
+                minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden
+                if minitPlayerFinderAgentIsRunning && not(minitPlayerFinderAgentHasBeenCreated) then
+                    minitPlayerFinderAgentHasBeenCreated <- true
+                    // Minit player finder agent
+                    let dt = new System.Windows.Threading.DispatcherTimer()
+                    dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
+                    let hwnd = 
+                        let mutable r = None
+                        for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+                            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
+                                r <- Some hwnd
+                        match r with
+                        | Some(hwnd) -> hwnd
+                        | None -> failwith "window not found"
+                    //let sw = System.Diagnostics.Stopwatch.StartNew()
+                    let mutable priorX, priorY = -1, -1
+                    let DEBUG_AUTO = true
+                    dt.Tick.Add(fun _ea ->
+                        if minitPlayerFinderAgentIsRunning then
+                            let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
+                            let w,h = bmp.Width, bmp.Height
+                            let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                            let N=4
+                            let mutable foundX, foundY = -1,-1
+                            for i = 0 to (w-1)/N do
+                                for j = 0 to (h-1)/N do
+                                    let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
+                                    if color.R = 252uy then
+                                        foundX <- i
+                                        foundY <- j
+                            if foundX <> -1 then
+                                if priorX <> -1 then
+                                    //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
+                                    let mutable moved = false
+                                    // Minit is 320x240 base resolution
+                                    if priorX > 280 && foundX < 40 then
+                                        if DEBUG_AUTO then printfn "MOVE RIGHT"
+                                        this.MoveRight(false)
+                                        moved <- true
+                                    if priorX < 40 && foundX > 280 then
+                                        if DEBUG_AUTO then printfn "MOVE LEFT"
+                                        this.MoveLeft(false)
+                                        moved <- true
+                                    if priorY > 200 && foundY < 40 then
+                                        if DEBUG_AUTO then printfn "MOVE DOWN"
+                                        this.MoveDown(false)
+                                        moved <- true
+                                    if priorY < 40 && foundY > 200 then
+                                        if DEBUG_AUTO then printfn "MOVE UP"
+                                        this.MoveUp(false)
+                                        moved <- true
+                                    if moved then
+                                        let zm = ZoneMemory.Get(theGame.CurZone)
+                                        if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
+                                            this.DoScreenshot()
+                                priorX <- foundX
+                                priorY <- foundY
+                        )
+                    dt.Start()
 

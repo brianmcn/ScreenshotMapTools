@@ -106,7 +106,7 @@ let TakeNewScreenshot() =
     let bmp =
         let mutable r = None
         for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
+            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then   // TODO fragile, I had a folder open named EMUUROM, and it got that instead of EMUUROM game window
                 r <- Some hwnd
         match r with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)

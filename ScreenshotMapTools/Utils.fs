@@ -88,6 +88,7 @@ module Extensions =
         member this.Add(x) =
             this.Children.Add(x) |> ignore
             this
+open Extensions
 
 let canvasAdd(c:Canvas,e,x,y) =
     Canvas.SetLeft(e,x)
@@ -129,6 +130,28 @@ let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) 
     w.Loaded.Add(fun _ -> onLoad())
     w.ShowDialog() |> ignore
 let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) = DoModalDialogCore(parentWindow, element, title, close, (fun() -> ()))
+let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight) =
+    let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if origText=null then "" else origText), BorderThickness=Thickness(1.), 
+                            Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                            Width=winWidth, Height=winHeight, TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                            VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
+    let closeEv = new Event<unit>()
+    let mutable save = false
+    let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
+    let sb = new Button(Content=" Save ", Margin=Thickness(4.))
+    cb.Click.Add(fun _ -> closeEv.Trigger())
+    sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+    let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
+    let sp = new StackPanel(Orientation=Orientation.Vertical)
+    sp.Children.Add(tb) |> ignore
+    sp.Children.Add(dp) |> ignore
+    tb.Loaded.Add(fun _ ->
+        tb.Select(tb.Text.Length, 0)   // position the cursor at the end
+        System.Windows.Input.Keyboard.Focus(tb) |> ignore
+        )
+    DoModalDialog(parentWindow, sp, windowTitle, closeEv.Publish)
+    save, tb.Text
+////////////////////
 let BMPtoImage(bmp:System.Drawing.Bitmap) =
     let ms = new System.IO.MemoryStream()
     bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png)  // must be png (not bmp) to save transparency info
