@@ -62,7 +62,25 @@ let main _argv =
         r <- x
     *)
 
-        
+    if false then    
+        let fcPath = "C:\Users\Brian\Desktop\EMUUROM\AfterE37\ForestCover2x2.png"
+        let homePath = "C:\Users\Brian\Desktop\EMUUROM\AfterE37\Home2x2.png"
+        let fcBmp = new System.Drawing.Bitmap(fcPath)
+        let homeBmp = new System.Drawing.Bitmap(homePath)
+        // make home partly transparent
+        let homeData = homeBmp.LockBits(System.Drawing.Rectangle(0,0,homeBmp.Width,homeBmp.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+        let tf = (fun (_a,r,g,b) -> (64uy,r,g,b))  // 64 is 25%
+        for x = 0 to homeBmp.Width-1 do
+            for y = 0 to homeBmp.Height-1 do
+                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(x, y, homeData, x, y, homeData, tf)
+        homeBmp.UnlockBits(homeData)
+        // draw it atop forest
+        let g = System.Drawing.Graphics.FromImage(fcBmp)
+        g.CompositingMode <- System.Drawing.Drawing2D.CompositingMode.SourceOver
+        homeBmp.MakeTransparent();
+        g.DrawImage(homeBmp, new System.Drawing.Point(0, 0))
+        fcBmp.Save("C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png")
+    
 
     let app = new Application()
     //app.Run(new Elephantasy.MyWindow())

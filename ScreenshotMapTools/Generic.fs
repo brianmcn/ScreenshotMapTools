@@ -198,7 +198,7 @@ type MyWindow() as this =
         )
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
-    let mutable specialText = "#TODO"
+    let mutable specialText = "#TODO"   // currently uses numpad-3 to edit this
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
@@ -536,6 +536,11 @@ type MyWindow() as this =
                             bmps.[i,j] <- bmp, -1
                             gr.Extend(i,j)
                 PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, "printed_map.png")
+                printfn "now printing a 2x2 tiled copy of full map..."
+                let map = new System.Drawing.Bitmap("printed_map.png")
+                let rep = Utils.TileReplicateBitmap(map, 2, ".")
+                rep.Save("printed_map_2x2.png", System.Drawing.Imaging.ImageFormat.Png)
+                printfn "done!"
                 // other kinds
                 for k in screenshotKindUniverse do
                     if k <> MAIN_KIND then
@@ -685,11 +690,11 @@ type MyWindow() as this =
             refreshMetadataKeys()
             let rightColumn =
                 let rc = (new DockPanel(LastChildFill=true)).AddBottom(clipDP)
-                let mutable iconKeys = MapIcons.MakeIconUI(this)
+                let mutable iconKeys = MapIcons.MakeIconUI(this, MAPX)
                 rc.Children.Add(iconKeys) |> ignore
                 MapIcons.redrawPanelEv.Publish.Add(fun _ ->
                     rc.Children.Remove(iconKeys)
-                    iconKeys <- MapIcons.MakeIconUI(this)
+                    iconKeys <- MapIcons.MakeIconUI(this, MAPX)
                     rc.Children.Add(iconKeys) |> ignore
                     )
                 rc

@@ -488,3 +488,19 @@ let DistinctColors = [|
     System.Windows.Media.Color.FromRgb(0x00uy, 0x9Buy, 0xFFuy)
     System.Windows.Media.Color.FromRgb(0xE8uy, 0x5Euy, 0xBEuy)
     |]
+/////////////////////////////////////////////
+// make an image n times as wide and tall by repeatedly tiling the original image
+let TileReplicateBitmap(bmp:System.Drawing.Bitmap, n, progressToPrintString) =
+    let r = new System.Drawing.Bitmap(n*bmp.Width, n*bmp.Height)
+    let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    for i = 0 to n-1 do
+        for j = 0 to n-1 do
+            if progressToPrintString <> null then
+                printfn "%s" progressToPrintString
+            for x = 0 to bmp.Width-1 do
+                for y = 0 to bmp.Height-1 do
+                    SetAndGetAndTransformColorFromLockedFormat32BppArgb(i*bmp.Width + x, j*bmp.Height + y, rData, x, y, data, id)
+    bmp.UnlockBits(data)
+    r.UnlockBits(rData)
+    r

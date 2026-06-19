@@ -1,5 +1,6 @@
 ﻿module MapIcons
 
+(*
 module DU =
     open Microsoft.FSharp.Reflection
 
@@ -11,7 +12,7 @@ module DU =
         match FSharpType.GetUnionCases typeof<'a> |> Array.filter (fun case -> case.Name = s) with
         |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
         |_ -> None
-
+*)
 let IST(w,h) = 
     let m = min w h
     if m > 30. then 4. else 3.
@@ -22,14 +23,26 @@ type IconShape =
     | LargeBox
     | SmallBox
     | X
-    static member All = [| 
+    | AlphaNum of char
+    static member AllBasicShapes = [|      // the non-AlphaNum
         IconShape.LargeOval
         IconShape.SmallOval
         IconShape.LargeBox
         IconShape.SmallBox
         IconShape.X 
         |]
-    static member FromString(s) = DU.fromString<IconShape>(s)
+    static member FromString(s) =
+        match s with
+        | "LargeOval" -> Some IconShape.LargeOval
+        | "SmallOval" -> Some IconShape.SmallOval
+        | "LargeBox" -> Some IconShape.LargeBox
+        | "SmallBox" -> Some IconShape.SmallBox
+        | "X" -> Some IconShape.X
+        | _ -> 
+            if s.StartsWith("AlphaNum") && s.Length = 10 && s.Chars(8)=' ' && System.Char.IsLetterOrDigit(s.Chars(9)) then
+                Some(IconShape.AlphaNum(s.Chars(9)))
+            else
+                None
     member this.AsString() =
         match this with
         | IconShape.LargeOval -> "LargeOval"
@@ -37,6 +50,7 @@ type IconShape =
         | IconShape.LargeBox -> "LargeBox"
         | IconShape.SmallBox -> "SmallBox"
         | IconShape.X -> "X"
+        | IconShape.AlphaNum c -> sprintf "AlphaNum %c" c
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
@@ -56,6 +70,19 @@ type IconShape =
             Utils.canvasAdd(c, s, 0., 0.)
             let s = new System.Windows.Shapes.Line(X2=w*0.1, X1=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
+        | IconShape.AlphaNum ch ->
+            let typeface = new System.Windows.Media.Typeface(new System.Windows.Media.FontFamily("Courier New"), 
+                                                                System.Windows.FontStyles.Normal, System.Windows.FontWeights.Bold, System.Windows.FontStretches.Normal)
+            let mutable glyphTypeface = Unchecked.defaultof<System.Windows.Media.GlyphTypeface>
+            if not(typeface.TryGetGlyphTypeface(&glyphTypeface)) then
+                failwith "Glyph typeface could not be loaded"
+            let glyphIndex = glyphTypeface.CharacterToGlyphMap.[int ch]   // rather than 'int ch' should be unicode code point for ch, but whatevs
+            let glyphs = new System.Windows.Documents.Glyphs()
+            glyphs.FontUri <- glyphTypeface.FontUri
+            glyphs.FontRenderingEmSize <- w/2.   // TODO adjust, espescially if weird w/h aspect ratio
+            glyphs.Fill <- brush
+            glyphs.Indices <- glyphIndex.ToString()
+            Utils.canvasAdd(c, glyphs, w/4., 0.)
         
 [<AllowNullLiteral>]
 type Icon() =
@@ -187,7 +214,7 @@ let mutable currentlyHoveredHashtagKey = null
 let CW, CH = 32., 18.
 let keyDrawFuncs = new System.Collections.Generic.Dictionary<_,option<(Canvas*_*_->_)> >()
 let BG = Brushes.LightSteelBlue
-let MakeIconUI(parentWindow) =
+let MakeIconUI(parentWindow, appMAPX) =
     let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
     let g = Utils.makeGrid(1, keys.Length+2, KEYS_LIST_BOX_WIDTH, 20)  // +2 for (disable all,regex)
     g.Background <- BG
@@ -296,10 +323,10 @@ let MakeIconUI(parentWindow) =
                 // shapes
                 let mk() =
                     let curBrush = new SolidColorBrush(cur.GetColor())
-                    let shapeSelector = Utils.makeGrid(1, IconShape.All.Length, 72, 44)
+                    let shapeSelector = Utils.makeGrid(1, IconShape.AllBasicShapes.Length + 1, 72, 44)
                     let mutable i = 0
                     let all = ResizeArray()
-                    for s in IconShape.All do
+                    for s in IconShape.AllBasicShapes do
                         let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
                         s.AddToCanvas(c, curBrush, c.Width, c.Height)
                         let b = new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
@@ -312,7 +339,39 @@ let MakeIconUI(parentWindow) =
                             for x in all do
                                 x.BorderBrush <- Brushes.Transparent
                                 b.BorderBrush <- Brushes.Cyan
-                                cur.Shape <- s.AsString()
+                            cur.Shape <- s.AsString()
+                            )
+                    if true then  // AlphaNum option
+                        let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
+                        let curShape = IconShape.FromString(cur.Shape)
+                        let s,curGlyph = 
+                            match curShape with
+                            | Some(IconShape.AlphaNum(ch)) -> IconShape.AlphaNum(ch), ch
+                            | _ -> IconShape.AlphaNum('A'), 'A'
+                        s.AddToCanvas(c, curBrush, c.Width, c.Height)
+                        let b = new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                        Utils.gridAdd(shapeSelector, b, 0, i)
+                        i <- i + 1
+                        if cur.Shape = s.AsString() then
+                            b.BorderBrush <- Brushes.Cyan
+                        all.Add(b)
+                        b.MouseDown.Add(fun _ ->
+                            for x in all do
+                                x.BorderBrush <- Brushes.Transparent
+                            b.BorderBrush <- Brushes.Cyan
+                            Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
+                            let save, result = 
+                                Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2))
+                            let r = 
+                                if save && result.Length = 1 && System.Char.IsLetterOrDigit(result.Chars(0)) then
+                                    result.Chars(0)
+                                else
+                                    curGlyph
+                            let newShape = IconShape.AlphaNum(r)
+                            cur.Shape <- newShape.AsString()
+                            // redraw UI, we're still in a modal dialog where they may change color after editing glyph
+                            c.Children.Clear()
+                            newShape.AddToCanvas(c, curBrush, c.Width, c.Height)
                             )
                     shapeSelector
                 
@@ -332,10 +391,10 @@ let MakeIconUI(parentWindow) =
                     b.MouseDown.Add(fun _ ->
                         for x in all do
                             x.BorderBrush <- Brushes.Transparent
-                            b.BorderBrush <- Brushes.Cyan
-                            cur.HexColorRGB <- c
-                            dp.Children.RemoveAt(dp.Children.Count-1)
-                            dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                        b.BorderBrush <- Brushes.Cyan
+                        cur.HexColorRGB <- c
+                        dp.Children.RemoveAt(dp.Children.Count-1)
+                        dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                         )
 
                 dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
