@@ -460,27 +460,9 @@ type MyWindow() as this =
             )
         renameZoneButton.Click.Add(fun _ ->
             let orig = GetZoneName(theGame.CurZone)
-            let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if orig=null then "" else orig), BorderThickness=Thickness(1.), 
-                                    Foreground=Brushes.Black, Background=Brushes.White,
-                                    Width=float(MAPX/2), Height=20., TextWrapping=TextWrapping.NoWrap, AcceptsReturn=false, 
-                                    Margin=Thickness(5.))
-            let closeEv = new Event<unit>()
-            let mutable save = false
-            let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
-            let sb = new Button(Content=" Save ", Margin=Thickness(4.))
-            cb.Click.Add(fun _ -> closeEv.Trigger())
-            sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
-            let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
-            let sp = new StackPanel(Orientation=Orientation.Vertical)
-            sp.Children.Add(tb) |> ignore
-            sp.Children.Add(dp) |> ignore
-            tb.Loaded.Add(fun _ ->
-                tb.Select(tb.Text.Length, 0)   // position the cursor at the end
-                System.Windows.Input.Keyboard.Focus(tb) |> ignore
-                )
-            Utils.DoModalDialog(this, sp, "Edit zone name", closeEv.Publish)
+            let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false)
             if save then
-                theGame.ZoneNames.[theGame.CurZone] <- tb.Text
+                theGame.ZoneNames.[theGame.CurZone] <- result
                 UpdateGameFile()
                 selectionChangeIsDisabled <- true
                 zoneOptions.[theGame.CurZone] <- makeZoneName(theGame.CurZone)
@@ -952,7 +934,7 @@ type MyWindow() as this =
         setCursor()
         Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
         let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2))
+        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true)
         if save then
             UpdateCurrentNote(orig, result, zm)
             pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
@@ -962,7 +944,7 @@ type MyWindow() as this =
             printfn "here"
             setCursor()
             Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
-            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2))
+            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false)
             if save then
                 specialText <- result
         else

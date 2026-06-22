@@ -13,7 +13,7 @@ module DU =
         |[|case|] -> Some(FSharpValue.MakeUnion(case,[||]) :?> 'a)
         |_ -> None
 *)
-let IST(w,h) = 
+let IST(w,h) =          // icon stroke thickness
     let m = min w h
     if m > 30. then 4. else 3.
 [<RequireQualifiedAccess>]
@@ -329,11 +329,11 @@ let MakeIconUI(parentWindow, appMAPX) =
                 let dp = new DockPanel(MinWidth=200., MaxWidth=400., MaxHeight=400., LastChildFill=true)
 
                 // shapes
-                let mk() =
+                let makeShapeSelector() =   // function as it references current color, draw a new one when change color
                     let curBrush = new SolidColorBrush(cur.GetColor())
                     let shapeSelector = Utils.makeGrid(1, IconShape.AllBasicShapes.Length + 1, 72, 44)
                     let mutable i = 0
-                    let all = ResizeArray()
+                    let allBorders = ResizeArray()
                     for s in IconShape.AllBasicShapes do
                         let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
                         s.AddToCanvas(c, curBrush, c.Width, c.Height)
@@ -342,11 +342,11 @@ let MakeIconUI(parentWindow, appMAPX) =
                         i <- i + 1
                         if cur.Shape = s.AsString() then
                             b.BorderBrush <- Brushes.Cyan
-                        all.Add(b)
+                        allBorders.Add(b)
                         b.MouseDown.Add(fun _ ->
-                            for x in all do
+                            for x in allBorders do
                                 x.BorderBrush <- Brushes.Transparent
-                                b.BorderBrush <- Brushes.Cyan
+                            b.BorderBrush <- Brushes.Cyan
                             cur.Shape <- s.AsString()
                             )
                     if true then  // AlphaNum option
@@ -362,14 +362,14 @@ let MakeIconUI(parentWindow, appMAPX) =
                         i <- i + 1
                         if cur.Shape = s.AsString() then
                             b.BorderBrush <- Brushes.Cyan
-                        all.Add(b)
+                        allBorders.Add(b)
                         b.MouseDown.Add(fun _ ->
-                            for x in all do
+                            for x in allBorders do
                                 x.BorderBrush <- Brushes.Transparent
                             b.BorderBrush <- Brushes.Cyan
                             Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
                             let save, result = 
-                                Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2))
+                                Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2), false)
                             let r = 
                                 if save && result.Length = 1 && System.Char.IsLetterOrDigit(result.Chars(0)) then
                                     result.Chars(0)
@@ -402,11 +402,11 @@ let MakeIconUI(parentWindow, appMAPX) =
                         b.BorderBrush <- Brushes.Cyan
                         cur.HexColorRGB <- c
                         dp.Children.RemoveAt(dp.Children.Count-1)
-                        dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                        dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                         )
 
                 dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
-                dp.Children.Add(new ScrollViewer(Content=mk(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                 let closeEv = new Event<unit>()
                 let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.))
                 let doneButton = new Button(Content="Done", MaxWidth=150., Margin=Thickness(4.))

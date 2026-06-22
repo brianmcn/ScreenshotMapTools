@@ -130,10 +130,11 @@ let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) 
     w.Loaded.Add(fun _ -> onLoad())
     w.ShowDialog() |> ignore
 let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) = DoModalDialogCore(parentWindow, element, title, close, (fun() -> ()))
-let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight) =
+let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight, isMultiLine) =
     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if origText=null then "" else origText), BorderThickness=Thickness(1.), 
                             Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
-                            Width=winWidth, Height=winHeight, TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, 
+                            Width=winWidth, Height=(if isMultiLine then winHeight else 20.), 
+                            TextWrapping=(if isMultiLine then TextWrapping.Wrap else TextWrapping.NoWrap), AcceptsReturn=isMultiLine, 
                             VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
     let closeEv = new Event<unit>()
     let mutable save = false
@@ -143,14 +144,14 @@ let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHei
     sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
     tb.PreviewKeyDown.Add(fun ea ->
         if ea.Key = System.Windows.Input.Key.Enter then
-            if (System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Control) = System.Windows.Input.ModifierKeys.Control then 
-                // make ctrl-enter behave like a normal textbox 'return'
+            if isMultiLine && (System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Control) = System.Windows.Input.ModifierKeys.Control then 
+                // make ctrl-enter behave like a normal textbox 'return' for multi-line boxes
                 ea.Handled <- true
                 let caretIndex = tb.CaretIndex
                 tb.Text <- tb.Text.Insert(caretIndex, System.Environment.NewLine)
                 tb.CaretIndex <- caretIndex + 1
             else
-                // enter behaves like they click save
+                // enter (or ctrl-enter on non-multi-line boxes) behaves like they click save
                 ea.Handled <- true
                 save <- true
                 closeEv.Trigger()
