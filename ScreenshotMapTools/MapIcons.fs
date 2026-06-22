@@ -77,12 +77,18 @@ type IconShape =
             if not(typeface.TryGetGlyphTypeface(&glyphTypeface)) then
                 failwith "Glyph typeface could not be loaded"
             let glyphIndex = glyphTypeface.CharacterToGlyphMap.[int ch]   // rather than 'int ch' should be unicode code point for ch, but whatevs
-            let glyphs = new System.Windows.Documents.Glyphs()
-            glyphs.FontUri <- glyphTypeface.FontUri
-            glyphs.FontRenderingEmSize <- w/2.   // TODO adjust, espescially if weird w/h aspect ratio
-            glyphs.Fill <- brush
-            glyphs.Indices <- glyphIndex.ToString()
-            Utils.canvasAdd(c, glyphs, w/4., 0.)
+            let mk(colorBrush) =
+                let glyphs = new System.Windows.Documents.Glyphs()
+                glyphs.FontUri <- glyphTypeface.FontUri
+                glyphs.FontRenderingEmSize <- w/2.   // TODO adjust, espescially if weird w/h aspect ratio
+                glyphs.Fill <- colorBrush
+                glyphs.Indices <- glyphIndex.ToString()
+                glyphs
+            // faux-outline
+            Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), w/4. - 1., -1.)
+            Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), w/4. + 1., +1.)
+            // the text
+            Utils.canvasAdd(c, mk(brush), w/4., 0.)
         
 [<AllowNullLiteral>]
 type Icon() =
@@ -112,6 +118,8 @@ do
     hexColorUniverse.Add("FF0000", NextColorJitter()) |> ignore  // red
     hexColorUniverse.Add("00FF00", NextColorJitter()) |> ignore  // lime
     hexColorUniverse.Add("FFFF00", NextColorJitter()) |> ignore  // yellow
+    hexColorUniverse.Add("EEDDEE", NextColorJitter()) |> ignore  // offwhitepurple
+    // cyan gets added by virtue of the hover highlight existing, I think?
 
 let GetIconFilename() = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
 let LoadMapIconData() =

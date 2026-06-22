@@ -141,6 +141,20 @@ let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHei
     let sb = new Button(Content=" Save ", Margin=Thickness(4.))
     cb.Click.Add(fun _ -> closeEv.Trigger())
     sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
+    tb.PreviewKeyDown.Add(fun ea ->
+        if ea.Key = System.Windows.Input.Key.Enter then
+            if (System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Control) = System.Windows.Input.ModifierKeys.Control then 
+                // make ctrl-enter behave like a normal textbox 'return'
+                ea.Handled <- true
+                let caretIndex = tb.CaretIndex
+                tb.Text <- tb.Text.Insert(caretIndex, System.Environment.NewLine)
+                tb.CaretIndex <- caretIndex + 1
+            else
+                // enter behaves like they click save
+                ea.Handled <- true
+                save <- true
+                closeEv.Trigger()
+        )
     let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
     let sp = new StackPanel(Orientation=Orientation.Vertical)
     sp.Children.Add(tb) |> ignore
