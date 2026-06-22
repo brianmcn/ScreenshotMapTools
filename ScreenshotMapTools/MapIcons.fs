@@ -92,13 +92,14 @@ type IconShape =
         
 [<AllowNullLiteral>]
 type Icon() =
+    static member IsValidRGBString(s:string) = s<>null && s.Length=6 && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-fA-F]*")
     member val Hashtag : string = null with get,set
     member val HexColorRGB : string = null with get,set       // e.g. 00FF00
     member val Shape : string = null with get,set
     member val IsEnabled : bool = true with get,set
     member this.IsValid =
         not(System.String.IsNullOrEmpty(this.Hashtag))
-        && this.HexColorRGB<>null && this.HexColorRGB.Length=6 && System.Text.RegularExpressions.Regex.IsMatch(this.HexColorRGB, "[0-9a-fA-F]*")
+        && Icon.IsValidRGBString(this.HexColorRGB)
         && IconShape.FromString(this.Shape)<>None
     member this.GetColor() = Icon.GetColor(this.HexColorRGB)
     static member GetColor(hexColorRGB) = System.Windows.Media.ColorConverter.ConvertFromString("#FF" + hexColorRGB) :?> System.Windows.Media.Color
@@ -118,7 +119,7 @@ do
     hexColorUniverse.Add("FF0000", NextColorJitter()) |> ignore  // red
     hexColorUniverse.Add("00FF00", NextColorJitter()) |> ignore  // lime
     hexColorUniverse.Add("FFFF00", NextColorJitter()) |> ignore  // yellow
-    hexColorUniverse.Add("EEDDEE", NextColorJitter()) |> ignore  // offwhitepurple
+//    hexColorUniverse.Add("EEDDEE", NextColorJitter()) |> ignore  // offwhitepurple
     // cyan gets added by virtue of the hover highlight existing, I think?
 
 let GetIconFilename() = System.IO.Path.Combine(BackingStoreData.GetRootFolder(), "icons.json")
@@ -384,13 +385,15 @@ let MakeIconUI(parentWindow, appMAPX) =
                     shapeSelector
                 
                 // colors
-                let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, 48, 48)
+                let COLORW,COLORH,BORDER = 40, 30, 4
+                let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, COLORW+2*BORDER, COLORH+2*BORDER)
                 let mutable i = 0
                 let all = ResizeArray()
                 for KeyValue(c,_) in hexColorUniverse do
                     let col = Icon.GetColor(c)
-                    let swatch = new DockPanel(Width=40., Height=40., Background=new SolidColorBrush(col))
-                    let b = new Border(Child=swatch, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                    let swatch = new DockPanel(Width=float COLORW, Height=float COLORH, Background=new SolidColorBrush(col))
+                    ToolTipService.SetToolTip(swatch, col)
+                    let b = new Border(Child=swatch, BorderThickness=Thickness(float BORDER), BorderBrush=Brushes.Transparent)
                     Utils.gridAdd(colorSelector, b, 0, i)
                     i <- i + 1
                     if cur.HexColorRGB = c then
@@ -409,10 +412,21 @@ let MakeIconUI(parentWindow, appMAPX) =
                 dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                 let closeEv = new Event<unit>()
                 let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.))
+                let addColorButton = new Button(Content="Add color", MaxWidth=150., Margin=Thickness(4.))
+                addColorButton.Click.Add(fun _ ->
+                    let save, result = Utils.DoBasicModalTextDialog(parentWindow, "New hex color RRGGBB", "00FF00", float(appMAPX/2), float(appMAPX/2), false)
+                    if save then
+                        if Icon.IsValidRGBString(result) then
+                            hexColorUniverse.Add(result, NextColorJitter()) |> ignore
+                    closeEv.Trigger()   // rather than redraw UI, just closing it, user can open again
+                    )
                 let doneButton = new Button(Content="Done", MaxWidth=150., Margin=Thickness(4.))
                 doneButton.Click.Add(fun _ -> closeEv.Trigger())
-                DockPanel.SetDock(doneButton, Dock.Bottom)
-                total.Children.Add(doneButton) |> ignore
+                let sp = new StackPanel(Orientation=Orientation.Horizontal)
+                sp.Children.Add(addColorButton) |> ignore
+                sp.Children.Add(doneButton) |> ignore
+                DockPanel.SetDock(sp, Dock.Bottom)
+                total.Children.Add(sp) |> ignore
                 total.Children.Add(dp) |> ignore
                 Utils.DoModalDialog(parentWindow, total, "Choose appearance", closeEv.Publish)
                 mapIconData.[k] <- cur
