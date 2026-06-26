@@ -144,14 +144,15 @@ let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHei
     sb.Click.Add(fun _ -> save <- true; closeEv.Trigger())
     tb.PreviewKeyDown.Add(fun ea ->
         if ea.Key = System.Windows.Input.Key.Enter then
-            if isMultiLine && (System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Control) = System.Windows.Input.ModifierKeys.Control then 
-                // make ctrl-enter behave like a normal textbox 'return' for multi-line boxes
+            if isMultiLine && ((System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Control) = System.Windows.Input.ModifierKeys.Control
+                              || (System.Windows.Input.Keyboard.Modifiers &&& System.Windows.Input.ModifierKeys.Shift) = System.Windows.Input.ModifierKeys.Shift) then 
+                // make <shift/ctrl>-enter behave like a normal textbox 'return' for multi-line boxes
                 ea.Handled <- true
                 let caretIndex = tb.CaretIndex
                 tb.Text <- tb.Text.Insert(caretIndex, System.Environment.NewLine)
                 tb.CaretIndex <- caretIndex + 1
             else
-                // enter (or ctrl-enter on non-multi-line boxes) behaves like they click save
+                // enter (or <shift/ctrl>-enter on non-multi-line boxes) behaves like they click save
                 ea.Handled <- true
                 save <- true
                 closeEv.Trigger()
