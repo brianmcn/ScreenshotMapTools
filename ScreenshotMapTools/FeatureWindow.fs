@@ -11,6 +11,7 @@ type FeatureWindow(owner) as this =
     inherit Window()
     static let mutable theFeatureWindow : FeatureWindow = null
     let b = new Border(Width=FEATUREW, Height=FEATUREH, BorderThickness=Thickness(0.), Background=new SolidColorBrush(Color.FromRgb(0x30uy,0x40uy,0x60uy)))
+    let mutable rightClickBehavior = fun() -> ()
     do
         this.Owner <- owner
         this.Title <- "FEATURE"
@@ -18,18 +19,43 @@ type FeatureWindow(owner) as this =
         this.Content <- b
         this.Loaded.Add(fun _ ->
             theFeatureWindow <- this
+            b.MouseDown.Add(fun ea ->
+                ea.Handled <- true
+                if ea.RightButton = System.Windows.Input.MouseButtonState.Pressed then
+                    rightClickBehavior()
+                )
             )
         this.Closed.Add(fun _ ->
             theFeatureWindow <- null
             )
     member this.SetContent(c) = b.Child <- c
+    member this.SetRightClickBehavior(f) = rightClickBehavior <- f
     static member TheFeatureWindow with get() = theFeatureWindow and set(x) = theFeatureWindow <- x
 
-let EnsureFeature(rootOwner, content) =
+let EnsureFeature(rootOwner, content, screenshotFilename) =
     if FeatureWindow.TheFeatureWindow=null then
         FeatureWindow.TheFeatureWindow <- new FeatureWindow(rootOwner)
-        FeatureWindow.TheFeatureWindow.SetContent(content)
-        FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
+    FeatureWindow.TheFeatureWindow.SetContent(content)
+    if screenshotFilename <> null then
+        FeatureWindow.TheFeatureWindow.SetRightClickBehavior(fun() ->
+            let fullpath = 
+                if System.IO.Path.IsPathRooted(screenshotFilename) then
+                    screenshotFilename
+                else
+                    let rootDir = System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)
+                    System.IO.Path.Combine(rootDir, screenshotFilename)
+            printfn "clipboard %s" fullpath
+            // copy file to clipboard, so that it can be pasted into a windows folder
+            let obj = new DataObject()
+            let coll = new System.Collections.Specialized.StringCollection()
+            coll.AddRange([|fullpath|])
+            obj.SetFileDropList(coll)
+            let strm = new System.IO.MemoryStream()
+            strm.WriteByte((byte)DragDropEffects.Copy)
+            obj.SetData("Preferred Dropeffect", strm)
+            Clipboard.SetDataObject(obj)
+            )
+    FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
 
 type GridRange(iminx,iminy,imaxx,imaxy) =
     let mutable minx,miny,maxx,maxy = iminx,iminy,imaxx,imaxy
@@ -277,7 +303,7 @@ let MakeFeatureMap(owner,zma:ZoneMemory option[,]) =
                     highlightedPicture.Children.Clear()
                     bottom.Children.Clear()
                     )
-    EnsureFeature(owner, c)
+    EnsureFeature(owner, c, null)
 
 let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, gr) =
     // framing layout
@@ -331,4 +357,4 @@ let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, gr) =
     ol1.Publish.Add(onLeave)
     oh2.Publish.Add(onHover)
     ol2.Publish.Add(onLeave)
-    EnsureFeature(owner, c)
+    EnsureFeature(owner, c, null)

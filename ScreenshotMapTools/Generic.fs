@@ -71,7 +71,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                 img.Width <- 1280.
                 img.Height <- 720.
                 img.Stretch <- Stretch.Uniform
-                FeatureWindow.EnsureFeature(parent.Owner, img)
+                FeatureWindow.EnsureFeature(parent.Owner, img, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
             else
                 whichSSIDisHighlighted <- Some(ssid)
                 for b in allBorders do
@@ -355,7 +355,12 @@ type MyWindow() as this =
                         UpdateGameFile()
                         zoom()
                         if me.RightButton = Input.MouseButtonState.Pressed then
-                            Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
+                            let swks = zm.MapTiles.[i,j].ScreenshotsWithKinds
+                            if swks.Length = 1 then
+                                let ssid = swks.[0].Id
+                                FeatureWindow.EnsureFeature(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
+                            else
+                                Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                     )
                 warpMouseTo <- (fun (i,j) ->
                     let pos = mapCanvas.TranslatePoint(Point(DX+float(i-ci+level)*W-W/2.,DY+float(j-cj+level)*H-H/2.),this)  // center of i,j   // TODO might be offscreen
