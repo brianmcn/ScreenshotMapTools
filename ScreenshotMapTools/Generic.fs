@@ -100,6 +100,40 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
     Utils.DoModalDialog(parent, all, sprintf "All Screenshots for (%d,%d)" x y, closeEv.Publish)
     theCurrentLocalBHKE <- fun _ -> ()
 
+////////////////////////////////////////////////////
+
+let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
+    let mx,my,mw,mh = gameProjection
+    let r = new System.Drawing.Bitmap(mw*bmpcis.GetLength(0), mh*bmpcis.GetLength(1))
+    let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    for i = 0 to bmpcis.GetLength(0)-1 do
+        printfn "column %d" i
+        for j = 0 to bmpcis.GetLength(1)-1 do
+            let bmp,ci = bmpcis.[i,j]
+            if bmp <> null then
+                let tf = 
+                    if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
+                        id
+                    else
+                        (fun (a,r,g,b) ->
+                            let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
+                            let P = 0.8
+                            let f(x,y) = float x * P + float y * (1.0-P) |> byte
+                            f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
+                        )
+                let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                for x = 0 to mw-1 do
+                    for y = 0 to mh-1 do
+                        if x=mw-1 || y=mh-1 then        // grid lines
+                            Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y,rData, System.Drawing.Color.Gray)
+                        else
+                            Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y, rData, mx+x, my+y, data, tf)
+                bmp.UnlockBits(data)
+    r.UnlockBits(rData)
+    r
+
+///////////////////////////////////////////////////
+
 type MyWindow() as this = 
     inherit Window()
     let mutable currentlyRunningAHotkeyCommand = false
@@ -475,38 +509,10 @@ type MyWindow() as this =
                 selectionChangeIsDisabled <- false
             )
         printCurrentZoneButton.Click.Add(fun _ ->
-            let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], minx, miny, maxx, maxy, filename:string) =
-                if maxx >= minx then // there was at least one screenshot
-                    //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
-                    for ma,fn in [TheChosenGame.MapArea,filename] do
-                        let mx,my,mw,mh = ma
-                        let r = new System.Drawing.Bitmap(mw*(maxx-minx+1), mh*(maxy-miny+1))
-                        let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                        for i = minx to maxx do
-                            printfn "[%d..%d] - %d" minx maxx i
-                            for j = miny to maxy do
-                                let bmp,ci = bmpcis.[i,j]
-                                if bmp <> null then
-                                    let tf = 
-                                        if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
-                                            id
-                                        else
-                                            (fun (a,r,g,b) ->
-                                                let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
-                                                let P = 0.8
-                                                let f(x,y) = float x * P + float y * (1.0-P) |> byte
-                                                f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
-                                            )
-                                    let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                                    for x = 0 to mw-1 do
-                                        for y = 0 to mh-1 do
-                                            if x=mw-1 || y=mh-1 then
-                                                Utils.SetColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y,rData, System.Drawing.Color.Gray)
-                                            else
-                                                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*(i-minx) + x, mh*(j-miny) + y, rData, mx+x, my+y, data, tf)
-                                    bmp.UnlockBits(data)
-                        r.UnlockBits(rData)
-                        r.Save(fn, System.Drawing.Imaging.ImageFormat.Png)
+            let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], filename:string) =
+                //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
+                let r = AssembleBmpGrid(bmpcis, TheChosenGame.MapArea)
+                r.Save(filename, System.Drawing.Imaging.ImageFormat.Png)
             async {
                 printCurrentZoneButton.IsEnabled <- false
                 printCurrentZoneButton.Content <- ". . ."
@@ -522,12 +528,13 @@ type MyWindow() as this =
                         if bmp <> null then
                             bmps.[i,j] <- bmp, -1
                             gr.Extend(i,j)
-                PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, "printed_map.png")
-                printfn "now printing a 2x2 tiled copy of full map..."
-                let map = new System.Drawing.Bitmap("printed_map.png")
-                let rep = Utils.TileReplicateBitmap(map, 2, ".")
-                rep.Save("printed_map_2x2.png", System.Drawing.Imaging.ImageFormat.Png)
-                printfn "done!"
+                if gr.MaxX >= gr.MinX then // there was at least one screenshot
+                    PrintRegion(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], "printed_map.png")
+                    printfn "now printing a 2x2 tiled copy of full map..."
+                    let map = new System.Drawing.Bitmap("printed_map.png")
+                    let rep = Utils.TileReplicateBitmap(map, 2, ".")
+                    rep.Save("printed_map_2x2.png", System.Drawing.Imaging.ImageFormat.Png)
+                    printfn "done!"
                 // other kinds
                 for k in screenshotKindUniverse do
                     if k <> MAIN_KIND then
@@ -558,7 +565,8 @@ type MyWindow() as this =
                                 bmps.[i,j] <- hd,ci
                                 workQ.Enqueue((i,j),tl,ci)
                                 gr.Extend(i,j)
-                        PrintRegion(bmps, gr.MinX, gr.MinY, gr.MaxX, gr.MaxY, sprintf "printed_map_%s.png" k)
+                        if gr.MaxX >= gr.MinX then
+                            PrintRegion(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], sprintf "printed_map_%s.png" k)
                 printCurrentZoneButton.Content <- printCurrentZoneButtonDefaultContent
                 printCurrentZoneButton.IsEnabled <- true
                 System.Diagnostics.Process.Start(AppContext.BaseDirectory) |> ignore    // open program folder, where printed map is
@@ -784,6 +792,8 @@ type MyWindow() as this =
                     this.DoCentering()
                 if key = VK_DIVIDE then
                     this.EditNotes()
+                if key = VK_NUMPAD1 then
+                    this.DoFullMapPanZoomFeatureWindow()
                 if key = VK_NUMPAD3 then    // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
                     this.DoSpecial(true)
                 if key = VK_DECIMAL then
@@ -1022,4 +1032,61 @@ type MyWindow() as this =
                                 priorY <- foundY
                         )
                     dt.Start()
-
+    member this.DoFullMapPanZoomFeatureWindow() =
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        let bmps = Array2D.create MAX MAX (null, -1)
+        let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
+        for i = 0 to MAX-1 do
+            for j = 0 to MAX-1 do
+                let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
+                if bmp <> null then
+                    bmps.[i,j] <- bmp, -1
+                    gr.Extend(i,j)
+        if gr.MaxX >= gr.MinX then // there was at least one screenshot
+            let bmp = AssembleBmpGrid(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], TheChosenGame.MapArea)
+            let img = Utils.BMPtoImage(bmp)
+            let scale = new ScaleTransform()
+            let trans = new TranslateTransform()
+            let tg = new TransformGroup()
+            tg.Children <- new TransformCollection([|scale :> Transform; trans :> Transform|])
+            img.RenderTransform <- tg
+            // fit to screen to start
+            img.Width <- float FeatureWindow.FEATUREW
+            img.Height <- float FeatureWindow.FEATUREW
+            let b = new Border(ClipToBounds=true, Background=Brushes.DarkMagenta, Width=float FeatureWindow.FEATUREW, Height=float FeatureWindow.FEATUREH, Child=img)
+            // mouse controls to zoom and pan
+            let mutable startPanPoint, originPanOffset = Point(),Point()
+            b.MouseWheel.Add(fun ea ->
+                let mousePos = ea.GetPosition(img)
+                let FACTOR = 1.15
+                let zoomFactor = if ea.Delta > 0 then FACTOR else 1. / FACTOR
+                let newScaleX = scale.ScaleX * zoomFactor
+                printfn "scale %f" newScaleX
+                if false then // (newScaleX < 0.05 || newScaleX > 20.) then
+                    () // do nothing (clamp to these limits)
+                else
+                    // Calculate new translation adjustments to anchor zoom on the mouse cursor
+                    let newScaleY = scale.ScaleY * zoomFactor
+                    trans.X <- trans.X - (mousePos.X * (zoomFactor - 1.) * scale.ScaleX)
+                    trans.Y <- trans.Y - (mousePos.Y * (zoomFactor - 1.) * scale.ScaleY)
+                    scale.ScaleX <- newScaleX
+                    scale.ScaleY <- newScaleY
+                )
+            b.MouseLeftButtonDown.Add(fun ea ->
+                // Track start coordinates of the cursor and current transform offsets
+                startPanPoint <- ea.GetPosition(b)
+                originPanOffset <- new Point(trans.X, trans.Y)
+                // Capture the mouse to continue tracking movement even outside the window
+                b.CaptureMouse() |> ignore
+                )
+            b.MouseMove.Add(fun ea ->
+                // Only pan if the mouse capture is locked to our element
+                if b.IsMouseCaptured then
+                    let delta = ea.GetPosition(b) - startPanPoint
+                    trans.X <- originPanOffset.X + delta.X
+                    trans.Y <- originPanOffset.Y + delta.Y
+                )
+            b.MouseLeftButtonUp.Add(fun _ea ->
+                b.ReleaseMouseCapture()
+                )
+            FeatureWindow.EnsureFeature(this, b, null)
