@@ -768,36 +768,21 @@ type MyWindow() as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
-                if key = VK_SUBTRACT then
-                    this.DoCut()
-                if key = VK_ADD then
-                    this.DoPaste()
-                if key = VK_MULTIPLY then
-                    this.CycleZoneOrProjection((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD4 then
-                    this.MoveLeft((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD6 then
-                    this.MoveRight((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD8 then
-                    this.MoveUp((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD2 then
-                    this.MoveDown((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD0 then
-                    this.DoScreenshot()
-                if key = VK_NUMPAD7 then
-                    this.ZoomOut()
-                if key = VK_NUMPAD9 then
-                    this.ZoomIn()
-                if key = VK_NUMPAD5 then
-                    this.DoCentering()
-                if key = VK_DIVIDE then
-                    this.EditNotes()
-                if key = VK_NUMPAD1 then
-                    this.DoFullMapPanZoomFeatureWindow()
-                if key = VK_NUMPAD3 then    // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
-                    this.DoSpecial(true)
-                if key = VK_DECIMAL then
-                    this.DoSpecial(false)
+                if key = VK_SUBTRACT then           this.DoCut()
+                if key = VK_ADD then                this.DoPaste()
+                if key = VK_MULTIPLY then           this.CycleZoneOrProjection((ctrl_bits = int MOD_CONTROL))
+                if key = VK_NUMPAD4 then            this.MoveLeft((ctrl_bits = int MOD_CONTROL))
+                if key = VK_NUMPAD6 then            this.MoveRight((ctrl_bits = int MOD_CONTROL))
+                if key = VK_NUMPAD8 then            this.MoveUp((ctrl_bits = int MOD_CONTROL))
+                if key = VK_NUMPAD2 then            this.MoveDown((ctrl_bits = int MOD_CONTROL))
+                if key = VK_NUMPAD0 then            this.DoScreenshot()
+                if key = VK_NUMPAD7 then            this.ZoomOut()
+                if key = VK_NUMPAD9 then            this.ZoomIn()
+                if key = VK_NUMPAD5 then            this.DoCentering()
+                if key = VK_DIVIDE then             this.EditNotes()
+                if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow()
+                if key = VK_NUMPAD3 then            this.DoSpecial(true) // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
+                if key = VK_DECIMAL then            this.DoSpecial(false)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
     member this.DoCut() =
