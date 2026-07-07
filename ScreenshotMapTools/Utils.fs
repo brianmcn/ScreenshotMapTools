@@ -506,6 +506,7 @@ let DistinctColors = [|
     |]
 /////////////////////////////////////////////
 // make an image n times as wide and tall by repeatedly tiling the original image
+(*
 let TileReplicateBitmap(bmp:System.Drawing.Bitmap, n, progressToPrintString) =
     let r = new System.Drawing.Bitmap(n*bmp.Width, n*bmp.Height)
     let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
@@ -520,3 +521,27 @@ let TileReplicateBitmap(bmp:System.Drawing.Bitmap, n, progressToPrintString) =
     bmp.UnlockBits(data)
     r.UnlockBits(rData)
     r
+*)
+// code above is not very efficient, let's try this
+let Blit(src:System.Drawing.Bitmap, tgtData:System.Drawing.Imaging.BitmapData, destX, destY) =
+    let srcData = src.LockBits(new Rectangle(0, 0, src.Width, src.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb)
+    let srcPtr = srcData.Scan0
+    let tgtPtr = tgtData.Scan0
+    let bytesPerPixel = 4 // Format32bppArgb
+    let rowBytesToCopy = src.Width * bytesPerPixel
+    // Calculate the starting memory offset for the target image
+    let targetStartOffset = (destY * tgtData.Stride) + (destX * bytesPerPixel)
+    // Copy row by row to handle stride disparities safely
+    for y = 0 to src.Height-1 do
+        let currentSrcRow = NativeInterop.NativePtr.add (NativeInterop.NativePtr.ofNativeInt<byte> srcPtr) (y * srcData.Stride)
+        let currentTgtRow = NativeInterop.NativePtr.add (NativeInterop.NativePtr.ofNativeInt<byte> tgtPtr) (targetStartOffset + (y * tgtData.Stride))
+        System.Buffer.MemoryCopy(NativeInterop.NativePtr.toVoidPtr currentSrcRow, NativeInterop.NativePtr.toVoidPtr currentTgtRow, rowBytesToCopy, rowBytesToCopy)
+    src.UnlockBits(srcData)
+let TileReplicateBitmapEfficiently(bmp:System.Drawing.Bitmap, n) =
+    let target = new System.Drawing.Bitmap(bmp.Width * n, bmp.Height * n)
+    let tgtData = target.LockBits(new Rectangle(0, 0, target.Width, target.Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb)
+    for i = 0 to n-1 do
+        for j = 0 to n-1 do
+            Blit(bmp, tgtData, i*bmp.Width, j*bmp.Height)
+    target.UnlockBits(tgtData)
+    target

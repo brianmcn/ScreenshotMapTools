@@ -111,24 +111,32 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
         for j = 0 to bmpcis.GetLength(1)-1 do
             let bmp,ci = bmpcis.[i,j]
             if bmp <> null then
-                let tf = 
-                    if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
-                        id
-                    else
+                let bmp = bmp.Clone(System.Drawing.Rectangle(mx,my,mw,mh), System.Drawing.Imaging.PixelFormat.Format32bppArgb)  // project out the map area
+                if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
+                    // no color change, just Blit the data copy efficiently...
+                    Utils.Blit(bmp, rData, mw*i, mh*j)
+                    // ... and then add the grid lines 
+                    for x = 0 to mw-1 do
+                        Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + (mh-1), rData, System.Drawing.Color.Gray)
+                    for y = 0 to mh-1 do
+                        Utils.SetColorFromLockedFormat32BppArgb(mw*i + (mw-1), mh*j + y, rData, System.Drawing.Color.Gray)
+                else
+                    // go pixel by pixel to do the color change
+                    let tf = 
                         (fun (a,r,g,b) ->
                             let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
                             let P = 0.8
                             let f(x,y) = float x * P + float y * (1.0-P) |> byte
                             f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
                         )
-                let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                for x = 0 to mw-1 do
-                    for y = 0 to mh-1 do
-                        if x=mw-1 || y=mh-1 then        // grid lines
-                            Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y,rData, System.Drawing.Color.Gray)
-                        else
-                            Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y, rData, mx+x, my+y, data, tf)
-                bmp.UnlockBits(data)
+                    let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+                    for x = 0 to mw-1 do
+                        for y = 0 to mh-1 do
+                            if x=mw-1 || y=mh-1 then        // grid lines
+                                Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y,rData, System.Drawing.Color.Gray)
+                            else
+                                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y, rData, mx+x, my+y, data, tf)
+                    bmp.UnlockBits(data)
     r.UnlockBits(rData)
     r
 
@@ -532,7 +540,7 @@ type MyWindow() as this =
                     PrintRegion(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], "printed_map.png")
                     printfn "now printing a 2x2 tiled copy of full map..."
                     let map = new System.Drawing.Bitmap("printed_map.png")
-                    let rep = Utils.TileReplicateBitmap(map, 2, ".")
+                    let rep = Utils.TileReplicateBitmapEfficiently(map, 2)
                     rep.Save("printed_map_2x2.png", System.Drawing.Imaging.ImageFormat.Png)
                     printfn "done!"
                 // other kinds
@@ -1036,8 +1044,12 @@ type MyWindow() as this =
             tg.Children <- new TransformCollection([|scale :> Transform; trans :> Transform|])
             img.RenderTransform <- tg
             // fit to screen to start
-            img.Width <- float FeatureWindow.FEATUREW
-            img.Height <- float FeatureWindow.FEATUREW
+            if float bmp.Width / float bmp.Height > float FeatureWindow.FEATUREW / float FeatureWindow.FEATUREH then
+                img.Width <- float FeatureWindow.FEATUREW
+                img.Height <- System.Double.NaN
+            else
+                img.Width <- System.Double.NaN
+                img.Height <- float FeatureWindow.FEATUREH
             let b = new Border(ClipToBounds=true, Background=Brushes.DarkMagenta, Width=float FeatureWindow.FEATUREW, Height=float FeatureWindow.FEATUREH, Child=img)
             // mouse controls to zoom and pan
             let mutable startPanPoint, originPanOffset = Point(),Point()
