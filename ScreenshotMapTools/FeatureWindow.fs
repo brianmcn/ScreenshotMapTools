@@ -63,6 +63,8 @@ type GridRange(iminx,iminy,imaxx,imaxy) =
     member this.MinY = miny
     member this.MaxX = maxx
     member this.MaxY = maxy
+    member this.Width = this.MaxX-this.MinX+1
+    member this.Height = this.MaxY-this.MinY+1
     member this.Extend(i,j) =
         minx <- min minx i
         miny <- min miny j
@@ -358,3 +360,38 @@ let MakeDualFeatureMap(owner, zm1:ZoneMemory, zm2:ZoneMemory, gr) =
     oh2.Publish.Add(onHover)
     ol2.Publish.Add(onLeave)
     EnsureFeature(owner, c, null)
+
+///////////////////////////////////////////////////////////
+
+let DrawMapIconsToBitmapSource(gr : GridRange, totalW, totalH) =
+    let zm = ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+    let backBuffer, backBufferStride = Array.zeroCreate (totalW*totalH*4), totalW*4
+    let W,H = float totalW / float gr.Width, float totalH / float gr.Height
+    let draw(i,j,key) =
+        let xoff,yoff = int(float i * W), int(float j * H)
+        let W,H = int(W),int(H)
+        let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
+        let stride = W*4
+        Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, xoff, yoff, bytes, stride, 0, 0, W, H)
+    if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
+        do
+            // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
+            if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
+                let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
+                for i = gr.MinX to gr.MaxX do
+                    for j = gr.MinY to gr.MaxY do
+                        let note = zm.MapTiles.[i,j].Note
+                        if note <> null && re.IsMatch(note) then
+                            draw(i,j,MapIcons.REGEX_DUMMY)
+        let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
+        for k in keys do
+            let locs = metadataStore.LocationsForKey(k)
+            for i = gr.MinX to gr.MaxX do
+                for j = gr.MinY to gr.MaxY do
+                    let loc = GenericMetadata.Location(BackingStoreData.theGame.CurZone,i,j)
+                    if locs.Contains(loc) then
+                        match MapIcons.keyDrawFuncs.[k] with
+                        | Some _ -> draw(i-gr.MinX,j-gr.MinY,k)
+                        | _ -> ()
+    let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(totalW, totalH, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+    bitmapSource

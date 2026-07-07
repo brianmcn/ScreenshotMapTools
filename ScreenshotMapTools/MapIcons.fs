@@ -206,10 +206,11 @@ let updateMMC(k,icon:Icon) =
             | true, r -> r
             | _ -> 0
         ColorJitters.[idx]
+    let JITTERSCALE = 0.07
     let draw(c,w,h) = 
         let oc = new Canvas(Width=float w, Height=float h)
         shape.AddToCanvas(oc, brush, float w, float h)
-        Utils.canvasAdd(c, oc, float w * 0.1 * float jitterDx, float h * 0.1 * float jitterDy)
+        Utils.canvasAdd(c, oc, float w * JITTERSCALE * float jitterDx, float h * JITTERSCALE * float jitterDy)
     mapMarkerCaches.[k] <- new SingleMapMarkerCache(draw)
 let drawHoverIcon(c,w,h) =
     let s = new System.Windows.Shapes.Ellipse(Width=float w*0.4, Height=float h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(float w,float h))

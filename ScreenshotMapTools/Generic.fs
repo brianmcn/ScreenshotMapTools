@@ -152,13 +152,13 @@ type MyWindow() as this =
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
-    let mapMarkersImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
+    let mapMarkersImage = new Image(Width=float(MAPX), Height=float(MAPY), IsHitTestVisible=false)
     let mapMarkersHoverImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
         Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
         r.Children.Add(mapCanvas) |> ignore
-        Utils.canvasAdd(r, mapMarkersImage, float(-MAPX), float(-MAPY))
+        Utils.canvasAdd(r, mapMarkersImage, 0, 0)
         Utils.canvasAdd(r, mapMarkersHoverImage, float(-MAPX), float(-MAPY))
         r
     let RT = 4.
@@ -266,6 +266,7 @@ type MyWindow() as this =
             priorZone <- theGame.CurZone
             priorLevel <- level
             pictureChanged.Value <- false
+            // MAPX,MAPY are size of the grid display in the app
             let VIEWX,VIEWY = 
                 let mapAspect = float MAPX / float MAPY
                 if aspect > mapAspect then
@@ -281,7 +282,7 @@ type MyWindow() as this =
             mapMarkersHoverImage.Source <- null
             for i = 0 to backBuffer.Length-1 do
                 backBuffer.[i] <- 0uy
-            let W,H = float(VIEWX)/scale,float(VIEWY)/scale
+            let W,H = float(VIEWX)/scale,float(VIEWY)/scale         // W,H are size of each grid element
             let drawnLocations = ResizeArray()
             let ci, cj = theGame.CenterX, theGame.CenterY
             for i = ci-level to ci+level do
@@ -317,33 +318,20 @@ type MyWindow() as this =
                 do
                     // map icons
                     redrawMapIconsFunc <- (fun _ ->
-                        let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
-                        let draw(i,j,key) =
-                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                            let W,H = int(W),int(H)
-                            let bytes = MapIcons.mapMarkerCaches.[key].Get(W,H)
-                            let stride = W*4
-                            Utils.CopyBGRARegionOnlyPartsWithAlpha(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                        if not(MapIcons.allIconsDisabledCheckbox.IsChecked.Value) then
-                            do
-                                // TODO this probably doesn't refresh with text updates to tiles, would need to un-click&re-click the icon
-                                if not(System.String.IsNullOrWhiteSpace(MapIcons.userRegex)) && MapIcons.keyDrawFuncs.[MapIcons.REGEX_DUMMY].IsSome then
-                                    let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
-                                    for i,j in drawnLocations do
-                                        let note = zm.MapTiles.[i,j].Note
-                                        if note <> null && re.IsMatch(note) then
-                                            draw(i,j,MapIcons.REGEX_DUMMY)
-                            let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
-                            for k in keys do
-                                let locs = metadataStore.LocationsForKey(k)
-                                for i,j in drawnLocations do
-                                    let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                    if locs.Contains(loc) then
-                                        match MapIcons.keyDrawFuncs.[k] with
-                                        | Some _ -> draw(i,j,k)
-                                        | _ -> ()
-                        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
-                        mapMarkersImage.Source <- bitmapSource
+                        let gr =    // compute 'drawn' range of cells (some are drawn offscreen)
+                            let i,j = drawnLocations.[0]
+                            let gr = FeatureWindow.GridRange(i,j,i,j)
+                            for i,j in drawnLocations do
+                                gr.Extend(i,j)
+                            gr
+                        let i,j = gr.MinX, gr.MinY
+                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H     // where the upper left pixel of cell i,j should be drawn
+                        let mmw, mmh = int(float gr.Width * W), int(float gr.Height * H)
+                        mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, mmw, mmh)
+                        mapMarkersImage.Width <- mmw
+                        mapMarkersImage.Height <- mmh
+                        Canvas.SetLeft(mapMarkersImage, xoff)
+                        Canvas.SetTop(mapMarkersImage, yoff)
                         )
                     redrawMapIconsHoverOnlyFunc <- (fun _ ->
                         let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
@@ -1047,12 +1035,15 @@ type MyWindow() as this =
             tg.Children <- new TransformCollection([|scale :> Transform; trans :> Transform|])
             img.RenderTransform <- tg
             // fit to screen to start
-            if float bmp.Width / float bmp.Height > float FeatureWindow.FEATUREW / float FeatureWindow.FEATUREH then
-                img.Width <- float FeatureWindow.FEATUREW
-                img.Height <- System.Double.NaN
-            else
-                img.Width <- System.Double.NaN
-                img.Height <- float FeatureWindow.FEATUREH
+            let usedW, usedH = 
+                if float bmp.Width / float bmp.Height > float FeatureWindow.FEATUREW / float FeatureWindow.FEATUREH then
+                    img.Width <- float FeatureWindow.FEATUREW
+                    img.Height <- System.Double.NaN
+                    img.Width, float bmp.Height * img.Width / float bmp.Width
+                else
+                    img.Width <- System.Double.NaN
+                    img.Height <- float FeatureWindow.FEATUREH
+                    float bmp.Width * img.Height / float bmp.Height, img.Height
             let b = new Border(ClipToBounds=true, Background=Brushes.DarkMagenta, Width=float FeatureWindow.FEATUREW, Height=float FeatureWindow.FEATUREH, Child=img)
             // mouse controls to zoom and pan
             let mutable startPanPoint, originPanOffset = Point(),Point()
@@ -1088,4 +1079,10 @@ type MyWindow() as this =
             b.MouseLeftButtonUp.Add(fun _ea ->
                 b.ReleaseMouseCapture()
                 )
-            FeatureWindow.EnsureFeature(this, b, null)
+            let mapMarkersImage = new Image(Width=b.Width, Height=b.Height, IsHitTestVisible=false)
+            mapMarkersImage.RenderTransform <- tg
+            mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, int usedW, int usedH)
+            let c = new Canvas(Width=b.Width, Height=b.Height)
+            Utils.canvasAdd(c, b, 0, 0)
+            Utils.canvasAdd(c, mapMarkersImage, 0, 0)
+            FeatureWindow.EnsureFeature(this, c, null)
