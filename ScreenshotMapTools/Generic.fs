@@ -882,12 +882,15 @@ type MyWindow() as this =
         let zm = ZoneMemory.Get(theGame.CurZone)
         setCursor()
         let _img,bmp,id = TakeNewScreenshot()
-        bmpDict.Add(id, bmp)
-        zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
-        pictureChanged.Value <- true
-        SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-        RecomputeImage(theGame.CurX,theGame.CurY,zm)
-        zoom()
+        if bmpDict.ContainsKey(id) then
+            printfn "screenshot not taken, you can only take one screenshot per second, screenshot id already exists '%s'" id
+        else
+            bmpDict.Add(id, bmp)
+            zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(id)
+            pictureChanged.Value <- true
+            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+            RecomputeImage(theGame.CurX,theGame.CurY,zm)
+            zoom()
     member this.ZoomOut() =
         setCursor()
         if theGame.CurZoom > 1 then

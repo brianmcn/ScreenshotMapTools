@@ -3,10 +3,9 @@ Actually, what I need to is rewrite the entire thing for like dynamic sizing and
 
 
 
-
 from dwarf:
- - 3 and . is nice, but also nice to be able to 'arrow' thru list of hashtags modally maybe
  - the '1' or 'print' thing, would be nice to be able to render tags, and maybe a 'legend' on the map
+ - 3 and . is nice, but also nice to be able to 'arrow' thru list of hashtags modally maybe
  - dont let buttons be focusable (e.g. hit enter by accident, print button was focused, hung)
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
