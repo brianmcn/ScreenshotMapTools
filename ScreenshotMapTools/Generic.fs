@@ -974,7 +974,7 @@ type MyWindow() as this =
                     dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
                     let hwnd = 
                         let mutable r = None
-                        for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+                        for KeyValue(hwnd,(title,_,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
                             if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
                                 r <- Some hwnd
                         match r with

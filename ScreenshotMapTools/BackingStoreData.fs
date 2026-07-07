@@ -104,11 +104,7 @@ let rec GetZoneName(zoneNum) =
 
 let TakeNewScreenshot() =
     let bmp =
-        let mutable r = None
-        for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then   // TODO fragile, I had a folder open named EMUUROM, and it got that instead of EMUUROM game window
-                r <- Some hwnd
-        match r with
+        match TryFindHwndForTheChosenGame() with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
         | None -> failwith "window not found"
     let id,img = SaveScreenshot(bmp)

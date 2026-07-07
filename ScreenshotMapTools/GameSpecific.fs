@@ -9,6 +9,7 @@
 type ChosenGameJson() =
     member val GameFolder : string = null with get,set              // name of save folder for this program's assets (screenshots etc)
     member val WindowTitle : string = null with get,set             // of the process to find
+    member val ProcessExe : string = null with get,set              // of the process to find
     member val GameWidth : int = 0 with get,set     
     member val GameHeight : int = 0 with get,set    
     member val MapArea : int*int*int*int = 0,0,0,0 with get,set     // x,y,w,h
@@ -59,20 +60,23 @@ type ChosenGame() =
                 let wins = Elephantasy.Screenshot.GetOpenWindows()
                 System.Console.WriteLine("Choose an open window process, to load its window size data")
                 System.Console.WriteLine("and start a new screenshot directory.")
-                System.Console.WriteLine("0: <abort>")
+                System.Console.WriteLine(" 0: <abort>")
+                System.Console.WriteLine("")
                 i <- 1
                 let names = [|
-                    for KeyValue(_hwnd,(name,rect)) in wins do
-                        System.Console.WriteLine(sprintf "%d: %s" i name)
+                    for KeyValue(_hwnd,(name,exe,rect)) in wins do
+                        System.Console.WriteLine(sprintf "%2d: %s" i name)
+                        System.Console.WriteLine(sprintf "    %s" exe)
+                        System.Console.WriteLine("")
                         i <- i + 1
-                        yield name, rect.right-rect.left, rect.bottom-rect.top
+                        yield name, exe, rect.right-rect.left, rect.bottom-rect.top
                         |]
                 let r = System.Console.ReadLine()
                 let j = int r
                 if j=0 then
                     failwith "aborted"
                 elif j <= names.Length then
-                    let n, w, h = names.[j-1]
+                    let n, exe, w, h = names.[j-1]
                     System.Console.WriteLine(sprintf "You chose window: (%d x %d) %s" w h n)
                     System.Console.WriteLine("If this is correct, then choose a directory name to start saving screenshots")
                     System.Console.WriteLine("or else just press enter to abort.")
@@ -88,6 +92,7 @@ type ChosenGame() =
                         cgj.MapArea <- 0,0,w,h
                         cgj.MetaArea <- 0,0,10,1
                         cgj.WindowTitle <- n
+                        cgj.ProcessExe <- exe
                         let file = System.IO.Path.Combine(".", r, gameFile)
                         let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(cgj)
                         WriteAllText(file, json)
@@ -105,17 +110,27 @@ type ChosenGame() =
             System.Environment.Exit(1)
     member this.GAME = data.GameFolder
     member this.WINDOW_TITLE = data.WindowTitle
+    member this.PROCESS_EXE = data.ProcessExe
     member this.GAMESCREENW = data.GameWidth
     member this.GAMESCREENH = data.GameHeight
     member this.MapArea  = data.MapArea
     member this.MetaArea = data.MetaArea
 let TheChosenGame = ChosenGame()
-let ActivateGameWindow() = 
+let TryFindHwndForTheChosenGame() =
+    // note, if there are multiple matching windows, we choose one at random, for better or worse
     let mutable r = None
-    for KeyValue(hwnd,(title,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-        if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
-            r <- Some hwnd
-    match r with
+    for KeyValue(hwnd,(title,exe,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
+        // preferred logic - find same exe
+        if not(System.String.IsNullOrEmpty(TheChosenGame.PROCESS_EXE)) then
+            if exe = TheChosenGame.PROCESS_EXE then
+                r <- Some hwnd
+        // old fragile fallback logic, find window with same title prefix
+        else
+            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then   // TODO fragile, I had a folder open named EMUUROM, and it got that instead of EMUUROM game window
+                r <- Some hwnd
+    r
+let ActivateGameWindow() = 
+    match TryFindHwndForTheChosenGame() with
     | Some(hwnd) -> 
         System.Console.WriteLine(sprintf "bringing game '%s' to the foreground" TheChosenGame.WINDOW_TITLE)
         if Utils.Win32.SetForegroundWindow(hwnd) = false then

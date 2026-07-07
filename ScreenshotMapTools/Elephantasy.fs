@@ -8,6 +8,9 @@ module Screenshot =
     open System.Runtime.InteropServices
     type EnumWindowsProc = delegate of IntPtr * IntPtr -> bool
     type HWND = IntPtr
+    type HANDLE = IntPtr
+    type HMODULE = IntPtr
+    type DWORD = int
     [<DllImport("USER32.DLL")>]
     extern bool EnumWindows(EnumWindowsProc enumFunc, IntPtr lParam)
     [<DllImport("USER32.DLL")>]
@@ -15,9 +18,17 @@ module Screenshot =
     [<DllImport("USER32.DLL")>]
     extern int GetWindowTextLength(HWND hWnd)
     [<DllImport("USER32.DLL")>]
+    extern DWORD GetWindowThreadProcessId(HWND hWnd, [<Out>] DWORD& lpdwProcessId)
+    [<DllImport("USER32.DLL")>]
     extern bool IsWindowVisible(HWND hWnd)
     [<DllImport("USER32.DLL")>]
     extern HWND GetShellWindow()
+    [<DllImport("KERNEL32.DLL")>]
+    extern HANDLE OpenProcess(DWORD dwDesiredAccess, bool bInheritHandle, DWORD dwProcessId)
+    [<DllImport("KERNEL32.DLL")>]
+    extern bool QueryFullProcessImageNameA(HANDLE hProcess, DWORD dwFlags, StringBuilder lpExeName, DWORD& lpdwSize)
+    [<DllImport("KERNEL32.DLL")>]
+    extern bool CloseHandle(HANDLE hObject)
     [<Struct>]
     [<StructLayout(LayoutKind.Sequential)>]
     type RECT =
@@ -32,7 +43,7 @@ module Screenshot =
 
     let GetOpenWindows() =
         let shellWindow = GetShellWindow()
-        let windows = new Dictionary<HWND, string*RECT>()
+        let windows = new Dictionary<HWND, string*string*RECT>()
         let perWindow(hWnd : HWND, _lParam : HWND) : bool =
             if hWnd = shellWindow then true
             elif not(IsWindowVisible(hWnd)) then true
@@ -40,18 +51,29 @@ module Screenshot =
                 let length = GetWindowTextLength(hWnd)
                 if length = 0 then true
                 else
-                    let builder = new StringBuilder(length)
-                    GetWindowText(hWnd, builder, length + 1) |> ignore
+                    let windowTitleSB = new StringBuilder(length)
+                    GetWindowText(hWnd, windowTitleSB, length + 1) |> ignore
                     let mutable r : RECT = Unchecked.defaultof<_>
                     if GetClientRect(hWnd, &r) = false then failwith "bad window"
-                    windows.[hWnd] <- (builder.ToString(), r)
+                    let processExe =
+                        let MAX_PATH = 260
+                        let mutable dwProcId, len = 0, MAX_PATH
+                        if GetWindowThreadProcessId(hWnd, &dwProcId) = 0 then failwith "could not get pid"
+                        let PROCESS_QUERY_INFORMATION = 0x0400
+                        let PROCESS_VM_READ = 0x0010
+                        let exePathSB = new StringBuilder(len)
+                        let hProc = OpenProcess(PROCESS_QUERY_INFORMATION ||| PROCESS_VM_READ, false, dwProcId)
+                        if not(QueryFullProcessImageNameA(hProc, 0, exePathSB, &len)) then failwith "could not get process exe filename"
+                        if not(CloseHandle(hProc)) then failwith "bad"
+                        exePathSB.ToString()
+                    windows.[hWnd] <- (windowTitleSB.ToString(), processExe, r)
                     true
         EnumWindows(new EnumWindowsProc(fun h l -> perWindow(h,l)), IntPtr.Zero) |> ignore
         windows
 
     let findElephantasyWindowLeftTop() =
         let mutable r = None
-        for KeyValue(_hwnd,(title,rect)) in GetOpenWindows() do
+        for KeyValue(_hwnd,(title,_,rect)) in GetOpenWindows() do
             if title = "Elephantasy" then
                 r <- Some(rect.left, rect.top)
         r
