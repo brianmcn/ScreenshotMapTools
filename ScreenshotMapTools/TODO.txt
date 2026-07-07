@@ -3,6 +3,17 @@ Actually, what I need to is rewrite the entire thing for like dynamic sizing and
 
 
 
+
+from dwarf:
+ - just using 'starts with window title' has issues, e.g. steam button binding for game will bring up '<game> controls' window
+ - 3 and . is nice, but also nice to be able to 'arrow' thru list of hashtags modally maybe
+ - the '1' or 'print' thing, would be nice to be able to render tags, and maybe a 'legend' on the map
+ - dont let buttons be focusable (e.g. hit enter by accident, print button was focused, hung)
+ - semi-transparent view of app, or spearate window around cursor minimap or something
+
+
+
+
 for incremental loading
 
 each z,x,y needs its own loading work (background disk stuff, foreground image ui stuff followup)

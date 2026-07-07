@@ -1046,7 +1046,6 @@ type MyWindow() as this =
                 let FACTOR = 1.15
                 let zoomFactor = if ea.Delta > 0 then FACTOR else 1. / FACTOR
                 let newScaleX = scale.ScaleX * zoomFactor
-                printfn "scale %f" newScaleX
                 if false then // (newScaleX < 0.05 || newScaleX > 20.) then
                     () // do nothing (clamp to these limits)
                 else

@@ -46,7 +46,7 @@ type Game() =   // e.g. Zelda
     member val CenterX : int = 50 with get,set
     member val CenterY : int = 50 with get,set
     // preferred view
-    member val CurZoom : int = 10 with get,set                    
+    member val CurZoom : int = 5 with get,set                    
     member val CurProjection : int = 1 with get,set               // 0=full, 1=map, 2=meta
 
 // load root game data
