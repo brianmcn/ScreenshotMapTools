@@ -44,7 +44,7 @@ type DummyWindow() as this =
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             let _hwnd = Elephantasy.Winterop.SetActiveWindow(handle)
             //printfn "%A" _hwnd
-            let mainW = new Generic.MyWindow()
+            let mainW = new Generic.MyWindow(fun () -> new Glass.DrawingGlassWindow())
             mainW.Owner <- this
             mainW.Show()
             mainW.Closed.Add(fun _ -> 

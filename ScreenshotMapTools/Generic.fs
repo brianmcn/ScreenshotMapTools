@@ -141,7 +141,7 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
 
 ///////////////////////////////////////////////////
 
-type MyWindow() as this = 
+type MyWindow(mkGlassWinF : unit->Window) as this = 
     inherit Window()
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
@@ -671,6 +671,9 @@ type MyWindow() as this =
 
                 )
             sp.Children.Add(dualFeatureButton) |> ignore
+            let glassButton = new Button(Content="Glass", Margin=Thickness(4.))
+            glassButton.Click.Add(fun _ -> let gw = mkGlassWinF() in gw.Owner <- this.Owner; gw.Show())
+            sp.Children.Add(glassButton) |> ignore
             sp.Children.Add(minitAutoTrackerInfo) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore

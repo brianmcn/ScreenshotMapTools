@@ -55,7 +55,8 @@ let EnsureFeature(rootOwner, content, screenshotFilename) =
             obj.SetData("Preferred Dropeffect", strm)
             Clipboard.SetDataObject(obj)
             )
-    FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
+    //FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
+    FeatureWindow.TheFeatureWindow.Show() |> ignore
 
 type GridRange(iminx,iminy,imaxx,imaxy) =
     let mutable minx,miny,maxx,maxy = iminx,iminy,imaxx,imaxy

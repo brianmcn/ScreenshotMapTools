@@ -85,22 +85,23 @@ let GetActiveWindowClientRect() =
     r.bottom <- r.bottom + p.y
     r
 
-type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF) as this =
+let mutable createdCount = 0
+type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
     let mutable clickThru = false
     let label = new Label(Content="switch to click-thru")
     let toggleClickThruButton = new Button(Content=label, Margin=Thickness(2.))
     do
         this.Owner <- parent
-        this.Title <- "Controls"
+        this.Title <- sprintf "GlassControl%d" createdCount
         this.Loaded.Add(fun _ ->
-            printfn "loading controls"
-            this.Content <- new TextBox(Text="focus the window you want")
+            //printfn "loading controls"
+            this.Content <- new TextBox(Text="focus the window you\nwant to draw on top of", Margin=Thickness(8.), BorderThickness=Thickness(0.))
             async {
-                printfn "waiting for user to focus another app"
+                //printfn "waiting for user to focus another app"
                 let! _ = Async.AwaitEvent this.Deactivated
                 do! Async.Sleep(400)  // ensure time for OS to activate other app
-                printfn "saw focus change"
+                //printfn "saw focus change"
                 sizeParentF()
                 modeF(clickThru)
                 let r = GetActiveWindowClientRect()
@@ -126,8 +127,9 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
                     label.Content <- if clickThru then "switch to drawing" else "switch to click-thru"
                     modeF(clickThru)
                     )
-                let eraseButton = new Button(Content=new Label(Content="erase"), Margin=Thickness(2.))
+                let eraseButton = new Button(Content=new Label(Content="erase all"), Margin=Thickness(2.))
                 eraseButton.Click.Add(fun _ -> eraseF())
+                (*
                 // shape
                 let shapePanel =
                     let rbPanel = new StackPanel(Orientation=Orientation.Vertical, Margin=Thickness(2.))
@@ -167,18 +169,42 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
                     noRB.IsChecked <- true
                     updateDrawArrowHeadsF(false)
                     rbPanel
+                *)
+                updatePenShapeF(0)
+                updateModeF(1)
+                updateDrawArrowHeadsF(false)
+                let arrowCB = new CheckBox(Content="arrowheads", IsChecked=false, Margin=Thickness(2.), VerticalAlignment=VerticalAlignment.Center)
+                arrowCB.Checked.Add(fun _ -> updateDrawArrowHeadsF(true))
+                arrowCB.Unchecked.Add(fun _ -> updateDrawArrowHeadsF(false))
+                let colorGrid =
+                    let colors = [| [| Brushes.Red; Brushes.Green; Brushes.Blue; Brushes.White |] 
+                                    [| Brushes.Cyan; Brushes.Magenta; Brushes.Yellow; Brushes.Black |] |]
+                    let g = Utils.makeGrid(4,2,24,24)
+                    g.Background <- new SolidColorBrush(Color=Color.FromRgb(0x60uy,0x60uy,0x60uy))
+                    let allBorders = ResizeArray()
+                    for i = 0 to 3 do
+                        for j = 0 to 1 do
+                            let curColor = colors.[j].[i]
+                            let b = new Border(BorderThickness=Thickness(2.), BorderBrush=(if i=0 && j=0 then Brushes.Lime else Brushes.Transparent),
+                                                    Child=new DockPanel(Background=curColor), Width=20., Height=20.)
+                            allBorders.Add(b)
+                            b.MouseDown.Add(fun _ -> 
+                                for x in allBorders do x.BorderBrush <- Brushes.Transparent
+                                b.BorderBrush <- Brushes.Lime
+                                updatePenColorF(curColor)
+                                )
+                            Utils.gridAdd(g, b, i, j)
+                    g
                 // overall ui                
-                let sp = new StackPanel(Orientation=Orientation.Horizontal)
+                let sp = new StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(4.))
                 sp.Children.Add(toggleClickThruButton) |> ignore
-                sp.Children.Add(shapePanel) |> ignore
                 sp.Children.Add(eraseButton) |> ignore
-                sp.Children.Add(modePanel) |> ignore
-                sp.Children.Add(daPanel) |> ignore
+                sp.Children.Add(arrowCB) |> ignore
+                sp.Children.Add(colorGrid) |> ignore
                 this.Content <- sp
                 } |> Async.StartImmediate
         )
-        this.Width <- 500.
-        this.Height <- 100.
+        this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Closed.Add(fun _ ->
             async { 
                 let ctxt = SynchronizationContext.Current
@@ -191,7 +217,8 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
 type DrawingGlassWindow() as this =
     inherit Window()
     do
-        this.Title <- "Drawing Glass"
+        createdCount <- createdCount + 1
+        this.Title <- sprintf "LorgonGlass%d" createdCount
         this.SizeToContent <- SizeToContent.Manual
         this.WindowStartupLocation <- WindowStartupLocation.Manual
         this.Background <- Brushes.Transparent
@@ -225,6 +252,7 @@ type DrawingGlassWindow() as this =
         let mutable drawingMode = -1   // 0=spotlight, 1=pen
         let mutable penShape = -1      // 0=ellipse, 1=rectangle
         let mutable drawArrowheads = true
+        let redoStack = new System.Collections.Generic.Stack<UIElement>()
         let pen = new Pen(Brush=Brushes.Red, Thickness=10.)
         let updateMode(m) = drawingMode <- m
         let updatePenShape(p) = 
@@ -280,10 +308,11 @@ type DrawingGlassWindow() as this =
                 eraseSpotlightOpacityMask()
             elif drawingMode=1 then
                 penCanvas.Children.Clear()
+                redoStack.Clear()
         // TODO I want a draw program to toggle its own click-thru transparency with a hotkey, be topmost, and never activate
         this.Loaded.Add(fun _ ->
             printfn "loading glass"
-            let cw = new ControlsWindow(this, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b))
+            let cw = new ControlsWindow(this, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b), (fun c -> pen.Brush <- c))
             cw.Show()
             )
         let mutable startPoint = None
@@ -294,14 +323,22 @@ type DrawingGlassWindow() as this =
             startPoint <- Some(ea.GetPosition(catchAll))
             if drawingMode=1 then
                 geoGroup <- new GeometryGroup()
-                tempRect <- new System.Windows.Shapes.Rectangle(Fill=new DrawingBrush(Drawing=new GeometryDrawing(Geometry=geoGroup, Pen=pen)))
+                tempRect <- new System.Windows.Shapes.Rectangle(Fill=new DrawingBrush(Drawing=new GeometryDrawing(Geometry=geoGroup, Pen=pen.Clone())))
                 penCanvas.Children.Add(tempRect) |> ignore
+                redoStack.Clear()
             )
         let adjustRect() =
             tempRect.Width <- geoGroup.Bounds.Width + pen.Thickness
             tempRect.Height <- geoGroup.Bounds.Height + pen.Thickness
             Canvas.SetLeft(tempRect, geoGroup.Bounds.Left - pen.Thickness/2.0)
             Canvas.SetTop(tempRect, geoGroup.Bounds.Top - pen.Thickness/2.0)
+        let extendPenDraw(e:Point) =
+            match startPoint with
+            | None -> ()
+            | Some(p) ->
+                geoGroup.Children.Add(new LineGeometry(StartPoint=p, EndPoint=e))
+                startPoint <- Some(e)
+                adjustRect()
         CompositionTarget.Rendering.Add(fun _ ->
             let e = Input.Mouse.GetPosition(catchAll)
             if e.X>=0. && e.X<=catchAll.Width && e.Y>=0. && e.Y<=catchAll.Height then
@@ -314,13 +351,7 @@ type DrawingGlassWindow() as this =
             Canvas.SetLeft(myCursor, e.X)
             Canvas.SetTop(myCursor, e.Y)
             if drawingMode=1 then
-                match startPoint with
-                | None -> ()
-                | Some(p) ->
-                    if p.X <> e.X || p.Y <> e.Y then
-                        geoGroup.Children.Add(new LineGeometry(StartPoint=p, EndPoint=e))
-                        startPoint <- Some(e)
-                        adjustRect()
+                extendPenDraw(e)
             )
         catchAll.MouseLeftButtonUp.Add(fun ea -> 
             ea.Handled <- true
@@ -337,35 +368,40 @@ type DrawingGlassWindow() as this =
                     let h = (ey - sy) / spotlightCanvas.Height
                     spotlight(x,y,w,h)
             elif drawingMode=1 then
-                // TODO each undo-able stroke should be on different canvas for undo
+                let e = ea.GetPosition(catchAll)
+                extendPenDraw(e)
                 if geoGroup.Children.Count > 0 && tempRect<> null then
                     if drawArrowheads then
-                        let A = pen.Thickness * 2.5
+                        let A = pen.Thickness * 2.0
                         let mutable i = geoGroup.Children.Count-1
                         let mutable lg = geoGroup.Children.Item(i) :?> LineGeometry
                         let e = lg.EndPoint
                         let sq(x) = x*x
+                        // find a long enough bit of 'stroke' suffix to decide which direction the end of the stroke is pointing
                         while i>0 && sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A do
                             i <- i - 1
                             lg <- geoGroup.Children.Item(i) :?> LineGeometry
-                        // compute arrowhead points...
-                        let tx,ty = e.X, e.Y          // target
-                        let sx,sy = lg.StartPoint.X, lg.StartPoint.Y      // source
-                        let pct = 1. - A/sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base A pixels down the line
-                        let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
-                        // ...differential between target and arrowhead base
-                        let dx,dy = tx-ax, ty-ay
-                        // ...points orthogonal to the line from the base
-                        let SF = 1.5   // spread factor
-                        let p1x,p1y = ax+dy/SF, ay-dx/SF
-                        let p2x,p2y = ax-dy/SF, ay+dx/SF
-                        // make arrowhead
-                        geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p1x,p1y), EndPoint=e))
-                        geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p2x,p2y), EndPoint=e))
+                        // if we found one, then draw arrowhead, else (e.g. in case they just clicked to draw a 'dot' with no direction) don't
+                        if not(sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A) then
+                            // compute arrowhead points...
+                            let tx,ty = e.X, e.Y          // target
+                            let sx,sy = lg.StartPoint.X, lg.StartPoint.Y      // source
+                            let pct = 1. - A/sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base A pixels down the line
+                            let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
+                            // ...differential between target and arrowhead base
+                            let dx,dy = tx-ax, ty-ay
+                            // ...points orthogonal to the line from the base
+                            let SF = 1.5   // spread factor
+                            let p1x,p1y = ax+dy/SF, ay-dx/SF
+                            let p2x,p2y = ax-dy/SF, ay+dx/SF
+                            // make arrowhead
+                            geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p1x,p1y), EndPoint=e))
+                            geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p2x,p2y), EndPoint=e))
                     adjustRect()
             startPoint <- None
             tempRect <- null
             )
+(*
         // TODO remove this?
         catchAll.MouseRightButtonDown.Add(fun ea -> 
             ea.Handled <- true
@@ -376,9 +412,21 @@ type DrawingGlassWindow() as this =
                 this.Close() 
                 } |> Async.StartImmediate
             )
+*)
+        this.PreviewKeyDown.Add(fun ea ->
+            if ea.Key = System.Windows.Input.Key.Z && System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control) then
+                ea.Handled <- true
+                if penCanvas.Children.Count > 0 then
+                    let x = penCanvas.Children.[penCanvas.Children.Count - 1]
+                    penCanvas.Children.RemoveAt(penCanvas.Children.Count - 1)
+                    redoStack.Push(x)
+            if ea.Key = System.Windows.Input.Key.Y && System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control) then
+                ea.Handled <- true
+                if redoStack.Count <> 0 then
+                    penCanvas.Children.Add(redoStack.Pop()) |> ignore
+            )
         this.MouseDown.Add(fun ea ->
             // ensure all clicks are handled and not passed down to the app under the glass
-            printfn "final mouse handler"
             ea.Handled <- true
             )
         
