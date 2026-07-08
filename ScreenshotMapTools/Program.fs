@@ -112,6 +112,6 @@ let main _argv =
     let app = new Application()
     //app.Run(new Elephantasy.MyWindow())
     let r = app.Run(new DummyWindow())
-    //app.Run(new Glass.DrawingGlassWindow())
+    //let r = app.Run(new Glass.DrawingGlassWindow())
 
     r

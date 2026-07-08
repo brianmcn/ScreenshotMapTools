@@ -1,7 +1,7 @@
 ﻿I really need a zoom size between 1x1 and 3x3, so see edges of nearby screens
 Actually, what I need to is rewrite the entire thing for like dynamic sizing and zoom, it is all so brittle.
 
-
+- look at my 'glass' app again
 
 from dwarf:
  - the '1' or 'print' thing, would be nice to be able to render tags, and maybe a 'legend' on the map
@@ -11,6 +11,15 @@ from dwarf:
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
 
+
+export all tags to text file
+e.g. show #hat all coordinates, #emuu, etc
+maybe with text line context somehow
+and some way to label coords better to match game hmmm
+
+also, i have never added controls using non-numpad keyboard other than click and typing into text boxes, but if you 
+focus the app, i could do a lot more rich editing etc... not sure what, but don't feel limited by numpad, esp. for 
+things that imply not game focused
 
 
 for incremental loading

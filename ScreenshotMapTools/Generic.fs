@@ -107,7 +107,6 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
     let r = new System.Drawing.Bitmap(mw*bmpcis.GetLength(0), mh*bmpcis.GetLength(1))
     let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
     for i = 0 to bmpcis.GetLength(0)-1 do
-        printfn "column %d" i
         for j = 0 to bmpcis.GetLength(1)-1 do
             let bmp,ci = bmpcis.[i,j]
             if bmp <> null then

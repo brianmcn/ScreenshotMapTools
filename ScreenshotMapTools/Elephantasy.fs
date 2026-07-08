@@ -63,9 +63,11 @@ module Screenshot =
                         let PROCESS_VM_READ = 0x0010
                         let exePathSB = new StringBuilder(len)
                         let hProc = OpenProcess(PROCESS_QUERY_INFORMATION ||| PROCESS_VM_READ, false, dwProcId)
-                        if not(QueryFullProcessImageNameA(hProc, 0, exePathSB, &len)) then failwith "could not get process exe filename"
-                        if not(CloseHandle(hProc)) then failwith "bad"
-                        exePathSB.ToString()
+                        let r = 
+                            if QueryFullProcessImageNameA(hProc, 0, exePathSB, &len) then exePathSB.ToString()
+                            else "UNKNOWN PROC"     // some processes, like Task Manager, fail the query
+                        CloseHandle(hProc) |> ignore
+                        r
                     windows.[hWnd] <- (windowTitleSB.ToString(), processExe, r)
                     true
         EnumWindows(new EnumWindowsProc(fun h l -> perWindow(h,l)), IntPtr.Zero) |> ignore

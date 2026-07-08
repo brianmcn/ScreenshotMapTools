@@ -164,8 +164,8 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
                     rbPanel.Children.Add(yesRB) |> ignore
                     rbPanel.Children.Add(noRB) |> ignore
                     // default
-                    yesRB.IsChecked <- true
-                    updateDrawArrowHeadsF(true)
+                    noRB.IsChecked <- true
+                    updateDrawArrowHeadsF(false)
                     rbPanel
                 // overall ui                
                 let sp = new StackPanel(Orientation=Orientation.Horizontal)
