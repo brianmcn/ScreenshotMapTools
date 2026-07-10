@@ -44,7 +44,13 @@ type DummyWindow() as this =
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             let _hwnd = Elephantasy.Winterop.SetActiveWindow(handle)
             //printfn "%A" _hwnd
-            let mainW = new Generic.MyWindow(fun () -> new Glass.DrawingGlassWindow())
+            let mainW = new Generic.MyWindow(fun () -> 
+                let startInfo = new System.Diagnostics.ProcessStartInfo()
+                startInfo.FileName <- System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+                startInfo.UseShellExecute <- false
+                startInfo.Arguments <- "--glass"
+                System.Diagnostics.Process.Start(startInfo) |> ignore
+                )
             mainW.Owner <- this
             mainW.Show()
             mainW.Closed.Add(fun _ -> 
@@ -56,7 +62,7 @@ type DummyWindow() as this =
 
 [<STAThread>]
 [<EntryPoint>]
-let main _argv =
+let main argv =
     (*
     let app = new Application()
     app.Run(new Knytt.MyWindow())
@@ -109,9 +115,15 @@ let main _argv =
         fcBmp.Save("C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png")
     
 
-    let app = new Application()
-    //app.Run(new Elephantasy.MyWindow())
-    let r = app.Run(new DummyWindow())
-    //let r = app.Run(new Glass.DrawingGlassWindow())
-
-    r
+    if argv.Length = 1 && argv.[0] = "--glass" then
+        // glass is a separate application to decouple its window activation/z-order from the rest of the app
+        let app = new Application()
+        app.Run(new Glass.DrawingGlassWindow())
+    else
+        //WindowFocusTrackingUtils.testWindowFocusWatcher()
+        let app = new Application()
+        //app.Run(new Elephantasy.MyWindow())
+        let r = app.Run(new DummyWindow())
+        //let r = app.Run(new Glass.DrawingGlassWindow())
+        //let r = WindowFocusTrackingUtils.testMain()
+        r

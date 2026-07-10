@@ -545,3 +545,4 @@ let TileReplicateBitmapEfficiently(bmp:System.Drawing.Bitmap, n) =
             Blit(bmp, tgtData, i*bmp.Width, j*bmp.Height)
     target.UnlockBits(tgtData)
     target
+

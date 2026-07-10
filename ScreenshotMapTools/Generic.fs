@@ -141,7 +141,7 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
 
 ///////////////////////////////////////////////////
 
-type MyWindow(mkGlassWinF : unit->Window) as this = 
+type MyWindow(mkGlassF : unit->unit) as this = 
     inherit Window()
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
@@ -387,7 +387,7 @@ type MyWindow(mkGlassWinF : unit->Window) as this =
                             let swks = zm.MapTiles.[i,j].ScreenshotsWithKinds
                             if swks.Length = 1 then
                                 let ssid = swks.[0].Id
-                                FeatureWindow.EnsureFeature(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
+                                FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
                             else
                                 Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
                     )
@@ -672,7 +672,7 @@ type MyWindow(mkGlassWinF : unit->Window) as this =
                 )
             sp.Children.Add(dualFeatureButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=Thickness(4.))
-            glassButton.Click.Add(fun _ -> let gw = mkGlassWinF() in gw.Owner <- this.Owner; gw.Show())
+            glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
             sp.Children.Add(minitAutoTrackerInfo) |> ignore
             sp
@@ -1087,4 +1087,4 @@ type MyWindow(mkGlassWinF : unit->Window) as this =
             let c = new Canvas(Width=b.Width, Height=b.Height)
             Utils.canvasAdd(c, b, 0, 0)
             Utils.canvasAdd(c, mapMarkersImage, 0, 0)
-            FeatureWindow.EnsureFeature(this, c, null)
+            FeatureWindow.EnsureFeature(this.Owner, c, null)

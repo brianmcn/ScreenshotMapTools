@@ -31,7 +31,24 @@ module Winterop =
     [<DllImport("USER32.DLL", SetLastError = true)>]
     extern bool ClientToScreen(IntPtr hWnd, [<In;Out>] POINT& lpPoint)
 
-// TODO from z1r...
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint32 uFlags)
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern IntPtr GetWindow(IntPtr hWnd, uint32 uCmd)
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern IntPtr GetTopWindow(IntPtr hWnd)
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool IsWindowVisible(IntPtr hWnd)
+
+// Win32 Constants
+let GW_HWNDNEXT = 2u
+let GW_HWNDPREV = 3u
+let HWND_NOTOPMOST = nativeint -2
+let HWND_TOP = nativeint 0
+let SWP_NOMOVE     = 0x0002u
+let SWP_NOSIZE     = 0x0001u
+let SWP_NOACTIVATE = 0x0010u
+
 let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
     let tx,ty = targetX, targetY
     let sx,sy = sourceX, sourceY
@@ -52,8 +69,7 @@ let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
     triangle.Points <- new PointCollection([Point(tx,ty); Point(p1x,p1y); Point(p2x,p2y)])
     line, triangle
 
-
-
+(*
 // see also https://www.codeproject.com/Articles/12877/Transparent-Click-Through-Forms
 let MakeNonActivateable(w:Window) =
     let helper = new System.Windows.Interop.WindowInteropHelper(w)
@@ -64,15 +80,18 @@ let MakeNonActivateable(w:Window) =
     Winterop.ShowWindow(hwnd, SW_HIDE) |> ignore
     Winterop.SetWindowLongPtrA(hwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(hwnd, GWL_EXSTYLE))) ||| WS_EX_NOACTIVATE ||| WS_EX_APPWINDOW)) |> ignore
     Winterop.ShowWindow(hwnd, SW_SHOW) |> ignore
-
-let GetActiveWindowTitle() =
+*)
+let GetWindowTitle(hwnd) =
     let N = 256
     let buff = new StringBuilder(N)
-    let handle = Winterop.GetForegroundWindow()
-    if (Winterop.GetWindowText(handle, buff, N) > 0) then
+    if (Winterop.GetWindowText(hwnd, buff, N) > 0) then
         buff.ToString()
     else
         null
+let GetActiveWindowTitle() =
+    let handle = Winterop.GetForegroundWindow()
+    GetWindowTitle(handle)
+
 let GetActiveWindowClientRect() =
     let handle = Winterop.GetForegroundWindow()
     let mutable r : Elephantasy.Screenshot.RECT = Unchecked.defaultof<_>
@@ -85,30 +104,96 @@ let GetActiveWindowClientRect() =
     r.bottom <- r.bottom + p.y
     r
 
-let mutable createdCount = 0
-type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
+let debugOutput = true
+let debugWindowZOrder() =
+    if debugOutput then
+        let mutable hwndCur = Winterop.GetTopWindow(IntPtr(0))
+        let mutable count = 0
+        printfn "Current top of window stack:"
+        while hwndCur <> IntPtr(0) && count < 5 do
+            if Winterop.IsWindowVisible(hwndCur) then
+                let title = GetWindowTitle(hwndCur)
+                if not(System.String.IsNullOrEmpty(title)) then
+                    printfn "    %s" (GetWindowTitle hwndCur)
+                    count <- count + 1
+            hwndCur <- Winterop.GetWindow(hwndCur, GW_HWNDNEXT)
+
+type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
+    let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
     let mutable clickThru = false
+    let mutable hwndGlassTarget = IntPtr(0)
+    let mutable ignoreChanges = false
+    let moveGlassAtopTarget(debugStr) =
+        if hwndGlassTarget <> IntPtr(0) then
+            async {
+                do! Async.Sleep(1)  // pump ui
+                // move the glass to just above the glass target
+                let nextAboveTarget = Winterop.GetWindow(hwndGlassTarget, GW_HWNDPREV)
+                debugWindowZOrder()
+                if debugOutput then printfn "moving glass(%s) above target %s" debugStr (GetWindowTitle hwndGlassTarget)
+                ignoreChanges <- true
+                Winterop.SetWindowPos(hwndParentGlass, nextAboveTarget, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
+                do! Async.Sleep(1)  // pump ui
+                ignoreChanges <- false
+                debugWindowZOrder()
+            } |> Async.StartImmediate
+        else
+            printfn "mgat-no target yet"
+    let activateTargetAndMoveGlass(debugStr) =
+        if hwndGlassTarget <> IntPtr(0) then
+            async {
+                // activate the target
+                do! Async.Sleep(1)  // pump ui
+                if debugOutput then printfn "activating target (%s)" debugStr
+                debugWindowZOrder()
+                ignoreChanges <- true
+                Winterop.SetWindowPos(hwndGlassTarget, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
+                do! Async.Sleep(1)  // pump ui
+                moveGlassAtopTarget(sprintf "atamg(%s)" debugStr)
+            } |> Async.StartImmediate
+        else
+            printfn "atamg-no target yet"
+    let focusChanged(_prevHwnd, newHwnd) =
+        if not ignoreChanges then
+            if hwndGlassTarget <> IntPtr(0) then
+                if newHwnd = hwndGlassTarget then
+                    if debugOutput then printfn "glass target"
+                    moveGlassAtopTarget("focus changed to glass target")
+                elif newHwnd = hwndParentGlass then
+                    if debugOutput then printfn "glass itself"
+                    activateTargetAndMoveGlass("focus changed to glass")
+            else
+                printfn "fc-no target yet"
+    let watcherId = WindowFocusTrackingUtils.addWindowFocusWatcher(focusChanged)
     let label = new Label(Content="switch to click-thru")
     let toggleClickThruButton = new Button(Content=label, Margin=Thickness(2.))
     do
-        this.Owner <- parent
-        this.Title <- sprintf "GlassControl%d" createdCount
+        this.Owner <- parentGlass
+        this.Title <- "GlassControl"
         this.Loaded.Add(fun _ ->
             //printfn "loading controls"
             this.Content <- new TextBox(Text="focus the window you\nwant to draw on top of", Margin=Thickness(8.), BorderThickness=Thickness(0.))
             async {
                 //printfn "waiting for user to focus another app"
                 let! _ = Async.AwaitEvent this.Deactivated
-                do! Async.Sleep(400)  // ensure time for OS to activate other app
+                do! Async.Sleep(100)  // ensure time for OS to activate other app
                 //printfn "saw focus change"
+                this.Activated.Add(fun _ -> 
+                    // if they click on the controls window, bring the target to top as well
+                    // but first process whatever they clicked on
+                    async {
+                        do! Async.Sleep(100) // kludgy - pump ui to process the click e.g. on a button, before reordering windows
+                        activateTargetAndMoveGlass("control window was activated")
+                    } |> Async.StartImmediate
+                    )  
                 sizeParentF()
-                modeF(clickThru)
+                updateClickThruModeF(clickThru)
+                hwndGlassTarget <- Winterop.GetForegroundWindow()
                 let r = GetActiveWindowClientRect()
                 this.Top <- float(r.bottom + 4)
                 this.Left <- float(r.left)
-                MakeNonActivateable(this)
-                let phelper = new System.Windows.Interop.WindowInteropHelper(parent)
+                let phelper = new System.Windows.Interop.WindowInteropHelper(parentGlass)
                 let phwnd = phelper.Handle
                 let SW_HIDE, SW_SHOW = 0, 5
                 let GWL_EXSTYLE = -20
@@ -125,7 +210,7 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
                         Winterop.ShowWindow(phwnd, SW_SHOW) |> ignore
                     clickThru <- not clickThru
                     label.Content <- if clickThru then "switch to drawing" else "switch to click-thru"
-                    modeF(clickThru)
+                    updateClickThruModeF(clickThru)
                     )
                 let eraseButton = new Button(Content=new Label(Content="erase all"), Margin=Thickness(2.))
                 eraseButton.Click.Add(fun _ -> eraseF())
@@ -202,29 +287,32 @@ type ControlsWindow(parent : Window, eraseF, sizeParentF, modeF, updatePenShapeF
                 sp.Children.Add(arrowCB) |> ignore
                 sp.Children.Add(colorGrid) |> ignore
                 this.Content <- sp
+                do! Async.Sleep(1)  // pump ui
+                parentGlass.Topmost <- true
+                parentGlass.Activate() |> ignore
+                parentGlass.Topmost <- false
                 } |> Async.StartImmediate
         )
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Closed.Add(fun _ ->
+            WindowFocusTrackingUtils.removeWindowFocusWatcher(watcherId)
             async { 
                 let ctxt = SynchronizationContext.Current
                 do! Async.Sleep(20)
                 do! Async.SwitchToContext(ctxt)
-                parent.Close() 
+                parentGlass.Close() 
                 } |> Async.StartImmediate
             )
 
 type DrawingGlassWindow() as this =
     inherit Window()
     do
-        createdCount <- createdCount + 1
-        this.Title <- sprintf "LorgonGlass%d" createdCount
+        this.Title <- "LorgonGlass"
         this.SizeToContent <- SizeToContent.Manual
         this.WindowStartupLocation <- WindowStartupLocation.Manual
         this.Background <- Brushes.Transparent
         this.AllowsTransparency <- true
         this.WindowStyle <- WindowStyle.None
-        this.Topmost <- true
         //this.ForceCursor <- true
         this.Cursor <- System.Windows.Input.Cursors.None
 
@@ -275,7 +363,6 @@ type DrawingGlassWindow() as this =
             borderRect.Width <- this.Width
             borderRect.Height <- this.Height
             this.Content <- total
-            MakeNonActivateable(this)
         let eraseSpotlightOpacityMask() =
             let b = new SolidColorBrush(Color.FromArgb(0x01uy,0xFFuy,0xFFuy,0xFFuy))
             let all = new RectangleGeometry(Rect(0., 0., 1., 1.))
@@ -284,6 +371,7 @@ type DrawingGlassWindow() as this =
             let db = new DrawingBrush(Drawing=spotlight)
             spotlightCanvas.OpacityMask <- db
         let updateClickThruMode(clickThru) =
+            //printfn "clickthru: %A" clickThru
             if clickThru then
                 borderRect.Stroke <- Brushes.Transparent
                 watermark.Opacity <- 0.
@@ -309,9 +397,7 @@ type DrawingGlassWindow() as this =
             elif drawingMode=1 then
                 penCanvas.Children.Clear()
                 redoStack.Clear()
-        // TODO I want a draw program to toggle its own click-thru transparency with a hotkey, be topmost, and never activate
         this.Loaded.Add(fun _ ->
-            printfn "loading glass"
             let cw = new ControlsWindow(this, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b), (fun c -> pen.Brush <- c))
             cw.Show()
             )
@@ -319,6 +405,7 @@ type DrawingGlassWindow() as this =
         let mutable geoGroup = new GeometryGroup()
         let mutable tempRect = null
         catchAll.MouseLeftButtonDown.Add(fun ea -> 
+            //printfn "mouse LB down, active: %A" this.IsActive
             ea.Handled <- true
             startPoint <- Some(ea.GetPosition(catchAll))
             if drawingMode=1 then
@@ -346,20 +433,12 @@ type DrawingGlassWindow() as this =
             else
                 myCursor.Opacity <- 0.0
             )
-        catchAll.MouseMove.Add(fun ea ->
-            let e = ea.GetPosition(catchAll)
-            Canvas.SetLeft(myCursor, e.X)
-            Canvas.SetTop(myCursor, e.Y)
-            if drawingMode=1 then
-                extendPenDraw(e)
-            )
-        catchAll.MouseLeftButtonUp.Add(fun ea -> 
-            ea.Handled <- true
+        let finishStroke(pos:Point) =
             if drawingMode=0 then
                 match startPoint with
                 | None -> ()
                 | Some(startPoint) ->
-                    let endPoint = ea.GetPosition(catchAll)
+                    let endPoint = pos
                     let sx,ex = if startPoint.X > endPoint.X then endPoint.X,startPoint.X else startPoint.X,endPoint.X
                     let sy,ey = if startPoint.Y > endPoint.Y then endPoint.Y,startPoint.Y else startPoint.Y,endPoint.Y
                     let x = sx / spotlightCanvas.Width
@@ -368,38 +447,59 @@ type DrawingGlassWindow() as this =
                     let h = (ey - sy) / spotlightCanvas.Height
                     spotlight(x,y,w,h)
             elif drawingMode=1 then
-                let e = ea.GetPosition(catchAll)
-                extendPenDraw(e)
-                if geoGroup.Children.Count > 0 && tempRect<> null then
-                    if drawArrowheads then
-                        let A = pen.Thickness * 2.0
-                        let mutable i = geoGroup.Children.Count-1
-                        let mutable lg = geoGroup.Children.Item(i) :?> LineGeometry
-                        let e = lg.EndPoint
-                        let sq(x) = x*x
-                        // find a long enough bit of 'stroke' suffix to decide which direction the end of the stroke is pointing
-                        while i>0 && sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A do
-                            i <- i - 1
-                            lg <- geoGroup.Children.Item(i) :?> LineGeometry
-                        // if we found one, then draw arrowhead, else (e.g. in case they just clicked to draw a 'dot' with no direction) don't
-                        if not(sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A) then
-                            // compute arrowhead points...
-                            let tx,ty = e.X, e.Y          // target
-                            let sx,sy = lg.StartPoint.X, lg.StartPoint.Y      // source
-                            let pct = 1. - A/sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base A pixels down the line
-                            let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
-                            // ...differential between target and arrowhead base
-                            let dx,dy = tx-ax, ty-ay
-                            // ...points orthogonal to the line from the base
-                            let SF = 1.5   // spread factor
-                            let p1x,p1y = ax+dy/SF, ay-dx/SF
-                            let p2x,p2y = ax-dy/SF, ay+dx/SF
-                            // make arrowhead
-                            geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p1x,p1y), EndPoint=e))
-                            geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p2x,p2y), EndPoint=e))
-                    adjustRect()
+                match startPoint with
+                | None -> ()
+                | Some(_) ->
+                    let e = pos
+                    extendPenDraw(e)
+                    if geoGroup.Children.Count > 0 && tempRect<> null then
+                        if drawArrowheads then
+                            let A = pen.Thickness * 2.0
+                            let mutable i = geoGroup.Children.Count-1
+                            let mutable lg = geoGroup.Children.Item(i) :?> LineGeometry
+                            let e = lg.EndPoint
+                            let sq(x) = x*x
+                            // find a long enough bit of 'stroke' suffix to decide which direction the end of the stroke is pointing
+                            while i>0 && sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A do
+                                i <- i - 1
+                                lg <- geoGroup.Children.Item(i) :?> LineGeometry
+                            // if we found one, then draw arrowhead, else (e.g. in case they just clicked to draw a 'dot' with no direction) don't
+                            if not(sqrt(sq(lg.StartPoint.X-e.X)+sq(lg.StartPoint.Y-e.Y))<A) then
+                                // compute arrowhead points...
+                                let tx,ty = e.X, e.Y          // target
+                                let sx,sy = lg.StartPoint.X, lg.StartPoint.Y      // source
+                                let pct = 1. - A/sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base A pixels down the line
+                                let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
+                                // ...differential between target and arrowhead base
+                                let dx,dy = tx-ax, ty-ay
+                                // ...points orthogonal to the line from the base
+                                let SF = 1.5   // spread factor
+                                let p1x,p1y = ax+dy/SF, ay-dx/SF
+                                let p2x,p2y = ax-dy/SF, ay+dx/SF
+                                // make arrowhead
+                                geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p1x,p1y), EndPoint=e))
+                                geoGroup.Children.Add(new LineGeometry(StartPoint=Point(p2x,p2y), EndPoint=e))
+                        adjustRect()
             startPoint <- None
             tempRect <- null
+        catchAll.MouseMove.Add(fun ea ->
+            ea.Handled <- true
+            let e = ea.GetPosition(catchAll)
+            Canvas.SetLeft(myCursor, e.X)
+            Canvas.SetTop(myCursor, e.Y)
+            if ea.LeftButton = Input.MouseButtonState.Pressed then
+                if drawingMode=1 then
+                    extendPenDraw(e)
+            else
+                // sometimes clicking into window/activation it sees the mousedown but misses the mouseup and draw without button held
+                match startPoint with
+                | None -> ()
+                | Some(_) ->
+                    finishStroke(e)
+            )
+        catchAll.MouseLeftButtonUp.Add(fun ea -> 
+            ea.Handled <- true
+            finishStroke(ea.GetPosition(catchAll))
             )
 (*
         // TODO remove this?
@@ -431,25 +531,3 @@ type DrawingGlassWindow() as this =
             )
         
 
-(*
-
-multiple spotlights?
-
-cursor
-DONE - ellipse/rectangle shape (also spotlight?)
-- size increase/decrease
-
-pen drawing
- - colors
- - arrow mode
- - eraser mode (how implement?)
-
-undo/redo
-
-DONE clear screen
-
-watermark when anything drawn?
-
-stretch goals: save
-
-*)

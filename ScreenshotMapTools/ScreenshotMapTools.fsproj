@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <Compile Include="HS.fs" />
+    <Compile Include="WindowFocusTrackingUtils.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />

@@ -57,6 +57,7 @@ let EnsureFeature(rootOwner, content, screenshotFilename) =
             )
     //FeatureWindow.TheFeatureWindow.ShowDialog() |> ignore
     FeatureWindow.TheFeatureWindow.Show() |> ignore
+    FeatureWindow.TheFeatureWindow.Activate() |> ignore
 
 type GridRange(iminx,iminy,imaxx,imaxy) =
     let mutable minx,miny,maxx,maxy = iminx,iminy,imaxx,imaxy
