@@ -593,6 +593,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(zoneComboBox) |> ignore
             sp.Children.Add(renameZoneButton) |> ignore
             sp.Children.Add(printCurrentZoneButton) |> ignore
+            (*
             let toggleLayoutButton = new Button(Content="Toggle layout", Margin=Thickness(4.))
             toggleLayoutButton.Click.Add(fun _ ->
                 if all.Orientation = Orientation.Vertical then
@@ -603,6 +604,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     this.Left <- this.Left + float APP_WIDTH
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
+            *)
+            let trimButton = new Button(Content="Trim", Margin=Thickness(4.))
+            trimButton.Click.Add(fun _ -> 
+                match TryFindHwndForTheChosenGame() with
+                | Some(hwnd) -> 
+                    let r = WinteropUtils.GetWindowClientRect(hwnd)
+                    let asw = new AreaSelection.AreaSelectionWindow(r.left, r.top, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
+                    asw.Show()
+                    // TODO act on results
+                | None -> 
+                    System.Console.Beep()
+                )
+            sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
             featureButton.Click.Add(fun _ -> 
                 let W = 220
@@ -933,7 +947,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     member this.EditNotes() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         setCursor()
-        Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+        Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
         let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
         let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true)
         if save then
@@ -944,7 +958,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             printfn "here"
             setCursor()
-            Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
             let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false)
             if save then
                 specialText <- result

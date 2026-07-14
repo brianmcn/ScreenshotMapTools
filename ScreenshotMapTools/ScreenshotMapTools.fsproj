@@ -11,8 +11,11 @@
 
   <ItemGroup>
     <Compile Include="HS.fs" />
+    <Compile Include="Winterop.fs" />
+    <Compile Include="WinteropUtils.fs" />
     <Compile Include="WindowFocusTrackingUtils.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="AreaSelection.fs" />
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
     <Compile Include="Elephantasy.fs" />

@@ -5,41 +5,8 @@ module Screenshot =
     open System.Text
 
     open System
-    open System.Runtime.InteropServices
-    type EnumWindowsProc = delegate of IntPtr * IntPtr -> bool
-    type HWND = IntPtr
-    type HANDLE = IntPtr
-    type HMODULE = IntPtr
-    type DWORD = int
-    [<DllImport("USER32.DLL")>]
-    extern bool EnumWindows(EnumWindowsProc enumFunc, IntPtr lParam)
-    [<DllImport("USER32.DLL")>]
-    extern int GetWindowText(HWND hWnd, StringBuilder lpString, int nMaxCount)
-    [<DllImport("USER32.DLL")>]
-    extern int GetWindowTextLength(HWND hWnd)
-    [<DllImport("USER32.DLL")>]
-    extern DWORD GetWindowThreadProcessId(HWND hWnd, [<Out>] DWORD& lpdwProcessId)
-    [<DllImport("USER32.DLL")>]
-    extern bool IsWindowVisible(HWND hWnd)
-    [<DllImport("USER32.DLL")>]
-    extern HWND GetShellWindow()
-    [<DllImport("KERNEL32.DLL")>]
-    extern HANDLE OpenProcess(DWORD dwDesiredAccess, bool bInheritHandle, DWORD dwProcessId)
-    [<DllImport("KERNEL32.DLL")>]
-    extern bool QueryFullProcessImageNameA(HANDLE hProcess, DWORD dwFlags, StringBuilder lpExeName, DWORD& lpdwSize)
-    [<DllImport("KERNEL32.DLL")>]
-    extern bool CloseHandle(HANDLE hObject)
-    [<Struct>]
-    [<StructLayout(LayoutKind.Sequential)>]
-    type RECT =
-        val mutable left:int
-        val mutable top:int
-        val mutable right:int
-        val mutable bottom:int
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern [<return: MarshalAs(UnmanagedType.Bool)>] bool GetWindowRect(IntPtr hWnd, [<Out>] RECT& lpRect)
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern [<return: MarshalAs(UnmanagedType.Bool)>] bool GetClientRect(IntPtr hWnd, [<Out>] RECT& lpRect)
+    open Winterop
+    open Winterop.Win32
 
     let GetOpenWindows() =
         let shellWindow = GetShellWindow()

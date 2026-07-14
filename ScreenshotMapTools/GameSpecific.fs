@@ -46,7 +46,7 @@ type ChosenGame() =
                         yield System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
                     with _ -> ()
             |]
-        Utils.Win32.SetForegroundWindow(Elephantasy.Winterop.GetConsoleWindow()) |> ignore
+        Winterop.Win32.SetForegroundWindow(Elephantasy.Winterop.GetConsoleWindow()) |> ignore
         System.Console.WriteLine "Choose startup option:"
         System.Console.WriteLine "0: New Game"
         let mutable i = 1
@@ -133,7 +133,7 @@ let ActivateGameWindow() =
     match TryFindHwndForTheChosenGame() with
     | Some(hwnd) -> 
         System.Console.WriteLine(sprintf "bringing game '%s' to the foreground" TheChosenGame.WINDOW_TITLE)
-        if Utils.Win32.SetForegroundWindow(hwnd) = false then
+        if Winterop.Win32.SetForegroundWindow(hwnd) = false then
             System.Console.WriteLine("...but that failed for some reason")
     | None ->
         System.Console.WriteLine("game window not found")

@@ -4,33 +4,7 @@ open System
 open System.Runtime.InteropServices
 open System.Text
 
-[<StructLayout(LayoutKind.Sequential)>]
-type POINT =
-    struct
-        val x: int
-        val y: int
-    end
-
-type WinEventDelegate = delegate of IntPtr * uint32 * IntPtr * int * int * uint32 * uint32 -> unit
-
-module NativeMethods =
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern IntPtr SetWinEventHook(uint32 eventMin, uint32 eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint32 idProcess, uint32 idThread, uint32 dwFlags)
-
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern bool UnhookWinEvent(IntPtr hWinEventHook)
-
-    [<DllImport("user32.dll")>]
-    extern IntPtr GetForegroundWindow()
-
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern uint32 GetWindowThreadProcessId(IntPtr hWnd, [<Out>] uint32& lpdwProcessId)
-
-    [<DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)>]
-    extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount)
-
-let EVENT_SYSTEM_FOREGROUND = 0x0003u
-let WINEVENT_OUTOFCONTEXT = 0x0000u
+open Winterop
 
 let mutable previousForegroundWindow = IntPtr.Zero
 let mutable curId = 0

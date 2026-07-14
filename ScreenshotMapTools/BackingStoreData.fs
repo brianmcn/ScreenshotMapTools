@@ -1,8 +1,6 @@
 ﻿module BackingStoreData
 
-module Win32 =
-    [<System.Runtime.InteropServices.DllImport("User32.dll")>]
-    extern bool PrintWindow(System.IntPtr hwnd, nativeint hdcBlt, uint32 nFlags)
+open Winterop
 
 let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
     let bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb)

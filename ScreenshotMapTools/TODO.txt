@@ -10,16 +10,20 @@ from dwarf:
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
 
+TODO select map area (interact corners, save CurrentGame data, and clear each zone's map caches (which maybe means delete directory and restart app))
+
 
 export all tags to text file
 e.g. show #hat all coordinates, #emuu, etc
 maybe with text line context somehow
 and some way to label coords better to match game hmmm
 
+
 also, i have never added controls using non-numpad keyboard other than click and typing into text boxes, but if you 
 focus the app, i could do a lot more rich editing etc... not sure what, but don't feel limited by numpad, esp. for 
 things that imply not game focused
 
+-------------------------------------------------------
 
 for incremental loading
 

@@ -1,22 +1,6 @@
 ﻿module Utils
 
-//////////////////////////////////////////////////////
-
-// note https://stackoverflow.com/questions/20444735/issue-with-setforegroundwindow-in-net
-
-module Win32 =
-    open System
-    open System.Runtime.InteropServices
-    [<DllImport("USER32.DLL")>]
-    extern bool SetForegroundWindow(IntPtr hwnd)
-    [<DllImport("USER32.DLL")>]
-    extern bool ShowWindow(IntPtr hWnd, int nCmdShow)
-    [<DllImport("USER32.DLL")>]
-    extern IntPtr SetWindowLongPtrA(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
-    [<DllImport("USER32.DLL")>]
-    extern IntPtr GetWindowLongPtrA(IntPtr hWnd, int nIndex)
-
-//////////////////////////////////////////////////////
+open Winterop
 
 type IEventingReader<'T> =
     abstract Value : 'T with get

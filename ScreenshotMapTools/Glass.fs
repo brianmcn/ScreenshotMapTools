@@ -4,50 +4,10 @@ open System
 open System.Windows
 open System.Windows.Media
 open System.Threading
-open System.Runtime.InteropServices
 open System.Text
-open System.Windows.Threading
 open System.Windows.Controls
 
-module Winterop =
-    [<DllImport("user32.dll")>]
-    extern IntPtr GetForegroundWindow()
-    [<DllImport("user32.dll")>]
-    extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count)
-
-    [<DllImport("USER32.DLL")>]
-    extern bool SetForegroundWindow(IntPtr hwnd)
-    [<DllImport("USER32.DLL")>]
-    extern bool ShowWindow(IntPtr hWnd, int nCmdShow)
-    [<DllImport("USER32.DLL")>]
-    extern IntPtr SetWindowLongPtrA(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
-    [<DllImport("USER32.DLL")>]
-    extern IntPtr GetWindowLongPtrA(IntPtr hWnd, int nIndex)
-    [<Struct>]
-    [<StructLayout(LayoutKind.Sequential)>]
-    type POINT =
-        val mutable x:int
-        val mutable y:int
-    [<DllImport("USER32.DLL", SetLastError = true)>]
-    extern bool ClientToScreen(IntPtr hWnd, [<In;Out>] POINT& lpPoint)
-
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint32 uFlags)
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern IntPtr GetWindow(IntPtr hWnd, uint32 uCmd)
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern IntPtr GetTopWindow(IntPtr hWnd)
-    [<DllImport("user32.dll", SetLastError = true)>]
-    extern bool IsWindowVisible(IntPtr hWnd)
-
-// Win32 Constants
-let GW_HWNDNEXT = 2u
-let GW_HWNDPREV = 3u
-let HWND_NOTOPMOST = nativeint -2
-let HWND_TOP = nativeint 0
-let SWP_NOMOVE     = 0x0002u
-let SWP_NOSIZE     = 0x0001u
-let SWP_NOACTIVATE = 0x0010u
+open Winterop
 
 let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
     let tx,ty = targetX, targetY
@@ -81,42 +41,19 @@ let MakeNonActivateable(w:Window) =
     Winterop.SetWindowLongPtrA(hwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(hwnd, GWL_EXSTYLE))) ||| WS_EX_NOACTIVATE ||| WS_EX_APPWINDOW)) |> ignore
     Winterop.ShowWindow(hwnd, SW_SHOW) |> ignore
 *)
-let GetWindowTitle(hwnd) =
-    let N = 256
-    let buff = new StringBuilder(N)
-    if (Winterop.GetWindowText(hwnd, buff, N) > 0) then
-        buff.ToString()
-    else
-        null
-let GetActiveWindowTitle() =
-    let handle = Winterop.GetForegroundWindow()
-    GetWindowTitle(handle)
-
-let GetActiveWindowClientRect() =
-    let handle = Winterop.GetForegroundWindow()
-    let mutable r : Elephantasy.Screenshot.RECT = Unchecked.defaultof<_>
-    if Elephantasy.Screenshot.GetClientRect(handle, &r) = false then failwith "bad window"
-    let mutable p : Winterop.POINT = Unchecked.defaultof<_>
-    if Winterop.ClientToScreen(handle, &p) = false then failwith "bad window"
-    r.left <- r.left + p.x
-    r.right <- r.right + p.x
-    r.top <- r.top + p.y
-    r.bottom <- r.bottom + p.y
-    r
-
 let debugOutput = true
 let debugWindowZOrder() =
     if debugOutput then
-        let mutable hwndCur = Winterop.GetTopWindow(IntPtr(0))
+        let mutable hwndCur = Win32.GetTopWindow(IntPtr(0))
         let mutable count = 0
         printfn "Current top of window stack:"
         while hwndCur <> IntPtr(0) && count < 5 do
-            if Winterop.IsWindowVisible(hwndCur) then
-                let title = GetWindowTitle(hwndCur)
+            if Win32.IsWindowVisible(hwndCur) then
+                let title = WinteropUtils.GetWindowTitle(hwndCur)
                 if not(System.String.IsNullOrEmpty(title)) then
-                    printfn "    %s" (GetWindowTitle hwndCur)
+                    printfn "    %s" (WinteropUtils.GetWindowTitle hwndCur)
                     count <- count + 1
-            hwndCur <- Winterop.GetWindow(hwndCur, GW_HWNDNEXT)
+            hwndCur <- Win32.GetWindow(hwndCur, GW_HWNDNEXT)
 
 type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
@@ -129,11 +66,11 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
             async {
                 do! Async.Sleep(1)  // pump ui
                 // move the glass to just above the glass target
-                let nextAboveTarget = Winterop.GetWindow(hwndGlassTarget, GW_HWNDPREV)
+                let nextAboveTarget = Win32.GetWindow(hwndGlassTarget, GW_HWNDPREV)
                 debugWindowZOrder()
-                if debugOutput then printfn "moving glass(%s) above target %s" debugStr (GetWindowTitle hwndGlassTarget)
+                if debugOutput then printfn "moving glass(%s) above target %s" debugStr (WinteropUtils.GetWindowTitle hwndGlassTarget)
                 ignoreChanges <- true
-                Winterop.SetWindowPos(hwndParentGlass, nextAboveTarget, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
+                Win32.SetWindowPos(hwndParentGlass, nextAboveTarget, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
                 do! Async.Sleep(1)  // pump ui
                 ignoreChanges <- false
                 debugWindowZOrder()
@@ -148,7 +85,7 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
                 if debugOutput then printfn "activating target (%s)" debugStr
                 debugWindowZOrder()
                 ignoreChanges <- true
-                Winterop.SetWindowPos(hwndGlassTarget, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
+                Win32.SetWindowPos(hwndGlassTarget, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
                 do! Async.Sleep(1)  // pump ui
                 moveGlassAtopTarget(sprintf "atamg(%s)" debugStr)
             } |> Async.StartImmediate
@@ -189,8 +126,8 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
                     )  
                 sizeParentF()
                 updateClickThruModeF(clickThru)
-                hwndGlassTarget <- Winterop.GetForegroundWindow()
-                let r = GetActiveWindowClientRect()
+                hwndGlassTarget <- Win32.GetForegroundWindow()
+                let r = WinteropUtils.GetActiveWindowClientRect()
                 this.Top <- float(r.bottom + 4)
                 this.Left <- float(r.left)
                 let phelper = new System.Windows.Interop.WindowInteropHelper(parentGlass)
@@ -201,13 +138,13 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
                 let WS_EX_TRANSPARENT = 0x00000020L
                 toggleClickThruButton.Click.Add(fun _ ->
                     if not clickThru then
-                        Winterop.ShowWindow(phwnd, SW_HIDE) |> ignore
-                        Winterop.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) ||| WS_EX_LAYERED ||| WS_EX_TRANSPARENT)) |> ignore
-                        Winterop.ShowWindow(phwnd, SW_SHOW) |> ignore
+                        Win32.ShowWindow(phwnd, SW_HIDE) |> ignore
+                        Win32.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Win32.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) ||| WS_EX_LAYERED ||| WS_EX_TRANSPARENT)) |> ignore
+                        Win32.ShowWindow(phwnd, SW_SHOW) |> ignore
                     else
-                        Winterop.ShowWindow(phwnd, SW_HIDE) |> ignore
-                        Winterop.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) &&& (~~~(WS_EX_LAYERED ||| WS_EX_TRANSPARENT)))) |> ignore
-                        Winterop.ShowWindow(phwnd, SW_SHOW) |> ignore
+                        Win32.ShowWindow(phwnd, SW_HIDE) |> ignore
+                        Win32.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Win32.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) &&& (~~~(WS_EX_LAYERED ||| WS_EX_TRANSPARENT)))) |> ignore
+                        Win32.ShowWindow(phwnd, SW_SHOW) |> ignore
                     clickThru <- not clickThru
                     label.Content <- if clickThru then "switch to drawing" else "switch to click-thru"
                     updateClickThruModeF(clickThru)
@@ -349,7 +286,7 @@ type DrawingGlassWindow() as this =
             pen.EndLineCap <- if penShape=0 then PenLineCap.Round else PenLineCap.Square
             pen.LineJoin <- if penShape=0 then PenLineJoin.Round else PenLineJoin.Miter
         let sizeMe() =
-            let r = GetActiveWindowClientRect()
+            let r = WinteropUtils.GetActiveWindowClientRect()
             this.Left <- float(r.left)
             this.Top <- float(r.top)
             this.Width <- float(r.right - r.left)

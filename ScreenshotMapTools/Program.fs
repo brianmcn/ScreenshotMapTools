@@ -2,8 +2,6 @@
 open System
 open System.Windows
 
-
-
 // in order for multiple app windows to not have a forced Z-Order from Owner-Child relationship, need a hidden dummy window to own all the visible windows
 type DummyWindow() as this =
     inherit Window()
@@ -65,39 +63,17 @@ type DummyWindow() as this =
 let main argv =
     (*
     let app = new Application()
-    app.Run(new Knytt.MyWindow())
-    *)
-    
-    (*
-    let app = new Application()
     app.Run(new HS.QRWindow())
     *)
-    
     // DeepRune.drMain()
-    
     //StitchView.svMain()
 
-    //Elephantasy.Screenshot.testMain()
-
-    (*
-    printfn "%A" (GenericMetadata.AllHashtags("#foo"))
-    printfn "%A" (GenericMetadata.AllHashtags("yadda #bar baz #qux yadda"))
-    printfn "%A" (GenericMetadata.AllHashtags("#_ #a #b #c #1 #f4 #"))
-    printfn "%A" (GenericMetadata.AllHashtags("yadda #bar ## ###a #qux yadda"))
-
-
-    let _,n = System.Numerics.BigInteger.TryParse("2926619871974812")
-    let mutable r = n
-    while not r.IsZero do
-        let x,y = System.Numerics.BigInteger.DivRem(r, System.Numerics.BigInteger(36))
-        let i = int y - 10
-        printfn "%c" (char(i + int 'A'))
-        r <- x
-    *)
-
     if false then    
-        let fcPath = "C:\Users\Brian\Desktop\EMUUROM\AfterE37\ForestCover2x2.png"
-        let homePath = "C:\Users\Brian\Desktop\EMUUROM\AfterE37\Home2x2.png"
+        //let fcPath = """C:\Users\Brian\Desktop\EMUUROM\AfterE37\ForestCover2x2.png"""
+        //let homePath = """C:\Users\Brian\Desktop\EMUUROM\AfterE37\Home2x2.png"""
+        let fcPath = """C:\Users\Brian\Desktop\EMUUROM\MazeTheory\foo1.png"""
+        let homePath = """C:\Users\Brian\Desktop\EMUUROM\MazeTheory\foo2.png"""
+        
         let fcBmp = new System.Drawing.Bitmap(fcPath)
         let homeBmp = new System.Drawing.Bitmap(homePath)
         // make home partly transparent
@@ -112,18 +88,17 @@ let main argv =
         g.CompositingMode <- System.Drawing.Drawing2D.CompositingMode.SourceOver
         homeBmp.MakeTransparent();
         g.DrawImage(homeBmp, new System.Drawing.Point(0, 0))
-        fcBmp.Save("C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png")
-    
+        //fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png""")
+        fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\MazeTheory\fooBoth.png""")
+        0
+    else
 
     if argv.Length = 1 && argv.[0] = "--glass" then
         // glass is a separate application to decouple its window activation/z-order from the rest of the app
         let app = new Application()
         app.Run(new Glass.DrawingGlassWindow())
     else
-        //WindowFocusTrackingUtils.testWindowFocusWatcher()
         let app = new Application()
-        //app.Run(new Elephantasy.MyWindow())
         let r = app.Run(new DummyWindow())
         //let r = app.Run(new Glass.DrawingGlassWindow())
-        //let r = WindowFocusTrackingUtils.testMain()
         r

@@ -369,7 +369,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                             for x in allBorders do
                                 x.BorderBrush <- Brushes.Transparent
                             b.BorderBrush <- Brushes.Cyan
-                            Utils.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
+                            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
                             let save, result = 
                                 Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2), false)
                             let r = 
