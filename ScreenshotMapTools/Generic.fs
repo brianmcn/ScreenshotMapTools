@@ -610,9 +610,32 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 match TryFindHwndForTheChosenGame() with
                 | Some(hwnd) -> 
                     let r = WinteropUtils.GetWindowClientRect(hwnd)
-                    let asw = new AreaSelection.AreaSelectionWindow(r.left, r.top, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
-                    asw.Show()
-                    // TODO act on results
+                    match AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea, "select area to display on map") with
+                    | Some(x,y,w,h) ->
+                        // update MapArea in CurrentGame
+                        let json = System.IO.File.ReadAllText(TheChosenGame.GamefileFilename)
+                        let data = System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
+                        data.MapArea <- (x,y,w,h)
+                        let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(data)
+                        WriteAllText(TheChosenGame.GamefileFilename, json)
+                        // for each zone, delete map cache
+                        for z=0 to theGame.ZoneNames.Length-1 do
+                            // we also need to delete the other caches, as code assume all caches stay in sync
+                            let caches = [| InMemoryStore.MAP_FOLDER_NAME; InMemoryStore.FULL_FOLDER_NAME; InMemoryStore.META_FOLDER_NAME |]
+                            for cache in caches do
+                                let folderToDelete = System.IO.Path.Combine([|GetZoneFolder(z);cache|])
+                                if System.IO.Directory.Exists(folderToDelete) then
+                                    let files = System.IO.Directory.GetFiles(folderToDelete)
+                                    for f in files do
+                                        System.IO.File.Delete(f)
+                        // display a modal UI telling user app will restart
+                        MessageBox.Show("The app will restart to clear the map image cache") |> ignore
+                        // restart
+                        this.UnregisterHotKey()
+                        System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
+                        Application.Current.Shutdown()
+                    | None ->
+                        System.Console.Beep()
                 | None -> 
                     System.Console.Beep()
                 )

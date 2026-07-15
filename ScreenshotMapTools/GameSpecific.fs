@@ -1,9 +1,32 @@
 ﻿module GameSpecific
 
-// recompile for different uses, for now
+/////////////////////////////////////////////////
 
-//let GAME = "Void Stranger"
-//let WINDOW_TITLE = "ScreenshotMapTools (Running) - Microsoft Visual Studio"  //"Void Stranger"
+module CommandLine =
+    let mutable glass = false
+    let mutable dontLoadInParallel = true
+    let mutable initGameFolder = null
+    do  // process command line arguments
+        let argv = System.Environment.GetCommandLineArgs()
+        let argv = argv.[1..]  // first is the process exe
+        if argv.Length = 1 && argv.[0] = "--glass" then
+            glass <- true
+        else
+            let argv = 
+                if argv.Length >= 1 && argv.[0] = "--restart" then
+                    System.Threading.Thread.Sleep(500)  // help ensure prior app completely unloaded
+                    argv.[1..]
+                else
+                    argv
+            let argv = 
+                if argv.Length >= 1 && argv.[0] = "--dontLoadInParallel" then
+                    dontLoadInParallel <- true
+                    argv.[1..]
+                else
+                    argv
+            initGameFolder <- if argv.Length = 1 then argv.[0] else null
+
+/////////////////////////////////////////////////
 
 [<AllowNullLiteral>]
 type ChosenGameJson() =
@@ -22,8 +45,8 @@ let WriteAllText(filename, text) =
 
 type ChosenGame() =
     let mutable data = null
+    let gameFile = "CurrentGame.json"
     do
-        let gameFile = "CurrentGame.json"
         (*
         let oneTime =
             let cgj = ChosenGameJson()
@@ -46,6 +69,14 @@ type ChosenGame() =
                         yield System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
                     with _ -> ()
             |]
+        // auto-choose from command-line arg is specified
+        if CommandLine.initGameFolder <> null then
+            for x in possibleArray do
+                if x.GameFolder = CommandLine.initGameFolder then
+                    data <- x
+            if data = null then
+                failwithf "Invalid game folder '%s' specified on command line" CommandLine.initGameFolder
+        else
         Winterop.Win32.SetForegroundWindow(Elephantasy.Winterop.GetConsoleWindow()) |> ignore
         System.Console.WriteLine "Choose startup option:"
         System.Console.WriteLine "0: New Game"
@@ -115,6 +146,7 @@ type ChosenGame() =
     member this.GAMESCREENH = data.GameHeight
     member this.MapArea  = data.MapArea
     member this.MetaArea = data.MetaArea
+    member this.GamefileFilename = System.IO.Path.Combine([|".";this.GAME;gameFile|])
 let TheChosenGame = ChosenGame()
 let TryFindHwndForTheChosenGame() =
     // note, if there are multiple matching windows, we choose one at random, for better or worse

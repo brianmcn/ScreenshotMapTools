@@ -78,6 +78,14 @@ let canvasAdd(c:Canvas,e,x,y) =
     Canvas.SetLeft(e,x)
     Canvas.SetTop(e,y)
     c.Children.Add(e) |> ignore
+let dontFillSurroundingSpace(x) =
+    let sp = new StackPanel(Orientation=Orientation.Horizontal)
+    sp.Children.Add(x) |> ignore
+    let vsp = new StackPanel(Orientation=Orientation.Vertical)
+    vsp.Children.Add(sp) |> ignore
+    vsp.HorizontalAlignment <- HorizontalAlignment.Center
+    vsp.VerticalAlignment <- VerticalAlignment.Center
+    vsp
 let centerWithGrid(x) =
     let g = new Grid()
     g.Children.Add(x) |> ignore

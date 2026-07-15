@@ -9,14 +9,17 @@ let MAX = 100
 let FULL = 0
 let MAP  = 1
 let META = 2
+let FULL_FOLDER_NAME = "full-cache"
+let MAP_FOLDER_NAME = "map-cache"
+let META_FOLDER_NAME = "meta-cache"
 
 // caches are per-zone
 type ImgArrayCache(proj,zone) =
     let prefix = 
         match proj with
-        | x when x=FULL -> "full-cache"
-        | x when x=MAP  -> "map-cache"
-        | x when x=META -> "meta-cache"
+        | x when x=FULL -> FULL_FOLDER_NAME
+        | x when x=MAP  -> MAP_FOLDER_NAME
+        | x when x=META -> META_FOLDER_NAME
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
@@ -209,17 +212,25 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     for f in codas do
         f()     // populate bgwork
     // recompute bitmaps that were not cached
-    let cde = new System.Threading.CountdownEvent(bgWork.Count)
-    let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
-    for (i,j) in bgWork do
-        async {
+    if not(GameSpecific.CommandLine.dontLoadInParallel) then
+        let cde = new System.Threading.CountdownEvent(bgWork.Count)
+        let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
+        // TODO this can fail, if multiple (i,j) reference the same screenshot, we end up with LockBits issues
+        for (i,j) in bgWork do
+            async {
+                let bmp = RecomputeBitmap(i,j,zm)
+                if bmp <> null then
+                    fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp,zm))
+                cde.Signal() |> ignore
+            } |> Async.Start
+        cde.Wait()
+        for f in fgWork do
+            f()
+    else
+        // do it all in series on UI thread
+        for (i,j) in bgWork do
             let bmp = RecomputeBitmap(i,j,zm)
             if bmp <> null then
-                fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp,zm))
-            cde.Signal() |> ignore
-        } |> Async.Start
-    cde.Wait()
-    for f in fgWork do
-        f()
+                RecomputeImageCore(i,j,bmp,zm)
     bmpCount, mapTileCount
 

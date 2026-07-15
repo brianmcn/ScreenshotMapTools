@@ -60,7 +60,7 @@ type DummyWindow() as this =
 
 [<STAThread>]
 [<EntryPoint>]
-let main argv =
+let main _argv =
     (*
     let app = new Application()
     app.Run(new HS.QRWindow())
@@ -93,7 +93,7 @@ let main argv =
         0
     else
 
-    if argv.Length = 1 && argv.[0] = "--glass" then
+    if GameSpecific.CommandLine.glass then
         // glass is a separate application to decouple its window activation/z-order from the rest of the app
         let app = new Application()
         app.Run(new Glass.DrawingGlassWindow())
