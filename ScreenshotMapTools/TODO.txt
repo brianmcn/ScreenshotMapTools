@@ -10,7 +10,9 @@ from dwarf:
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
 
-TODO select map area (interact corners, save CurrentGame data, and clear each zone's map caches (which maybe means delete directory and restart app))
+ make 'trim' work with meta area as well; disable for full; make map/meta/full modes more obvious
+
+ documentation
 
 
 export all tags to text file

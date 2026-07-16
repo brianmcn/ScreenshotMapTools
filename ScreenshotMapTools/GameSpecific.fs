@@ -91,6 +91,8 @@ type ChosenGame() =
                 let wins = Elephantasy.Screenshot.GetOpenWindows()
                 System.Console.WriteLine("Choose an open window process, to load its window size data")
                 System.Console.WriteLine("and start a new screenshot directory.")
+                System.Console.WriteLine("BE SURE THAT THE GAME WINDOW IS ALREADY THE CORRECT SIZE")
+                System.Console.WriteLine("(the tool will expect the game window to ALWAYS be this size)")
                 System.Console.WriteLine(" 0: <abort>")
                 System.Console.WriteLine("")
                 i <- 1

@@ -55,7 +55,7 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
             let updateTB() =
                 tb.Foreground <- if isUL then ulBrush else lrBrush
                 let cor = if isUL then "upper-left" else "lower-right"
-                let wxh = sprintf "(%d x %d)" rectw recth
+                let wxh = sprintf "@(%d,%d) - (%d x %d)" rectx recty rectw recth
                 tb.Text <- sprintf "%s\nuse WASD to move %s corner\nENTER switch corners, ESC when done\n%s" label cor wxh
             async {
                 let rect = new System.Windows.Shapes.Rectangle(Width=float rectw, Height=float recth, Stroke=rectBrush, StrokeThickness=1.)
