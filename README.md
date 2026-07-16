@@ -8,7 +8,7 @@ associated with locations of the map.
 This document is a work in progress (as is the tool).
 
 
-### Pre-requisites
+## Pre-requisites
 
 To use the tool, you currently will need
 
@@ -19,7 +19,7 @@ To use the tool, you currently will need
 * A keyboard with a num-pad
 
 
-### Basic Controls - Screenshots on a grid
+## Basic Controls - Screenshots on a grid
 
 The tool is designed to visible to player (off to the side, or on a separate monitor)
 while they are playing the game (via keyboard or controller).  The basic controls of
@@ -51,11 +51,11 @@ screenshot the 4th room.  The map would now look like this:
 ![map tool after first 4 screens of EMUUROM](doc/img/DemoScreenshots.png)
 
 Each 100x100 grid is called a 'zone', and you can make multiple zones for games with 
-multiple maps (e.g. Zelda1 has overworld ,ap and 9 dungeon maps).  
+multiple maps (e.g. Zelda1 has an overworld map and 9 dungeon maps).  
 TODO link to more info on zones
 
 
-### Multiple screenshots per grid cell
+## Multiple screenshots per grid cell
 
 You can put multiple screenshots in a single cell of the map grid.  By default this will 
 just 'blend' the screenshots into a composite image, which is useful for many games where
@@ -69,7 +69,7 @@ illuminates the whole room:
 ![Minit composite image example](doc/img/MinitExample.png)
 
 
-### Cut and paste
+## Cut and paste
 
 You will inevitably make a mistake and put a screenshot in the wrong grid cell.  The tool
 has basic cut-and-paste functionality to patch up mistaken screenshots.
@@ -84,7 +84,7 @@ The most-recently-cut screenshot appears in a little preview pane in the bottom 
 of the tool.
 
 
-### Text notes and #hashtag labels
+## Text notes and #hashtag labels
 
 You can make text notes for each cell on the grid.  
 
@@ -92,22 +92,23 @@ You can make text notes for each cell on the grid.
 		in the current cell.  
 
 Type with the keyboard.  Press Ctrl-Enter to add a newline in the text box; press Enter when 
-done.  
-
-Your text can contain #hashtags, alphanumeric labels prefixed by an #octothorpe, which 
-enable some more advanced features of tool, like displaying all the #save checkpoint 
-locations you have found and marked up, as an example. 
-TODO link a separate page about #hashtags
-
-You can also create clickable hyperlinks to jump to other cells by typing e.g. coordinates 
-in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
-travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
+you are all done.
 
 When the cursor is on a cell with notes, the bottom left pane of the tool shows a larger
 screenshot of that cell, along with your text notes	for that call.
 
+Your text can contain **#hashtags**, alphanumeric labels prefixed by an #octothorpe, which 
+enable some more advanced features of tool, like, for example, displaying all the #save checkpoint 
+locations you have found and marked up, or all the #shop or #dungeon locations you find, or 
+whatever is suitable to the game you are playing. 
+TODO link a separate page about #hashtags
 
-### Glass
+You can also create clickable **hyperlinks** to jump to other cells by typing e.g. coordinates 
+in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
+travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
+
+
+## Glass
 
 The 'glass' button in the upper right launches a separate app window which allow you to put 
 a "pane of transparent glass you can draw on" over any window (such as the game).  You can 
@@ -116,7 +117,7 @@ use it for basic temporary 'drawing' tasks to display an idea to livestream view
 TODO document it
 
 
-### Other features
+## Other features
 
 TODO eventually document other features
 
