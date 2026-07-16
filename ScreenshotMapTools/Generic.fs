@@ -224,6 +224,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,TheChosenGame.GAMESCREENW,TheChosenGame.GAMESCREENH))
             metaAndScreenshotPanel.Children.Add(main) |> ignore
         metaAndScreenshotPanel.MouseDown.Add(fun ea ->
+            let zm = ZoneMemory.Get(theGame.CurZone)
             ea.Handled <- true
             let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
             if cmt.NumScreenshots() > 0 then

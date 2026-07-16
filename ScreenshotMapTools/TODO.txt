@@ -12,6 +12,10 @@ from dwarf:
 
  make 'trim' work with meta area as well; disable for full; make map/meta/full modes more obvious
 
+ pasting twice into same cell crashes
+
+ pasting seems to somehow re-brighten the screenshot
+
  documentation
 
 

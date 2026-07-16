@@ -3,7 +3,7 @@
 A tool for making screenshot maps of 2-D screen-at-a-time games, and for taking notes
 associated with locations of the map.
 
-(TODO some example screenshots)
+![the tool](doc/img/Tool.png)
 
 This document is a work in progress (as is the tool).
 
@@ -39,10 +39,20 @@ The tool supports a grid of 100x100 cells, and starts you by default at coordina
 So when you start the game, you can put the first screenshot at (50,50) and then just start 
 building your map from there and have plenty of room to build in all 4 directions.  
 
-TODO walkthru scenario first 4 rooms of EMUUROM or something
+For an example, here's how you'd use the tool at the very beginning of playing EMUUROM.
+When you spawn into the world, press `Numpad 0` to take a screenshot of the first screen.
+The only exit is to the left, so after the screen transition in game, press `Numpad 4` to
+move the tool's cursor to the left, and then press `Numpad 0` again to take a screenshot
+of the second screen and place it left of the first one on the grid.  Repeat the same 
+process for the third screen.  Then the only exit from the room is to fall down, so after
+that screen transition, press `Numpad 2` to move the cursor down before `Numpad 0` to 
+screenshot the 4th room.  The map would now look like this:
+
+![map tool after first 4 screens of EMUUROM](doc/img/DemoScreenshots.png)
 
 Each 100x100 grid is called a 'zone', and you can make multiple zones for games with 
-multiple maps (e.g. Zelda1 overworld and 9 dungeons).  TODO link to info on zones
+multiple maps (e.g. Zelda1 has overworld ,ap and 9 dungeon maps).  
+TODO link to more info on zones
 
 
 ### Multiple screenshots per grid cell
@@ -52,7 +62,11 @@ just 'blend' the screenshots into a composite image, which is useful for many ga
 the player gives off a 'light halo' and can only clearly see the portion of the screen they 
 are currently in.
 
-TODO sample image (I can probably dig something out of Minit)
+Here's an example from the game Minit, where 5 different screenshots taken in the same dark
+room can be dropped into the same grid cell to generate a composite image for the map which
+illuminates the whole room:
+
+![Minit composite image example](doc/img/MinitExample.png)
 
 
 ### Cut and paste
@@ -90,7 +104,7 @@ in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up
 travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
 
 When the cursor is on a cell with notes, the bottom left pane of the tool shows a larger
-screenshot of that cell, along with your text notes		
+screenshot of that cell, along with your text notes	for that call.
 
 
 ### Glass
