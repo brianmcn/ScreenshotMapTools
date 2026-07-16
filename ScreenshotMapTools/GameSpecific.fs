@@ -4,7 +4,7 @@
 
 module CommandLine =
     let mutable glass = false
-    let mutable dontLoadInParallel = true
+    let mutable dontLoadInParallel = false
     let mutable initGameFolder = null
     do  // process command line arguments
         let argv = System.Environment.GetCommandLineArgs()

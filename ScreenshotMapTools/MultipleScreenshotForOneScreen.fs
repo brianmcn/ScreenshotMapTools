@@ -3,7 +3,7 @@
 open System.Drawing
 
 let tweak(c) =
-    if true then               
+    if false then               
         let h,s,v = Utils.ColorToHSV(c)
         let v = 
                 // increase value so 0.1-0.4 becomes 0.1 to 0.7, and 0.4 to 1.0 becomes 0.7 to 1.0

@@ -160,6 +160,8 @@ type MapTile() =   // e.g. 50,50
             // new format uses only ScreenshotsWithKinds
             this.Screenshots <- null
             this.ScreenshotsWithKinds <- swks |> Seq.toArray
+        // sanitize (remove any duplicate ssids, which fouls up a number of things)
+        this.ScreenshotsWithKinds <- this.ScreenshotsWithKinds |> Array.distinctBy (fun swk -> swk.Id)
     member this.Assert() =
         if this.Screenshots <> null || this.ScreenshotsWithKinds = null then
             failwith "noncanonical MapTile"
