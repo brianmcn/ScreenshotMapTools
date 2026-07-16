@@ -127,8 +127,11 @@ type ScreenshotWithKinds() =
     member val Kinds : string[] = null with get,set    // e.g. [| "main"; "shop" |]
     member this.IsMainKind() =  this.Kinds |> Array.contains MAIN_KIND
 
+#nowarn "44"  // MapTile.Screenshots is obsolete for other code, but used in code below for back-compat
+
 [<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50
+    [<System.ObsoleteAttribute("Use ScreenshotsWithKinds instead", false)>]
     member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]  // used for backward compat, before kinds; all assumed "main"
     member val ScreenshotsWithKinds : ScreenshotWithKinds[] = [||] with get,set         // new version of data
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"

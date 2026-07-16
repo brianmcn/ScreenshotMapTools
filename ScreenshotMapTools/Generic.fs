@@ -838,12 +838,17 @@ type MyWindow(mkGlassF : unit->unit) as this =
     member this.DoPaste() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if not(System.String.IsNullOrEmpty(clipboardSSID)) then
-            setCursor()
-            zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
-            pictureChanged.Value <- true
-            SerializeMapTile(theGame.CurX,theGame.CurY,zm)
-            RecomputeImage(theGame.CurX,theGame.CurY,zm)
-            zoom()
+            let curSwks = zm.MapTiles.[theGame.CurX,theGame.CurY].ScreenshotsWithKinds
+            if curSwks <> null && curSwks |> Array.exists(fun swk -> swk.Id = clipboardSSID) then
+                // don't reference the same screenshot twice in the same cell (for one, it causes MultipleScreenshotForOneScreen.ComputeUnion to fail)
+                System.Console.Beep()
+            else
+                setCursor()
+                zm.MapTiles.[theGame.CurX,theGame.CurY].AddScreenshot(clipboardSSID)
+                pictureChanged.Value <- true
+                SerializeMapTile(theGame.CurX,theGame.CurY,zm)
+                RecomputeImage(theGame.CurX,theGame.CurY,zm)
+                zoom()
     member this.CycleZoneOrProjection(ctrl) =
         if ctrl then // cycle projection
             theGame.CurProjection <- theGame.CurProjection + 1
