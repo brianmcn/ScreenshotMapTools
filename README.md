@@ -101,7 +101,13 @@ Your text can contain **#hashtags**, alphanumeric labels prefixed by an #octotho
 enable some more advanced features of tool, like, for example, displaying all the #save checkpoint 
 locations you have found and marked up, or all the #shop or #dungeon locations you find, or 
 whatever is suitable to the game you are playing. 
-TODO link a separate page about #hashtags
+
+Here's an example from Minit where I marked up the different places the player could #spawn, as 
+well as left myself some #hmm notes on places I wanted to return to investigate further.  
+Left-clicking a #hashtag in the tool's bottom-right-pane list will highlight the #hashtag's 
+locations on the map, and right-clicking lets you change the color and shape of the highlight markings.
+
+![hashtags example](doc/img/HashtagsExample.png)
 
 You can also create clickable **hyperlinks** to jump to other cells by typing e.g. coordinates 
 in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
@@ -114,8 +120,7 @@ The 'glass' button in the upper right launches a separate app window which allow
 a "pane of transparent glass you can draw on" over any window (such as the game).  You can 
 use it for basic temporary 'drawing' tasks to display an idea to livestream viewers, for example.
 
-TODO document it
-
+![glass example](doc/img/GlassExample.png)
 
 ## Other features
 
