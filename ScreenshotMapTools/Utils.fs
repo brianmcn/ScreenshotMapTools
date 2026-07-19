@@ -205,12 +205,18 @@ type SharedBitmapSource(bmp:System.Drawing.Bitmap) as this =
 
     override this.Finalize() = this.Dispose(false)
 
-    override this.CopyPixels(sourceRect:Int32Rect, pixels : System.Array, _stride:int, _offset:int) =
+    override this.CopyPixels(sourceRect:Int32Rect, pixels : System.Array, stride:int, _offset:int) =
+        let bytes = 
+            match box pixels with
+            | :? (byte[]) as bytes -> bytes
+            | _ -> failwith "CopyPixels(): should be impossible"
         let sourceData = bmp.LockBits(new System.Drawing.Rectangle(sourceRect.X, sourceRect.Y, sourceRect.Width, sourceRect.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, bmp.PixelFormat)
-        let length = sourceData.Stride * sourceData.Height
-        match box pixels with
-        | :? (byte[]) as bytes -> System.Runtime.InteropServices.Marshal.Copy(sourceData.Scan0, bytes, 0, length)
-        | _ -> ()
+        if stride = sourceData.Stride then
+            let length = sourceData.Stride * sourceData.Height
+            System.Runtime.InteropServices.Marshal.Copy(sourceData.Scan0, bytes, 0, length)
+        else
+            for y = 0 to sourceData.Height - 1 do
+                System.Runtime.InteropServices.Marshal.Copy(System.IntPtr.Add(sourceData.Scan0, (y*sourceData.Stride)), bytes, y*stride, stride)
         bmp.UnlockBits(sourceData)
 
     override this.CreateInstanceCore() = System.Activator.CreateInstance(this.GetType()) :?> Freezable

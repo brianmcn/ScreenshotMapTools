@@ -146,7 +146,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
-    let ARROWKEYS = [| VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8 |]
+    let KEYS_WITH_CTRL = [| VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_MULTIPLY |]
     let MAPX,MAPY = APP_WIDTH,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
@@ -171,6 +171,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
     let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // last keyboarded cursor location
+    let curProjectionChanged = new Event<unit>()
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
@@ -606,37 +607,64 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             *)
-            let trimButton = new Button(Content="Trim", Margin=Thickness(4.))
+            let trimButton = new Button(Margin=Thickness(4.))
+            let updateTrimButton() =
+                if theGame.CurProjection = 0 then
+                    trimButton.Content <- "(Full)"
+                    trimButton.IsEnabled <- false
+                elif theGame.CurProjection = 1 then
+                    trimButton.Content <- "Trim(Map)"
+                    trimButton.IsEnabled <- true
+                elif theGame.CurProjection = 2 then
+                    trimButton.Content <- "Trim(Meta)"
+                    trimButton.IsEnabled <- true
+                else
+                    failwith "impossible CurProjection value"
+            updateTrimButton()
+            curProjectionChanged.Publish.Add(updateTrimButton)
             trimButton.Click.Add(fun _ -> 
                 match TryFindHwndForTheChosenGame() with
                 | Some(hwnd) -> 
                     let r = WinteropUtils.GetWindowClientRect(hwnd)
-                    match AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea, "select area to display on map") with
-                    | Some(x,y,w,h) ->
-                        // update MapArea in CurrentGame
-                        let json = System.IO.File.ReadAllText(TheChosenGame.GamefileFilename)
-                        let data = System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
-                        data.MapArea <- (x,y,w,h)
-                        let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(data)
-                        WriteAllText(TheChosenGame.GamefileFilename, json)
-                        // for each zone, delete map cache
-                        for z=0 to theGame.ZoneNames.Length-1 do
-                            // we also need to delete the other caches, as code assume all caches stay in sync
-                            let caches = [| InMemoryStore.MAP_FOLDER_NAME; InMemoryStore.FULL_FOLDER_NAME; InMemoryStore.META_FOLDER_NAME |]
-                            for cache in caches do
-                                let folderToDelete = System.IO.Path.Combine([|GetZoneFolder(z);cache|])
-                                if System.IO.Directory.Exists(folderToDelete) then
-                                    let files = System.IO.Directory.GetFiles(folderToDelete)
-                                    for f in files do
-                                        System.IO.File.Delete(f)
-                        // display a modal UI telling user app will restart
-                        MessageBox.Show("The app will restart to clear the map image cache") |> ignore
-                        // restart
-                        this.UnregisterHotKey()
-                        System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
-                        Application.Current.Shutdown()
-                    | None ->
-                        System.Console.Beep()
+                    if theGame.CurProjection = 0 then
+                        System.Console.Beep()      // nothing to trim in full-screenshots view
+                    else
+                        let isMap,area = 
+                            if theGame.CurProjection = 1 then     // map
+                                true,  AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
+                            elif theGame.CurProjection = 2 then   // meta (hud, metadata, whatever)
+                                false, AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MetaArea, "select area with HUD/metadata") 
+                            else
+                                failwith "impossible CurProjection"
+                        match area with
+                        | Some(x,y,w,h) ->
+                            // update MapArea/MetaArea in CurrentGame
+                            let json = System.IO.File.ReadAllText(TheChosenGame.GamefileFilename)
+                            let data = System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
+                            if isMap then
+                                data.MapArea <- (x,y,w,h)
+                            else
+                                data.MetaArea <- (x,y,w,h)
+                            let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(data)
+                            WriteAllText(TheChosenGame.GamefileFilename, json)
+                            // for each zone, delete caches
+                            for z=0 to theGame.ZoneNames.Length-1 do
+                                // we need to delete all caches, as code assume all caches stay in sync
+                                let caches = [| InMemoryStore.MAP_FOLDER_NAME; InMemoryStore.FULL_FOLDER_NAME; InMemoryStore.META_FOLDER_NAME |]
+                                for cache in caches do
+                                    let folderToDelete = System.IO.Path.Combine([|GetZoneFolder(z);cache|])
+                                    if System.IO.Directory.Exists(folderToDelete) then
+                                        let files = System.IO.Directory.GetFiles(folderToDelete)
+                                        for f in files do
+                                            System.IO.File.Delete(f)
+                            // display a modal UI telling user app will restart
+                            MessageBox.Show("The app will restart to clear the map image cache") |> ignore
+                            // restart
+                            this.UnregisterHotKey()
+                            System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
+                            Application.Current.Shutdown()
+                        | None ->
+                            System.Console.Beep()
                 | None -> 
                     System.Console.Beep()
                 )
@@ -782,7 +810,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         for k in KEYS do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID, MOD_NONE, uint32 k))) then
                 failwithf "could not register hotkey %A" k
-        for k in ARROWKEYS do
+        for k in KEYS_WITH_CTRL do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1, MOD_CONTROL, uint32 k))) then
                 failwithf "could not register hotkey %A" k
     member this.UnregisterHotKey() =
@@ -854,6 +882,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             theGame.CurProjection <- theGame.CurProjection + 1
             if theGame.CurProjection >= 3 then
                 theGame.CurProjection <- 0
+            curProjectionChanged.Trigger()
             UpdateGameFile()
             pictureChanged.Value <- true
             zoom()

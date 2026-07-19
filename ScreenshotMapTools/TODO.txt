@@ -10,8 +10,6 @@ from dwarf:
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
 
-make 'trim' work with meta area as well; disable for full; make map/meta/full modes more obvious
-
 'tweak' is hardcoded on or off, decide about some options for that if needed
 
 documentation
