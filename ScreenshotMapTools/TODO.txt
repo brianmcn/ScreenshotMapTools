@@ -10,6 +10,7 @@ from dwarf:
  - semi-transparent view of app, or spearate window around cursor minimap or something
 
 
+
 'tweak' is hardcoded on or off, decide about some options for that if needed
 
 documentation

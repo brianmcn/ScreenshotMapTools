@@ -122,6 +122,11 @@ use it for basic temporary 'drawing' tasks to display an idea to livestream view
 
 ![glass example](doc/img/GlassExample.png)
 
+Each glass window has the title "LorgonGlass X" where "X" is the title of the window it is
+targeting.  This helps manage OBS layouts where you might want to draw atop multiple windows;
+you can have multiple 'Window title must match' sources in OBS to capture multiple instances of
+glass, each with the same layout/size as its target window in your OBS scene.
+
 ## Other features
 
 TODO eventually document other features

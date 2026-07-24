@@ -41,7 +41,7 @@ let MakeNonActivateable(w:Window) =
     Winterop.SetWindowLongPtrA(hwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(hwnd, GWL_EXSTYLE))) ||| WS_EX_NOACTIVATE ||| WS_EX_APPWINDOW)) |> ignore
     Winterop.ShowWindow(hwnd, SW_SHOW) |> ignore
 *)
-let debugOutput = true
+let debugOutput = false
 let debugWindowZOrder() =
     if debugOutput then
         let mutable hwndCur = Win32.GetTopWindow(IntPtr(0))
@@ -55,7 +55,7 @@ let debugWindowZOrder() =
                     count <- count + 1
             hwndCur <- Win32.GetWindow(hwndCur, GW_HWNDNEXT)
 
-type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
+type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
     let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
     let mutable clickThru = false
@@ -127,6 +127,8 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
                 sizeParentF()
                 updateClickThruModeF(clickThru)
                 hwndGlassTarget <- Win32.GetForegroundWindow()
+                let targetWindowName = WinteropUtils.GetWindowTitle(hwndGlassTarget)
+                renameF(targetWindowName)
                 let r = WinteropUtils.GetActiveWindowClientRect()
                 this.Top <- float(r.bottom + 4)
                 this.Left <- float(r.left)
@@ -244,7 +246,6 @@ type ControlsWindow(parentGlass : Window, eraseF, sizeParentF, updateClickThruMo
 type DrawingGlassWindow() as this =
     inherit Window()
     do
-        this.Title <- "LorgonGlass"
         this.SizeToContent <- SizeToContent.Manual
         this.WindowStartupLocation <- WindowStartupLocation.Manual
         this.Background <- Brushes.Transparent
@@ -328,6 +329,10 @@ type DrawingGlassWindow() as this =
                 spotlightCanvas.OpacityMask <- db
             f
         eraseSpotlightOpacityMask()
+        let rename(s) = 
+            let name = if s = null then "LorgonGlass" else "LorgonGlass " + s
+            this.Title <- name
+        rename(null)
         let erase() =
             if drawingMode=0 then
                 eraseSpotlightOpacityMask()
@@ -335,7 +340,7 @@ type DrawingGlassWindow() as this =
                 penCanvas.Children.Clear()
                 redoStack.Clear()
         this.Loaded.Add(fun _ ->
-            let cw = new ControlsWindow(this, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b), (fun c -> pen.Brush <- c))
+            let cw = new ControlsWindow(this, rename, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b), (fun c -> pen.Brush <- c))
             cw.Show()
             )
         let mutable startPoint = None

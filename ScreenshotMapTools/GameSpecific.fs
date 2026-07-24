@@ -47,6 +47,8 @@ type ChosenGame() =
     let mutable data = null
     let gameFile = "CurrentGame.json"
     do
+        if CommandLine.glass then data <- ChosenGameJson()  // populate a dummy so further code doesn't crash, data will be ignored by glass
+        else
         (*
         let oneTime =
             let cgj = ChosenGameJson()
