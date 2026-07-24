@@ -91,6 +91,16 @@ let main _argv =
         //fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png""")
         fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\MazeTheory\fooBoth.png""")
         0
+    elif false then
+        let file = """C:\Users\Brian\Desktop\EmuGuide\Lying4"""
+        let bmp = new System.Drawing.Bitmap(file + ".png")
+        let doubleBitmap = new System.Drawing.Bitmap(2*bmp.Width, 2*bmp.Height)
+        use g = System.Drawing.Graphics.FromImage(doubleBitmap)
+        g.InterpolationMode <- System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor
+        g.PixelOffsetMode <- System.Drawing.Drawing2D.PixelOffsetMode.Half
+        g.DrawImage(bmp, System.Drawing.Rectangle(0, 0, 2*bmp.Width, 2*bmp.Height))
+        doubleBitmap.Save(file + "Doubled.png")
+        0
     else
 
     if GameSpecific.CommandLine.glass then

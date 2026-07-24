@@ -387,7 +387,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                         zoom()
                         if me.RightButton = Input.MouseButtonState.Pressed then
                             let swks = zm.MapTiles.[i,j].ScreenshotsWithKinds
-                            if swks.Length = 1 then
+                            if swks.Length = 0 then
+                                () // do nothing if no screenshots
+                            elif swks.Length = 1 then
                                 let ssid = swks.[0].Id
                                 FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
                             else

@@ -15,6 +15,11 @@ from dwarf:
 documentation
 
 
+what would it take to allow not having all screenshots same size?
+could i imagine a way to 'import' existing screenshots?
+
+
+
 export all tags to text file
 e.g. show #hat all coordinates, #emuu, etc
 maybe with text line context somehow
