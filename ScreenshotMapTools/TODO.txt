@@ -1,4 +1,35 @@
-﻿I really need a zoom size between 1x1 and 3x3, so see edges of nearby screens
+﻿recent ideas:
+
+ - wraparound projection zoomable popout window as minimap
+   - tracks cursor from main tool in center
+   - scrollwheel can zoom a la other pan/zoom window
+   - wraparound border option when you first create it (pre-populated auto-selected bounds, editable)
+   - click and drag to move window, don't have a titlebar, preserve real estate, right click for options (or maybe toggles titlebar)
+
+ - current note popout window
+   - tracks cursor from main tool in center
+   - / could allow editing there (editing could still be happening in tool as usual, but every keystroke reflected to this popout so not need look at tool)
+   - click and drag to move window, don't have a titlebar, preserve real estate, right click for options (or maybe toggles titlebar)
+
+ - ctrl* may send users into a pit of despair, maybe cycle right past that projection if it still has default no height or whatever
+
+
+In some scenarios I can see the thing you currently have (just a full clone of that pane of the tool) as being good, but I'm thinking now that 
+for stream-minimap-display, you might e.g. want a different zoom level; dwarf might want to be able to see the whole map context zoomed out 
+on the tool window, but the tiny chat-corner-minimap might be better served by just showing e.g. a 3x3 area with the cursor-highlighted tile 
+at the center.  So I'll probably make a separate popout window for that... I have a few ideas so I might implement a few things so you can just 
+play with all of them and decide what seems good.
+   > The popout map itself I'm keeping next to the game, so I am seeing if I forget to get rooms
+yeah another reason I want more popout options is that; just having something small that's in your peripheral vision can be useful for that kind 
+of reminding; I'm starting to think of the main app window as the control center that can let you do everything on its own but takes up a fair 
+bit of screen real estate, and the popouts as serving two auxiliary purposes: (1) to make easily-OBS-capturable targets for specific data looks 
+you want to share with audience, and (2) to provide HUD-peripherals to the game-player that allow them to drive the note-taking via tiny windows 
+nearby the game that take little real estate
+
+-------------------------------------------------------
+
+
+I really need a zoom size between 1x1 and 3x3, so see edges of nearby screens
 Actually, what I need to is rewrite the entire thing for like dynamic sizing and zoom, it is all so brittle.
 
 

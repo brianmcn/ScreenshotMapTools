@@ -181,14 +181,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
         kbdY.Value <- theGame.CurY
     let warp() = warpMouseTo(theGame.CurX, theGame.CurY)
     // current zone combobox
-    let addNewZoneButton = new Button(Content="Add zone", Margin=Thickness(4.))
+    let CONTROL_MARGIN = Thickness(3.)  // margin for buttons in top bar and such
+    let addNewZoneButton = new Button(Content="Add zone", Margin=CONTROL_MARGIN)
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
     let makeZoneName(z) = sprintf "%02d: %s" z (theGame.ZoneNames.[z])
     let mutable selectionChangeIsDisabled = false
-    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=180., Margin=Thickness(4.))
-    let renameZoneButton = new Button(Content="Rename zone", Margin=Thickness(4.))
+    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=170., Margin=Thickness(4.))
+    let renameZoneButton = new Button(Content="Rename zone", Margin=CONTROL_MARGIN)
     let printCurrentZoneButtonDefaultContent = "Print zone"
-    let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=Thickness(4.))
+    let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=CONTROL_MARGIN)
     // summary of current selection
     let summaryTB = MinimapWindow.MakeRichTextBox(4.)
     let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
@@ -234,10 +235,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
         MinimapWindow.UpdateRichTextBox(summaryTB, theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
-    //let tbLight, tbDark = Brushes.LightGray, Brushes.DarkGray
-    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
+//    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
+    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0x88uy,0x78uy,0x88uy)), new SolidColorBrush(Color.FromRgb(0x70uy,0x60uy,0x70uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
-        new TextBlock(IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, Foreground=Brushes.Black)  // TextBlock is much lighter weight (perf), but lacks alignment centering
+        let g = new Grid()
+        if i%5=0 && j%5=0 then
+            g.Children.Add(new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, 
+                                        Foreground=Brushes.Black, Background=Brushes.Transparent, BorderThickness=Thickness(0.),
+                                        HorizontalAlignment=HorizontalAlignment.Center, VerticalAlignment=VerticalAlignment.Center)) |> ignore
+        g
         )
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
@@ -301,7 +307,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                             Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, IW, IH)
                             let tb = zoomTextboxes.[i,j]
                             Utils.deparent(tb)
-                            tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.CornflowerBlue)
+                            tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.DarkMagenta)
                             tb.Width <- W
                             tb.Height<- H
                             Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
@@ -609,7 +615,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             *)
-            let trimButton = new Button(Margin=Thickness(4.))
+            let trimButton = new Button(Margin=CONTROL_MARGIN)
             let updateTrimButton() =
                 if theGame.CurProjection = 0 then
                     trimButton.Content <- "(Full)"
@@ -671,7 +677,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     System.Console.Beep()
                 )
             sp.Children.Add(trimButton) |> ignore
-            let featureButton = new Button(Content="Feature", Margin=Thickness(4.))
+            let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
@@ -702,7 +708,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     printfn "FEATURE error: %s" (e.ToString())
                 )
             sp.Children.Add(featureButton) |> ignore
-            let dualFeatureButton = new Button(Content="Dual", Margin=Thickness(4.))
+            let dualFeatureButton = new Button(Content="Dual", Margin=CONTROL_MARGIN)
             dualFeatureButton.Click.Add(fun _ -> 
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
@@ -739,7 +745,25 @@ type MyWindow(mkGlassF : unit->unit) as this =
 
                 )
             sp.Children.Add(dualFeatureButton) |> ignore
-            let glassButton = new Button(Content="Glass", Margin=Thickness(4.))
+            let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
+            popoutsButton.Click.Add(fun _ -> 
+                let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
+                miniviz.Show()
+                let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)
+                cheat.Show()
+                let uev = new Event<_>()
+                uise.ChangedAndSettled.Add(fun _ ->
+                    uev.Trigger(kbdX.Value, kbdY.Value, zm)
+                    )
+                //let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
+                //mini.Show()
+                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, GAMEASPECT, uev.Publish)
+                zlmw.Show()
+                // trigger events
+                uise.Trigger()
+                )
+            sp.Children.Add(popoutsButton) |> ignore
+            let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
             glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
             sp.Children.Add(minitAutoTrackerInfo) |> ignore
@@ -1013,6 +1037,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if save then
             UpdateCurrentNote(orig, result, zm)
             pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+        match TryFindHwndForTheChosenGame() with
+        | None -> ()
+        | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
     member this.DoSpecial(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then

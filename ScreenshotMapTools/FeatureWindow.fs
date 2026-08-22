@@ -61,10 +61,10 @@ let EnsureFeature(rootOwner, content, screenshotFilename) =
 
 type GridRange(iminx,iminy,imaxx,imaxy) =
     let mutable minx,miny,maxx,maxy = iminx,iminy,imaxx,imaxy
-    member this.MinX = minx
-    member this.MinY = miny
-    member this.MaxX = maxx
-    member this.MaxY = maxy
+    member this.MinX with get() = minx and set(z) = minx <- z
+    member this.MinY with get() = miny and set(z) = miny <- z
+    member this.MaxX with get() = maxx and set(z) = maxx <- z
+    member this.MaxY with get() = maxy and set(z) = maxy <- z
     member this.Width = this.MaxX-this.MinX+1
     member this.Height = this.MaxY-this.MinY+1
     member this.Extend(i,j) =

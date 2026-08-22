@@ -27,6 +27,7 @@
     <Compile Include="MapIcons.fs" />
     <Compile Include="FeatureWindow.fs" />
     <Compile Include="MinimapWindow.fs" />
+    <Compile Include="Popouts.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Glass.fs" />

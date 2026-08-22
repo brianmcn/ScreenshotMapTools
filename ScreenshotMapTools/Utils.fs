@@ -45,6 +45,7 @@ type UISettlingEvent(ms, evs:IEvent<unit>[]) =
         for ev in evs do
             ev.Add(fun _ -> trigger())
     member this.ChangedAndSettled = e.Publish
+    member this.Trigger = trigger
 
 /////////////////////////////////////////////////////
 
@@ -94,15 +95,16 @@ let gridAdd(g:Grid, x, c, r) =
     g.Children.Add(x) |> ignore
     Grid.SetColumn(x, c)
     Grid.SetRow(x, r)
-let makeGrid(nc, nr, cw, rh) =
+let makeGridF(nc, nr, cw, rh) =
     let grid = new Grid()
     for i = 0 to nc-1 do
-        let w = if cw = -1 then GridLength.Auto else GridLength(float cw)
+        let w = if cw = -1. then GridLength.Auto else GridLength(cw)
         grid.ColumnDefinitions.Add(new ColumnDefinition(Width=w))
     for i = 0 to nr-1 do
-        let h = if rh = -1 then GridLength.Auto else GridLength(float rh)
+        let h = if rh = -1. then GridLength.Auto else GridLength(rh)
         grid.RowDefinitions.Add(new RowDefinition(Height=h))
     grid
+let makeGrid(nc, nr, cw, rh) = makeGridF(nc, nr, int cw, int rh)
 let deparent(e:FrameworkElement) =
     match e.Parent with
     | null -> ()
