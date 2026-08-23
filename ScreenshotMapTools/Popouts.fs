@@ -255,6 +255,16 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
             else 
                 tb.Foreground <- Brushes.White
                 note
+    let blinkyBrush = 
+        let colorAnimation = new System.Windows.Media.Animation.ColorAnimation()
+        colorAnimation.From <- System.Nullable<_>(System.Windows.Media.Colors.Yellow)
+        colorAnimation.To <- System.Nullable<_>(System.Windows.Media.Colors.DarkMagenta)
+        colorAnimation.Duration <- new Duration(System.TimeSpan.FromSeconds(0.5))
+        colorAnimation.AutoReverse <- true
+        colorAnimation.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
+        let brush = new SolidColorBrush(Colors.Black)
+        brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
+        brush
     do
         this.Owner <- owner
         this.Title <- "Note at cursor"
@@ -291,23 +301,23 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
             )
     member this.StartEdit() = 
         tb.Foreground <- Brushes.Lime
-    member this.NoteEdit(txt:string,caretIndex,selectionStart,selectionLength) = 
-        let fullText = txt.Insert(caretIndex,"\u00A6")
-        let start = (if selectionStart >= caretIndex then selectionStart + 1 else selectionStart)
-        let start = start
+    member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
+        let start = selectionStart
         tb.Inlines.Clear()
-        let textBefore = fullText.Substring(0, start-1)
-        let textCursor = fullText.Substring(start-1, 1)
+        let textBefore = fullText.Substring(0, start)
         let textSelected = fullText.Substring(start, selectionLength)
         let textAfter = fullText.Substring(start + selectionLength)
         if not (System.String.IsNullOrEmpty(textBefore)) then
             tb.Inlines.Add(System.Windows.Documents.Run(textBefore))
-        if not (System.String.IsNullOrEmpty(textCursor)) then
-            let cursorRun = System.Windows.Documents.Run(textCursor)
-            cursorRun.Foreground <- Brushes.Yellow
-            tb.Inlines.Add(cursorRun)
-            Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(fun () -> 
-                cursorRun.BringIntoView(); printfn "%f" sv.VerticalOffset)) |> ignore
+        if true then
+            let caretElement = new Border()
+            caretElement.Width <- 2.0
+            caretElement.Height <- float fontSize
+            caretElement.Background <- blinkyBrush
+            caretElement.Margin <- new Thickness(-1, 2, -1, -2)
+            let caretContainer = new System.Windows.Documents.InlineUIContainer(caretElement);
+            tb.Inlines.Add(caretContainer)
+            Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(fun () -> caretContainer.BringIntoView())) |> ignore
         if not (System.String.IsNullOrEmpty(textSelected)) then
             let selectionRun = System.Windows.Documents.Run(textSelected)
             selectionRun.Background <- Brushes.Gray
