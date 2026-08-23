@@ -226,3 +226,106 @@ type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMe
         this.Closed.Add(fun _ ->
             ()
             )
+
+//////////////////////////////////////////////////////////////////////////
+
+[<RequireQualifiedAccess>]
+type EditNotesListenerMessage = 
+    | StartEditing
+    | Edit of string*int*int*int   // tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength
+    | FinishEditing
+
+[<AllowNullLiteral>]
+type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+    inherit Window()
+    static let mutable theLiveNotesWindow : LiveNotesWindow = null
+    let mutable curX, curY, (curZm : InMemoryStore.ZoneMemory) = x, y, zm
+    let mutable fontSize = 20
+    let tb = new TextBlock(FontSize=float(fontSize), Foreground=Brushes.White, Background=Brushes.Transparent,
+                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, IsHitTestVisible=false, 
+                                HorizontalAlignment=HorizontalAlignment.Stretch, TextWrapping=TextWrapping.Wrap, 
+                                Margin=Thickness(3.))
+    let sv = new ScrollViewer(VerticalScrollBarVisibility=ScrollBarVisibility.Hidden, Content=tb, IsHitTestVisible=false)
+    let UpdateStaticNote() =
+        let note = curZm.MapTiles.[curX,curY].Note
+        tb.Text <- 
+            if System.String.IsNullOrEmpty(note) then 
+                tb.Foreground <- Brushes.Gray
+                "<no note>" 
+            else 
+                tb.Foreground <- Brushes.White
+                note
+    do
+        this.Owner <- owner
+        this.Title <- "Note at cursor"
+        this.UseLayoutRounding <- true
+        this.Width <- 300.
+        this.Height <- 80.
+        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        this.Loaded.Add(fun _ ->
+            theLiveNotesWindow <- this
+            )
+        this.Closed.Add(fun _ ->
+            theLiveNotesWindow <- null
+            )
+        let b = new Border(BorderThickness=Thickness(3.), Background=Brushes.DarkMagenta, BorderBrush=Brushes.DarkMagenta)
+        b.MouseWheel.Add(fun ea ->
+            if ea.Delta > 0 then
+                fontSize <- fontSize + 2
+            else
+                fontSize <- fontSize - 2
+            // clamp values
+            fontSize <- max 8 fontSize
+            fontSize <- min 72 fontSize
+            tb.FontSize <- float fontSize
+        )
+        this.Content <- b
+        tb.Width <- System.Double.NaN
+        tb.Height <- System.Double.NaN
+        b.Child <- sv
+        updateEv.Add(fun (x,y,zm) ->
+            curX <- x
+            curY <- y
+            curZm <- zm
+            UpdateStaticNote()
+            )
+    member this.StartEdit() = 
+        tb.Foreground <- Brushes.Lime
+    member this.NoteEdit(txt:string,caretIndex,selectionStart,selectionLength) = 
+        let fullText = txt.Insert(caretIndex,"\u00A6")
+        let start = (if selectionStart >= caretIndex then selectionStart + 1 else selectionStart)
+        let start = start
+        tb.Inlines.Clear()
+        let textBefore = fullText.Substring(0, start-1)
+        let textCursor = fullText.Substring(start-1, 1)
+        let textSelected = fullText.Substring(start, selectionLength)
+        let textAfter = fullText.Substring(start + selectionLength)
+        if not (System.String.IsNullOrEmpty(textBefore)) then
+            tb.Inlines.Add(System.Windows.Documents.Run(textBefore))
+        if not (System.String.IsNullOrEmpty(textCursor)) then
+            let cursorRun = System.Windows.Documents.Run(textCursor)
+            cursorRun.Foreground <- Brushes.Yellow
+            tb.Inlines.Add(cursorRun)
+            Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(fun () -> 
+                cursorRun.BringIntoView(); printfn "%f" sv.VerticalOffset)) |> ignore
+        if not (System.String.IsNullOrEmpty(textSelected)) then
+            let selectionRun = System.Windows.Documents.Run(textSelected)
+            selectionRun.Background <- Brushes.Gray
+            selectionRun.Foreground <- Brushes.Lime
+            tb.Inlines.Add(selectionRun)
+        if not (System.String.IsNullOrEmpty(textAfter)) then
+            tb.Inlines.Add(System.Windows.Documents.Run(textAfter))
+    member this.FinishEdit() = 
+        UpdateStaticNote()
+        sv.ScrollToTop()
+    static member TheNotesWindow with get() = theLiveNotesWindow and set(x) = theLiveNotesWindow <- x
+
+let theEditNotesListenerEvent = new Event<EditNotesListenerMessage>()
+do
+    theEditNotesListenerEvent.Publish.Add(fun msg ->
+        if LiveNotesWindow.TheNotesWindow <> null then
+            match msg with 
+            | EditNotesListenerMessage.StartEditing -> LiveNotesWindow.TheNotesWindow.StartEdit()
+            | EditNotesListenerMessage.Edit(t,ci,ss,sl) -> LiveNotesWindow.TheNotesWindow.NoteEdit(t,ci,ss,sl)
+            | EditNotesListenerMessage.FinishEditing -> LiveNotesWindow.TheNotesWindow.FinishEdit()
+        )

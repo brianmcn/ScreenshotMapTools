@@ -507,7 +507,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         renameZoneButton.Click.Add(fun _ ->
             let orig = GetZoneName(theGame.CurZone)
-            let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false)
+            let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false, fun _ -> ())
             if save then
                 theGame.ZoneNames.[theGame.CurZone] <- result
                 UpdateGameFile()
@@ -760,6 +760,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     )
                 //let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
                 //mini.Show()
+                //let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
+                //notes.Show()
+                if Popouts.LiveNotesWindow.TheNotesWindow = null then
+                    Popouts.LiveNotesWindow.TheNotesWindow <- new Popouts.LiveNotesWindow(this.Owner, kbdX.Value, kbdY.Value, zm, uev.Publish)
+                    Popouts.LiveNotesWindow.TheNotesWindow.Show()
                 let projectionWhenPopoutLaunched = theGame.CurProjection
                 let getProjection(zm:ZoneMemory) =
                     match projectionWhenPopoutLaunched with
@@ -1044,10 +1049,13 @@ type MyWindow(mkGlassF : unit->unit) as this =
         setCursor()
         Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
         let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true)
+        Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
+        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true, 
+                                (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
         if save then
             UpdateCurrentNote(orig, result, zm)
             pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+        Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
         match TryFindHwndForTheChosenGame() with
         | None -> ()
         | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
@@ -1057,7 +1065,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             printfn "here"
             setCursor()
             Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
-            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false)
+            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false, fun _ -> ())
             if save then
                 specialText <- result
         else
