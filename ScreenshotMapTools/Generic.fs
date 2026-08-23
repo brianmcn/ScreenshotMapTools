@@ -248,15 +248,18 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
     let mutable specialText = "#TODO"   // currently uses numpad-3 to edit this
-    let rec zoom() = 
-        let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
-        let zm = ZoneMemory.Get(theGame.CurZone)
+    let GetProjectionDetails(zm:ZoneMemory) =
         let aspect,kludge,ia,_pw,_ph = 
             match theGame.CurProjection with
             | 0 -> GAMEASPECT, 0, zm.FullImgArray, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH
             | 1 -> let _,_,w,h = TheChosenGame.MapArea in float w / float h, 0, zm.MapImgArray, w, h
             | 2 -> let _,_,w,h = TheChosenGame.MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"
+        aspect,kludge,ia,_pw,_ph
+    let rec zoom() = 
+        let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        let aspect,kludge,ia,_pw,_ph = GetProjectionDetails(zm)
         // ensure cursor is fully on-screen
         while theGame.CurX <= theGame.CenterX - level do
             theGame.CenterX <- theGame.CenterX - 1
@@ -757,7 +760,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     )
                 //let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
                 //mini.Show()
-                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, GAMEASPECT, uev.Publish)
+                let projectionWhenPopoutLaunched = theGame.CurProjection
+                let getProjection(zm:ZoneMemory) =
+                    match projectionWhenPopoutLaunched with
+                    | 0 -> zm.FullImgArray
+                    | 1 -> zm.MapImgArray
+                    | 2 -> zm.MetaImgArray
+                    | _ -> failwith "bad curProjection"
+                let aspect,_kludge,_ia,_pw,_ph = GetProjectionDetails(zm)
+                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, getProjection, kbdX.Value, kbdY.Value, zm, uev.Publish)
                 zlmw.Show()
                 // trigger events
                 uise.Trigger()

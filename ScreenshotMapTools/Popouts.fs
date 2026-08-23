@@ -11,6 +11,8 @@ let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
         if ea.ChangedButton = System.Windows.Input.MouseButton.Left then
             ea.Handled <- true
             w.DragMove()
+        )
+    w.MouseUp.Add(fun ea ->
         if ea.ChangedButton = System.Windows.Input.MouseButton.Right then
             ea.Handled <- true
             w.Close()
@@ -149,17 +151,17 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
 
 //////////////////////////////////////////////////////////////////////////
 
-type ZoomableLiveMinimapWindow(owner, aspect, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMemory->InMemoryStore.ImgArrayCache, x, y, zm:InMemoryStore.ZoneMemory, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
     inherit Window()
     let mutable curZoomStep = 3
     let b = new Border(Background=Brushes.DarkMagenta)
-    let mutable curX, curY, curZm = 50, 50, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+    let mutable curX, curY, curZm = x, y, zm
     let redraw() =
         let gr = FeatureWindow.GridRange(InMemoryStore.MAX,InMemoryStore.MAX,0,0)
         let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
         for i = curX-curZoomStep to curX+curZoomStep do
             for j = curY-curZoomStep to curY+curZoomStep do
-                let bmp = curZm.FullImgArray.GetCopyOfBmp(i,j)
+                let bmp = getProjection(curZm).GetCopyOfBmp(i,j)
                 bmpDict[(i,j)] <- bmp
                 if bmp <> null || (i=curX && j=curY) then
                     gr.Extend(i,j)
