@@ -36,10 +36,10 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         this.Content <- b
         this.Width <- 220.
-        this.Height <- 24. * 9. + 12.
+        this.Height <- 24. * 10. + 12.
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
-        for i = 0 to 8 do
+        for i = 0 to 9 do
             g.RowDefinitions.Add(new RowDefinition(Height=GridLength(24.)))
         let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
         Utils.gridAdd(g, mkTxt("2468"), 0, 0)
@@ -56,10 +56,12 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
         Utils.gridAdd(g, mkTxt("edit notes"), 1, 5)
         Utils.gridAdd(g, mkTxt("1"), 0, 6)
         Utils.gridAdd(g, mkTxt("pan/zoom window"), 1, 6)
-        Utils.gridAdd(g, mkTxt("."), 0, 7)
-        Utils.gridAdd(g, mkTxt("toggle TODO tag"), 1, 7)
-        Utils.gridAdd(g, mkTxt("3"), 0, 8)
-        Utils.gridAdd(g, mkTxt("edit TODO tag"), 1, 8)
+        Utils.gridAdd(g, mkTxt("ctrl1"), 0, 7)
+        Utils.gridAdd(g, mkTxt("2x map pan/zoom"), 1, 7)
+        Utils.gridAdd(g, mkTxt("."), 0, 8)
+        Utils.gridAdd(g, mkTxt("toggle TODO tag"), 1, 8)
+        Utils.gridAdd(g, mkTxt("3"), 0, 9)
+        Utils.gridAdd(g, mkTxt("edit TODO tag"), 1, 9)
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -161,13 +163,13 @@ type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMe
         let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
         for i = curX-curZoomStep to curX+curZoomStep do
             for j = curY-curZoomStep to curY+curZoomStep do
-                let bmp = getProjection(curZm).GetCopyOfBmp(i,j)
+                let bmp = getProjection(curZm).GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
                 bmpDict[(i,j)] <- bmp
                 if bmp <> null || (i=curX && j=curY) then
                     gr.Extend(i,j)
         if not(gr.MaxX >= gr.MinX) then
             b.Child <- null
-        else // there was at least one screenshot
+        else              // there was at least one screenshot
             // get an NxN area 'centered' on the cursor
             while gr.Width > curZoomStep do
                 if curX-gr.MinX > gr.MaxX-curX then
@@ -196,7 +198,7 @@ type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMe
                     if i+gr.MinX = curX && j+gr.MinY = curY then
                         let rect = new Shapes.Rectangle(Width=w, Height=h, Stroke=Brushes.Yellow, StrokeThickness=3.)
                         Utils.gridAdd(g, rect, i, j)
-            b.Child <- g
+            b.Child <- g                                // TODO also add thick gridline if wrapedge
     do
         this.Owner <- owner
         this.Title <- "Zoomable Live Minimap"

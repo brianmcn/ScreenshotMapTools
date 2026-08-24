@@ -6,10 +6,9 @@
    - wraparound border option when you first create it (pre-populated auto-selected bounds, editable)
    - click and drag to move window, don't have a titlebar, preserve real estate, right click for options (or maybe toggles titlebar)
 
- - current note popout window
-   - tracks cursor from main tool in center
-   - / could allow editing there (editing could still be happening in tool as usual, but every keystroke reflected to this popout so not need look at tool)
-   - click and drag to move window, don't have a titlebar, preserve real estate, right click for options (or maybe toggles titlebar)
+ - popouts windows remembering their sizes/details on save/load
+ 
+ - maybe a menu to select among all the popouts, with explainer text about LMB/RMB behaviors
 
  - ctrl* may send users into a pit of despair, maybe cycle right past that projection if it still has default no height or whatever
 

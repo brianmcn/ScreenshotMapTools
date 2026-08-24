@@ -146,7 +146,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
-    let KEYS_WITH_CTRL = [| VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_MULTIPLY |]
+    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_MULTIPLY |]
     let MAPX,MAPY = APP_WIDTH,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
@@ -886,7 +886,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 if key = VK_NUMPAD9 then            this.ZoomIn()
                 if key = VK_NUMPAD5 then            this.DoCentering()
                 if key = VK_DIVIDE then             this.EditNotes()
-                if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow()
+                if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD3 then            this.DoSpecial(true) // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
                 if key = VK_DECIMAL then            this.DoSpecial(false)
                 currentlyRunningAHotkeyCommand <- false
@@ -1138,7 +1138,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 priorY <- foundY
                         )
                     dt.Start()
-    member this.DoFullMapPanZoomFeatureWindow() =
+    member this.DoFullMapPanZoomFeatureWindow(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         let bmps = Array2D.create MAX MAX (null, -1)
         let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
@@ -1150,6 +1150,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     gr.Extend(i,j)
         if gr.MaxX >= gr.MinX then // there was at least one screenshot
             let bmp = AssembleBmpGrid(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], TheChosenGame.MapArea)
+            let bmp =
+                if ctrl then
+                    let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width/2, bmp.Height/2))
+                    Utils.TileReplicateBitmapEfficiently(bmp, 2)
+                else
+                    bmp
             let img = Utils.BMPtoImage(bmp)
             let scale = new ScaleTransform()
             let trans = new TranslateTransform()
@@ -1201,10 +1207,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
             b.MouseLeftButtonUp.Add(fun _ea ->
                 b.ReleaseMouseCapture()
                 )
-            let mapMarkersImage = new Image(Width=b.Width, Height=b.Height, IsHitTestVisible=false)
-            mapMarkersImage.RenderTransform <- tg
-            mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, int usedW, int usedH)
             let c = new Canvas(Width=b.Width, Height=b.Height)
             Utils.canvasAdd(c, b, 0, 0)
-            Utils.canvasAdd(c, mapMarkersImage, 0, 0)
+            if not ctrl then
+                let mapMarkersImage = new Image(Width=b.Width, Height=b.Height, IsHitTestVisible=false)
+                mapMarkersImage.RenderTransform <- tg
+                mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, int usedW, int usedH)
+                Utils.canvasAdd(c, mapMarkersImage, 0, 0)
             FeatureWindow.EnsureFeature(this.Owner, c, null)
