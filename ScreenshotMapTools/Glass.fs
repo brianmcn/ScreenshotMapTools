@@ -4,7 +4,6 @@ open System
 open System.Windows
 open System.Windows.Media
 open System.Threading
-open System.Text
 open System.Windows.Controls
 
 open Winterop
@@ -29,19 +28,7 @@ let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
     triangle.Points <- new PointCollection([Point(tx,ty); Point(p1x,p1y); Point(p2x,p2y)])
     line, triangle
 
-(*
-// see also https://www.codeproject.com/Articles/12877/Transparent-Click-Through-Forms
-let MakeNonActivateable(w:Window) =
-    let helper = new System.Windows.Interop.WindowInteropHelper(w)
-    let hwnd = helper.Handle
-    let SW_HIDE, SW_SHOW = 0, 5
-    let GWL_EXSTYLE = -20
-    let WS_EX_NOACTIVATE, WS_EX_APPWINDOW = 0x08000000L, 0x00040000L
-    Winterop.ShowWindow(hwnd, SW_HIDE) |> ignore
-    Winterop.SetWindowLongPtrA(hwnd, GWL_EXSTYLE, IntPtr((int64(Winterop.GetWindowLongPtrA(hwnd, GWL_EXSTYLE))) ||| WS_EX_NOACTIVATE ||| WS_EX_APPWINDOW)) |> ignore
-    Winterop.ShowWindow(hwnd, SW_SHOW) |> ignore
-*)
-let debugOutput = false
+let debugOutput = true
 let debugWindowZOrder() =
     if debugOutput then
         let mutable hwndCur = Win32.GetTopWindow(IntPtr(0))
@@ -55,58 +42,69 @@ let debugWindowZOrder() =
                     count <- count + 1
             hwndCur <- Win32.GetWindow(hwndCur, GW_HWNDNEXT)
 
+/// Configures a WPF window to hover seamlessly over a target external HWND
+let setupOverlayWindow(overlayWindow: Window, targetHWnd: nativeint, controlsWindow:Window, isFirstClickFocusSwitch:bool ref) =
+    let helper = System.Windows.Interop.WindowInteropHelper(overlayWindow)
+    let overlayHWnd = helper.Handle
+    let controlsHwnd = System.Windows.Interop.WindowInteropHelper(controlsWindow).Handle
+    // Establish native Window Ownership
+    // This forces Windows to keep the overlay above the target in Z-order automatically
+    Win32.SetWindowLongPtrA(overlayHWnd, GWLP_HWNDPARENT, targetHWnd) |> ignore
+    // Inject Click-Through (TRANSPARENT) and Focus Prevention (NOACTIVATE) styles
+    let currentExStyle = Win32.GetWindowLong(overlayHWnd, GWL_EXSTYLE)
+    let newExStyle = currentExStyle ||| WS_EX_TRANSPARENT ||| WS_EX_NOACTIVATE
+    Win32.SetWindowLongPtrA(overlayHWnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
+    // Intercept the native Win32 Message Pump
+    let source = System.Windows.Interop.HwndSource.FromHwnd(overlayHWnd)
+    source.AddHook(System.Windows.Interop.HwndSourceHook(fun hwnd msg wParam lParam handled ->
+        if msg = WM_MOUSEACTIVATE then
+            let currentForeground = Win32.GetForegroundWindow()
+            // If unrelated third-party window currently has focus
+            if currentForeground <> overlayHWnd && currentForeground <> targetHWnd && currentForeground <> controlsHwnd then
+                isFirstClickFocusSwitch.Value <- true
+                // Explicitly bring your target window cluster forward
+                Win32.SetForegroundWindow(targetHWnd) |> ignore
+                handled <- true
+                MA_NOACTIVATEANDEAT
+            else
+                isFirstClickFocusSwitch.Value <- false
+                // Tell the OS to process the click locally, but do not trigger 
+                // an OS activation cycle (restores smooth clicking to 3rd party windows)
+                handled <- true
+                MA_NOACTIVATE
+        else
+            0n
+        ))
+    // Refresh Z-order to apply changes immediately without shifting position
+    Win32.SetWindowPos(overlayHWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE) |> ignore
+
+/// Toggles whether the overlay window blocks mouse clicks or lets them pass through.
+/// Set 'isClickThrough' to true to make it click-through, or false to intercept clicks.
+let setOverlayClickThrough(overlayHwnd: nativeint, isClickThrough: bool) =
+    if overlayHwnd <> 0n then
+        let currentExStyle = Win32.GetWindowLong(overlayHwnd, GWL_EXSTYLE)
+        let newExStyle = 
+            if isClickThrough then
+                currentExStyle ||| WS_EX_TRANSPARENT
+            else
+                currentExStyle &&& ~~~WS_EX_TRANSPARENT
+        Win32.SetWindowLongPtrA(overlayHwnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
+        // 4. Force Windows to redraw the frame and update hit-testing behavior immediately
+        // SWP_FRAMECHANGED (0x0020u) is critical here to tell the OS the window frame/styles changed.
+        Win32.SetWindowPos(
+            overlayHwnd, HWND_TOP, 0, 0, 0, 0, 
+            SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE ||| SWP_FRAMECHANGED
+        ) |> ignore
+
+
 type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
-    let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
     let mutable clickThru = false
     let mutable hwndGlassTarget = IntPtr(0)
-    let mutable ignoreChanges = false
-    let moveGlassAtopTarget(debugStr) =
-        if hwndGlassTarget <> IntPtr(0) then
-            async {
-                do! Async.Sleep(1)  // pump ui
-                // move the glass to just above the glass target
-                let nextAboveTarget = Win32.GetWindow(hwndGlassTarget, GW_HWNDPREV)
-                debugWindowZOrder()
-                if debugOutput then printfn "moving glass(%s) above target %s" debugStr (WinteropUtils.GetWindowTitle hwndGlassTarget)
-                ignoreChanges <- true
-                Win32.SetWindowPos(hwndParentGlass, nextAboveTarget, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
-                do! Async.Sleep(1)  // pump ui
-                ignoreChanges <- false
-                debugWindowZOrder()
-            } |> Async.StartImmediate
-        else
-            printfn "mgat-no target yet"
-    let activateTargetAndMoveGlass(debugStr) =
-        if hwndGlassTarget <> IntPtr(0) then
-            async {
-                // activate the target
-                do! Async.Sleep(1)  // pump ui
-                if debugOutput then printfn "activating target (%s)" debugStr
-                debugWindowZOrder()
-                ignoreChanges <- true
-                Win32.SetWindowPos(hwndGlassTarget, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE) |> ignore
-                do! Async.Sleep(1)  // pump ui
-                moveGlassAtopTarget(sprintf "atamg(%s)" debugStr)
-            } |> Async.StartImmediate
-        else
-            printfn "atamg-no target yet"
-    let focusChanged(_prevHwnd, newHwnd) =
-        if not ignoreChanges then
-            if hwndGlassTarget <> IntPtr(0) then
-                if newHwnd = hwndGlassTarget then
-                    if debugOutput then printfn "glass target"
-                    moveGlassAtopTarget("focus changed to glass target")
-                elif newHwnd = hwndParentGlass then
-                    if debugOutput then printfn "glass itself"
-                    activateTargetAndMoveGlass("focus changed to glass")
-            else
-                printfn "fc-no target yet"
-    let watcherId = WindowFocusTrackingUtils.addWindowFocusWatcher(focusChanged)
+    let isFirstClickFocusSwitch = ref false
     let label = new Label(Content="switch to click-thru")
     let toggleClickThruButton = new Button(Content=label, Margin=Thickness(2.))
     do
-        this.Owner <- parentGlass
         this.Title <- "GlassControl"
         this.Loaded.Add(fun _ ->
             //printfn "loading controls"
@@ -115,15 +113,6 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 //printfn "waiting for user to focus another app"
                 let! _ = Async.AwaitEvent this.Deactivated
                 do! Async.Sleep(100)  // ensure time for OS to activate other app
-                //printfn "saw focus change"
-                this.Activated.Add(fun _ -> 
-                    // if they click on the controls window, bring the target to top as well
-                    // but first process whatever they clicked on
-                    async {
-                        do! Async.Sleep(100) // kludgy - pump ui to process the click e.g. on a button, before reordering windows
-                        activateTargetAndMoveGlass("control window was activated")
-                    } |> Async.StartImmediate
-                    )  
                 sizeParentF()
                 updateClickThruModeF(clickThru)
                 hwndGlassTarget <- Win32.GetForegroundWindow()
@@ -132,25 +121,16 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 let r = WinteropUtils.GetActiveWindowClientRect()
                 this.Top <- float(r.bottom + 4)
                 this.Left <- float(r.left)
-                let phelper = new System.Windows.Interop.WindowInteropHelper(parentGlass)
-                let phwnd = phelper.Handle
-                let SW_HIDE, SW_SHOW = 0, 5
-                let GWL_EXSTYLE = -20
-                let WS_EX_LAYERED = 0x00080000L
-                let WS_EX_TRANSPARENT = 0x00000020L
+                setupOverlayWindow(parentGlass,hwndGlassTarget,this,isFirstClickFocusSwitch)
+                Win32.SetWindowLongPtrA(System.Windows.Interop.WindowInteropHelper(this).Handle, GWLP_HWNDPARENT, hwndGlassTarget) |> ignore
+                let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
                 toggleClickThruButton.Click.Add(fun _ ->
-                    if not clickThru then
-                        Win32.ShowWindow(phwnd, SW_HIDE) |> ignore
-                        Win32.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Win32.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) ||| WS_EX_LAYERED ||| WS_EX_TRANSPARENT)) |> ignore
-                        Win32.ShowWindow(phwnd, SW_SHOW) |> ignore
-                    else
-                        Win32.ShowWindow(phwnd, SW_HIDE) |> ignore
-                        Win32.SetWindowLongPtrA(phwnd, GWL_EXSTYLE, IntPtr((int64(Win32.GetWindowLongPtrA(phwnd, GWL_EXSTYLE))) &&& (~~~(WS_EX_LAYERED ||| WS_EX_TRANSPARENT)))) |> ignore
-                        Win32.ShowWindow(phwnd, SW_SHOW) |> ignore
                     clickThru <- not clickThru
+                    setOverlayClickThrough(hwndParentGlass, clickThru)
                     label.Content <- if clickThru then "switch to drawing" else "switch to click-thru"
                     updateClickThruModeF(clickThru)
                     )
+                setOverlayClickThrough(hwndParentGlass, clickThru)
                 let eraseButton = new Button(Content=new Label(Content="erase all"), Margin=Thickness(2.))
                 eraseButton.Click.Add(fun _ -> eraseF())
                 (*
@@ -234,7 +214,6 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
         )
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Closed.Add(fun _ ->
-            WindowFocusTrackingUtils.removeWindowFocusWatcher(watcherId)
             async { 
                 let ctxt = SynchronizationContext.Current
                 do! Async.Sleep(20)
@@ -242,15 +221,24 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 parentGlass.Close() 
                 } |> Async.StartImmediate
             )
+    member this.TargetHwnd = hwndGlassTarget
+    member this.IsFirstClickFocusSwitch = isFirstClickFocusSwitch.Value
 
+// TODO if the target window moves or changes size, things kinda fall apart
 type DrawingGlassWindow() as this =
     inherit Window()
+    let mutable isCurrentlyClickThru = false
+    let mutable myControlsWindow = null
+    let mutable thisHwnd, controlsHwnd = IntPtr(0), IntPtr(0)
     do
+        do  // essential window styles for all the magic to work
+            this.WindowStyle <- WindowStyle.None
+            this.AllowsTransparency <- true
+            this.Background <- Brushes.Transparent
+            this.Topmost <- false
+
         this.SizeToContent <- SizeToContent.Manual
         this.WindowStartupLocation <- WindowStartupLocation.Manual
-        this.Background <- Brushes.Transparent
-        this.AllowsTransparency <- true
-        this.WindowStyle <- WindowStyle.None
         //this.ForceCursor <- true
         this.Cursor <- System.Windows.Input.Cursors.None
 
@@ -310,6 +298,7 @@ type DrawingGlassWindow() as this =
             spotlightCanvas.OpacityMask <- db
         let updateClickThruMode(clickThru) =
             //printfn "clickthru: %A" clickThru
+            isCurrentlyClickThru <- clickThru
             if clickThru then
                 borderRect.Stroke <- Brushes.Transparent
                 watermark.Opacity <- 0.
@@ -342,20 +331,23 @@ type DrawingGlassWindow() as this =
         this.Loaded.Add(fun _ ->
             let cw = new ControlsWindow(this, rename, erase, sizeMe, updateClickThruMode, updatePenShape, updateMode, (fun b -> drawArrowheads <- b), (fun c -> pen.Brush <- c))
             cw.Show()
+            myControlsWindow <- cw
+            thisHwnd <- System.Windows.Interop.WindowInteropHelper(this).Handle
+            controlsHwnd <- System.Windows.Interop.WindowInteropHelper(cw).Handle
             )
         let mutable startPoint = None
         let mutable geoGroup = new GeometryGroup()
         let mutable tempRect = null
         catchAll.MouseLeftButtonDown.Add(fun ea -> 
-            //printfn "mouse LB down, active: %A" this.IsActive
             ea.Handled <- true
-            startPoint <- Some(ea.GetPosition(catchAll))
-            if drawingMode=1 then
-                geoGroup <- new GeometryGroup()
-                tempRect <- new System.Windows.Shapes.Rectangle(Fill=new DrawingBrush(Drawing=new GeometryDrawing(Geometry=geoGroup, Pen=pen.Clone())))
-                penCanvas.Children.Add(tempRect) |> ignore
-                redoStack.Clear()
-            )
+            if not(myControlsWindow.IsFirstClickFocusSwitch) then
+                startPoint <- Some(ea.GetPosition(catchAll))
+                if drawingMode=1 then
+                    geoGroup <- new GeometryGroup()
+                    tempRect <- new System.Windows.Shapes.Rectangle(Fill=new DrawingBrush(Drawing=new GeometryDrawing(Geometry=geoGroup, Pen=pen.Clone())))
+                    penCanvas.Children.Add(tempRect) |> ignore
+                    redoStack.Clear()
+                )
         let adjustRect() =
             tempRect.Width <- geoGroup.Bounds.Width + pen.Thickness
             tempRect.Height <- geoGroup.Bounds.Height + pen.Thickness
@@ -443,18 +435,6 @@ type DrawingGlassWindow() as this =
             ea.Handled <- true
             finishStroke(ea.GetPosition(catchAll))
             )
-(*
-        // TODO remove this?
-        catchAll.MouseRightButtonDown.Add(fun ea -> 
-            ea.Handled <- true
-            async { 
-                let ctxt = SynchronizationContext.Current
-                do! Async.Sleep(20)
-                do! Async.SwitchToContext(ctxt)
-                this.Close() 
-                } |> Async.StartImmediate
-            )
-*)
         this.PreviewKeyDown.Add(fun ea ->
             if ea.Key = System.Windows.Input.Key.Z && System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control) then
                 ea.Handled <- true
@@ -466,10 +446,6 @@ type DrawingGlassWindow() as this =
                 ea.Handled <- true
                 if redoStack.Count <> 0 then
                     penCanvas.Children.Add(redoStack.Pop()) |> ignore
-            )
-        this.MouseDown.Add(fun ea ->
-            // ensure all clicks are handled and not passed down to the app under the glass
-            ea.Handled <- true
             )
         
 

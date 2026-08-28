@@ -100,14 +100,26 @@ module Win32 =
     extern IntPtr GetWindow(IntPtr hWnd, uint32 uCmd)
     [<DllImport("user32.dll", SetLastError = true)>]
     extern IntPtr GetTopWindow(IntPtr hWnd)
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern int GetWindowLong(nativeint hWnd, int nIndex)
 
 // Win32 Constants
 let GW_HWNDNEXT = 2u
 let GW_HWNDPREV = 3u
+let GWL_EXSTYLE = -20
+let GWLP_HWNDPARENT = -8
 let HWND_NOTOPMOST = nativeint -2
 let HWND_TOP = nativeint 0
+let MA_ACTIVATE = 1n
+let MA_NOACTIVATE = 3n        
+let MA_NOACTIVATEANDEAT = 4n
+let SWP_FRAMECHANGED = 0x0020u
 let SWP_NOMOVE     = 0x0002u
 let SWP_NOSIZE     = 0x0001u
 let SWP_NOACTIVATE = 0x0010u
+let WM_MOUSEACTIVATE = 0x0021
+let WM_LBUTTONDOWN = 0x0201
+let WS_EX_TRANSPARENT = 0x00000020
+let WS_EX_NOACTIVATE = 0x08000000
 
 
