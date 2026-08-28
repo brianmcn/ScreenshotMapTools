@@ -250,7 +250,7 @@ type DrawingGlassWindow() as this =
         let total = new Canvas()
         let catchAll = new Canvas(Background=Brushes.Black, Opacity=0.01)  // to get all mouse clicks
         let spotlightCanvas = new Canvas(Background=Brushes.Black, IsHitTestVisible=false, Opacity=0.99)   // never completely obscure the game, lest that somehow prevent windows from drawing some game pixels or something
-        let penCanvas = new Canvas(Background=Brushes.Transparent, IsHitTestVisible=false)
+        let penCanvas = new Canvas(Background=Brushes.Transparent, IsHitTestVisible=false, Opacity=0.99)
         total.Children.Add(catchAll) |> ignore
         total.Children.Add(spotlightCanvas) |> ignore
         total.Children.Add(penCanvas) |> ignore
@@ -297,14 +297,15 @@ type DrawingGlassWindow() as this =
             let db = new DrawingBrush(Drawing=spotlight)
             spotlightCanvas.OpacityMask <- db
         let updateClickThruMode(clickThru) =
-            //printfn "clickthru: %A" clickThru
             isCurrentlyClickThru <- clickThru
             if clickThru then
-                borderRect.Stroke <- Brushes.Transparent
+                borderRect.Stroke <- Brushes.White
                 watermark.Opacity <- 0.
+                total.Opacity <- 0.8
             else
                 borderRect.Stroke <- Brushes.DarkOrange
                 watermark.Opacity <- 1.
+                total.Opacity <- 1.0
         let spotlight = // x,y,w,h     0 to 1 range
             let darkenBrush = new SolidColorBrush(Color.FromArgb(0xAAuy,0xFFuy,0xFFuy,0xFFuy))
             let all = new RectangleGeometry(Rect(0., 0., 1., 1.))
