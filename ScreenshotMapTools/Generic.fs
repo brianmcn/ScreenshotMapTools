@@ -253,7 +253,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             match theGame.CurProjection with
             | 0 -> GAMEASPECT, 0, zm.FullImgArray, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH
             | 1 -> let _,_,w,h = TheChosenGame.MapArea in float w / float h, 0, zm.MapImgArray, w, h
-            | 2 -> let _,_,w,h = TheChosenGame.MetaArea in float w / float h, 9, zm.MetaImgArray, w, h
+            | 2 -> let _,_,w,h = TheChosenGame.MetaArea in float w / float h, 0, zm.MetaImgArray, w, h
             | _ -> failwith "bad curProjection"
         aspect,kludge,ia,_pw,_ph
     let rec zoom() = 
@@ -750,6 +750,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(dualFeatureButton) |> ignore
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
+                let blah = new BasicLayout.TestLayoutWindow(APP_WIDTH)
+                blah.Show()
                 let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
                 miniviz.Show()
                 let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)

@@ -1,4 +1,23 @@
-﻿recent ideas:
+﻿default meta projection is too small, and trim-adjustment is too slow for large changes
+'kludge' is broken, different aspect means wrong number of y shown in meta
+also, meta shows up above image in bottom preview, so if you meta for emuurom tablet text, then get weird screenshot pane, hmmm
+    - probably an option to toggle whether meta shows up?
+also, even if do trim emuurom tablets, '1' still shows map, maybe change it to use current projection
+
+hm, imagine if i can define multiple meta projections
+if i took screenshots of every emuurom menu in zoneKK, i could then project
+ - room name (puijjo star tower)
+ - zone name (syvar lake)
+ - tablet icon
+ - biomes tab? (show all but with current highlight)
+then would need to have a way to decide what preview pane shows in each zone... currently i show meta-above-map, but could image like
+ - map (new default)
+ - meta-map (current behavior, e.g. elephantasy)
+ - some kind of arbitrary combo involving which-meta(s) and which-map(s) from either curzone or absolute zone, and how to specify layout
+
+
+
+recent ideas:
 
  - wraparound projection zoomable popout window as minimap
    - tracks cursor from main tool in center

@@ -172,16 +172,28 @@ let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHei
     DoModalDialog(parentWindow, sp, windowTitle, closeEv.Publish)
     save, tb.Text
 ////////////////////
+module BitmapConversion =
+    open System.Drawing
+    open System.Drawing.Imaging
+    let private convertPixelFormat (sourceFormat: System.Drawing.Imaging.PixelFormat) : System.Windows.Media.PixelFormat =
+        match sourceFormat with
+        | System.Drawing.Imaging.PixelFormat.Format24bppRgb  -> System.Windows.Media.PixelFormats.Bgr24
+        | System.Drawing.Imaging.PixelFormat.Format32bppArgb -> System.Windows.Media.PixelFormats.Bgra32
+        | System.Drawing.Imaging.PixelFormat.Format32bppRgb  -> System.Windows.Media.PixelFormats.Bgr32
+        | _ -> failwithf "Unsupported format: %A" sourceFormat
+    let convertToBitmapSource (source: Bitmap) =
+        let bmpData = source.LockBits(Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, source.PixelFormat)
+        let wpfFormat = convertPixelFormat source.PixelFormat
+        let totalBufferSize = bmpData.Stride * bmpData.Height
+        let r = System.Windows.Media.Imaging.BitmapSource.Create(bmpData.Width,bmpData.Height,
+                                        float source.HorizontalResolution, float source.VerticalResolution, wpfFormat,
+                                        null, bmpData.Scan0, totalBufferSize, bmpData.Stride)
+        source.UnlockBits(bmpData)
+        r
+let BMPtoImageSource(bmp:System.Drawing.Bitmap) = BitmapConversion.convertToBitmapSource(bmp)
 let BMPtoImage(bmp:System.Drawing.Bitmap) =
-    let ms = new System.IO.MemoryStream()
-    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png)  // must be png (not bmp) to save transparency info
-    let bmimage = new System.Windows.Media.Imaging.BitmapImage()
-    bmimage.BeginInit()
-    ms.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore
-    bmimage.StreamSource <- ms
-    bmimage.EndInit()
     let i = new Image()
-    i.Source <- bmimage
+    i.Source <- BMPtoImageSource(bmp)
     i.Height <- float bmp.Height 
     i.Width <- float bmp.Width 
     i

@@ -253,7 +253,7 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
         tb.Text <- 
             if System.String.IsNullOrEmpty(note) then 
                 tb.Foreground <- Brushes.Gray
-                "<no note>" 
+                "" //"<no note>" // for dwarf
             else 
                 tb.Foreground <- Brushes.White
                 note
