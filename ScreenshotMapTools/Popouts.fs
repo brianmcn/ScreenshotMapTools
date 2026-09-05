@@ -153,7 +153,7 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
 
 //////////////////////////////////////////////////////////////////////////
 
-type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMemory->InMemoryStore.ImgArrayCache, x, y, zm:InMemoryStore.ZoneMemory, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+type ZoomableLiveMinimapWindow(owner, aspect, x, y, zm:InMemoryStore.ZoneMemory, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
     inherit Window()
     let mutable curZoomStep = 3
     let b = new Border(Background=Brushes.DarkMagenta)
@@ -163,7 +163,7 @@ type ZoomableLiveMinimapWindow(owner, aspect, getProjection:InMemoryStore.ZoneMe
         let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
         for i = curX-curZoomStep to curX+curZoomStep do
             for j = curY-curZoomStep to curY+curZoomStep do
-                let bmp = getProjection(curZm).GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
+                let bmp = curZm.MapImgArray.GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
                 bmpDict[(i,j)] <- bmp
                 if bmp <> null || (i=curX && j=curY) then
                     gr.Extend(i,j)

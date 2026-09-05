@@ -171,7 +171,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
     let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // last keyboarded cursor location
-    let curProjectionChanged = new Event<unit>()
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
@@ -249,25 +248,21 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
     let mutable specialText = "#TODO"   // currently uses numpad-3 to edit this
     let GetProjectionDetails(zm:ZoneMemory) =
-        let aspect,kludge,ia,_pw,_ph = 
-            match theGame.CurProjection with
-            | 0 -> GAMEASPECT, 0, zm.FullImgArray, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH
-            | 1 -> let _,_,w,h = TheChosenGame.MapArea in float w / float h, 0, zm.MapImgArray, w, h
-            | 2 -> let _,_,w,h = TheChosenGame.MetaArea in float w / float h, 0, zm.MetaImgArray, w, h
-            | _ -> failwith "bad curProjection"
-        aspect,kludge,ia,_pw,_ph
+        let _,_,w,h = TheChosenGame.MapArea 
+        let aspect,ia,pw,ph = float w / float h, zm.MapImgArray, w, h
+        aspect,ia,pw,ph
     let rec zoom() = 
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
-        let aspect,kludge,ia,_pw,_ph = GetProjectionDetails(zm)
+        let aspect,ia,_pw,_ph = GetProjectionDetails(zm)
         // ensure cursor is fully on-screen
         while theGame.CurX <= theGame.CenterX - level do
             theGame.CenterX <- theGame.CenterX - 1
         while theGame.CurX >= theGame.CenterX + level do
             theGame.CenterX <- theGame.CenterX + 1
-        while theGame.CurY <= theGame.CenterY - level - kludge do
+        while theGame.CurY <= theGame.CenterY - level do
             theGame.CenterY <- theGame.CenterY - 1
-        while theGame.CurY >= theGame.CenterY + level + kludge do
+        while theGame.CurY >= theGame.CenterY + level do
             theGame.CenterY <- theGame.CenterY + 1
         // see if we need to redraw anything
         if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel || pictureChanged.Value then   
@@ -296,7 +291,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let drawnLocations = ResizeArray()
             let ci, cj = theGame.CenterX, theGame.CenterY
             for i = ci-level to ci+level do
-                for j = cj-level-kludge to cj+level+kludge do
+                for j = cj-level to cj+level do
                     if i>=0 && i<MAX && j>=0 && j<MAX then
                         drawnLocations.Add(i,j)
                         let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
@@ -348,7 +343,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                         if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
                             // TODO consider hover for userRegex
                             for i = ci-level to ci+level do
-                                for j = cj-level-kludge to cj+level+kludge do
+                                for j = cj-level to cj+level do
                                     if i>=0 && i<MAX && j>=0 && j<MAX then
                                         let loc = GenericMetadata.Location(theGame.CurZone,i,j)
                                         if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
@@ -714,15 +709,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 if Popouts.LiveNotesWindow.TheNotesWindow = null then
                     Popouts.LiveNotesWindow.TheNotesWindow <- new Popouts.LiveNotesWindow(this.Owner, kbdX.Value, kbdY.Value, zm, uev.Publish)
                     Popouts.LiveNotesWindow.TheNotesWindow.Show()
-                let projectionWhenPopoutLaunched = theGame.CurProjection
-                let getProjection(zm:ZoneMemory) =
-                    match projectionWhenPopoutLaunched with
-                    | 0 -> zm.FullImgArray
-                    | 1 -> zm.MapImgArray
-                    | 2 -> zm.MetaImgArray
-                    | _ -> failwith "bad curProjection"
-                let aspect,_kludge,_ia,_pw,_ph = GetProjectionDetails(zm)
-                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, getProjection, kbdX.Value, kbdY.Value, zm, uev.Publish)
+                let aspect,_ia,_pw,_ph = GetProjectionDetails(zm)
+                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, kbdX.Value, kbdY.Value, zm, uev.Publish)
                 zlmw.Show()
                 // trigger events
                 uise.Trigger()
@@ -825,7 +813,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                             printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
                 if key = VK_SUBTRACT then           this.DoCut()
                 if key = VK_ADD then                this.DoPaste()
-                if key = VK_MULTIPLY then           this.CycleZoneOrProjection((ctrl_bits = int MOD_CONTROL))
+                if key = VK_MULTIPLY then           this.CycleZone()
                 if key = VK_NUMPAD4 then            this.MoveLeft((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD6 then            this.MoveRight((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD8 then            this.MoveUp((ctrl_bits = int MOD_CONTROL))
@@ -868,17 +856,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                 RecomputeImage(theGame.CurX,theGame.CurY,zm)
                 zoom()
-    member this.CycleZoneOrProjection(ctrl) =
-        if ctrl then // cycle projection
-            theGame.CurProjection <- theGame.CurProjection + 1
-            if theGame.CurProjection >= 3 then
-                theGame.CurProjection <- 0
-            curProjectionChanged.Trigger()
-            UpdateGameFile()
-            pictureChanged.Value <- true
-            zoom()
-        else    // cycle zone
-            cycleZone()
+    member this.CycleZone() =
+        cycleZone()
     member this.MoveLeft(ctrl) =
         if ctrl then
             if theGame.CenterX > 0 then

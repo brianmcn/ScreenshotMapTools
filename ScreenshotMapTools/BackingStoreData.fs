@@ -36,7 +36,6 @@ type Game() =   // e.g. Zelda
     member val CenterY : int = 50 with get,set
     // preferred view
     member val CurZoom : int = 4 with get,set                    
-    member val CurProjection : int = 1 with get,set               // 0=full, 1=map, 2=meta
     // TODO custom projections (int*int*int*int)[]
     // TODO custom projection labels string[]
     // TODO preview projection index per zone int[]     // I guess -1 might indicate 'default' which is a single pane with FULL
@@ -60,7 +59,6 @@ let LoadRootGameData() =
         theGame.CenterX <- data.CenterX
         theGame.CenterY <- data.CenterY
         theGame.CurZoom <- data.CurZoom
-        theGame.CurProjection <- data.CurProjection
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
