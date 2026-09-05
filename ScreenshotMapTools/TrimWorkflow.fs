@@ -1,34 +1,50 @@
 ﻿module TrimWorkflow
 
 open System.Windows
+open System.Windows.Controls
+open System.Windows.Media
 
 open GameSpecific
 open BackingStoreData
 
 
-let doTheTrimButton(appShutdownF) =
+let doTheTrimButton(parentWindow, appShutdownF, appWidth) =
     match TryFindHwndForTheChosenGame() with
     | Some(hwnd) -> 
         let r = WinteropUtils.GetWindowClientRect(hwnd)
-        if theGame.CurProjection = 0 then
-            System.Console.Beep()      // nothing to trim in full-screenshots view
-        else
-            let isMap,area = 
-                if theGame.CurProjection = 1 then     // map
-                    true,  AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
-                elif theGame.CurProjection = 2 then   // meta (hud, metadata, whatever)
-                    false, AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MetaArea, "select area with HUD/metadata") 
-                else
-                    failwith "impossible CurProjection"
+        let closeEv = Event<unit>()
+        let element = new StackPanel(Orientation=Orientation.Vertical, Width=appWidth*2./3., Margin=Thickness(2.))
+        let mkTB(txt) = new TextBox(IsReadOnly=true, FontSize=16., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.),
+                                    TextWrapping=TextWrapping.Wrap, Text=txt)
+        let description = """Trims allow you to capture a rectangular portion of an image.
+
+Trims can be used in two main ways:
+
+The MAP Trim lets you cut out black bars at the edges of your game window, or cut off fixed HUDs in some games, so that your map cells stitch together seamlessly.
+
+CUSTOM Trims allow you to customize the appearance of the preview pane in the lower portion of the app, which shows information about the cell the cursor is currently on.
+
+Which do you want to do?"""
+        element.Children.Add(mkTB(description)) |> ignore
+        let mutable whichPressed = 0 // default if user closes choice window without pressing a button
+        let choices = [|
+            "Modify the MAP Trim",          (fun _ -> whichPressed <- 1; closeEv.Trigger())
+            "Define a new CUSTOM Trim",     (fun _ -> whichPressed <- 2; closeEv.Trigger())
+            "Cancel",                       (fun _ -> whichPressed <- 0; closeEv.Trigger())
+            |]
+        for label, effect in choices do
+            let b = new Button(Content=label, Width=appWidth/3., Height=24., Margin=Thickness(2.))
+            b.Click.Add(effect)
+            element.Children.Add(b) |> ignore
+        Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
+        if whichPressed = 1 then
+            let area = AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
             match area with
             | Some(x,y,w,h) ->
-                // update MapArea/MetaArea in CurrentGame
+                // update MapArea in CurrentGame
                 let json = System.IO.File.ReadAllText(TheChosenGame.GamefileFilename)
                 let data = System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
-                if isMap then
-                    data.MapArea <- (x,y,w,h)
-                else
-                    data.MetaArea <- (x,y,w,h)
+                data.MapArea <- (x,y,w,h)
                 let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(data)
                 WriteAllText(TheChosenGame.GamefileFilename, json)
                 // for each zone, delete caches
@@ -45,6 +61,11 @@ let doTheTrimButton(appShutdownF) =
                 MessageBox.Show("The app will now restart to clear and reload the map image cache, which will take a moment") |> ignore
                 appShutdownF()
             | None ->
-                System.Console.Beep()
+                MessageBox.Show("No area was selected and no changes were made") |> ignore
+        elif whichPressed = 2 then
+            () //TODO
+        else
+            () // nothing, they canceled
     | None -> 
         System.Console.Beep()
+        MessageBox.Show("Could not find the game window, to do trimming") |> ignore

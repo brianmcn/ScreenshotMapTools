@@ -618,28 +618,14 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 )
             sp.Children.Add(toggleLayoutButton) |> ignore
             *)
-            let trimButton = new Button(Margin=CONTROL_MARGIN)
-            let updateTrimButton() =
-                if theGame.CurProjection = 0 then
-                    trimButton.Content <- "(Full)"
-                    trimButton.IsEnabled <- false
-                elif theGame.CurProjection = 1 then
-                    trimButton.Content <- "Trim(Map)"
-                    trimButton.IsEnabled <- true
-                elif theGame.CurProjection = 2 then
-                    trimButton.Content <- "Trim(Meta)"
-                    trimButton.IsEnabled <- true
-                else
-                    failwith "impossible CurProjection value"
-            updateTrimButton()
-            curProjectionChanged.Publish.Add(updateTrimButton)
+            let trimButton = new Button(Margin=CONTROL_MARGIN, Content="Trim")
             trimButton.Click.Add(fun _ -> 
-                TrimWorkflow.doTheTrimButton(fun () -> 
+                TrimWorkflow.doTheTrimButton(this, (fun () -> 
                     // restart
                     this.UnregisterHotKey()
                     System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
                     Application.Current.Shutdown()
-                    ))
+                    ), APP_WIDTH))
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 

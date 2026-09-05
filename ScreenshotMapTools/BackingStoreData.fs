@@ -37,6 +37,9 @@ type Game() =   // e.g. Zelda
     // preferred view
     member val CurZoom : int = 4 with get,set                    
     member val CurProjection : int = 1 with get,set               // 0=full, 1=map, 2=meta
+    // TODO custom projections (int*int*int*int)[]
+    // TODO custom projection labels string[]
+    // TODO preview projection index per zone int[]     // I guess -1 might indicate 'default' which is a single pane with FULL
 
 // load root game data
 let theGame = Game()
