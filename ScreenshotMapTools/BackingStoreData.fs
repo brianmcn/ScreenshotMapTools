@@ -12,15 +12,6 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
     gfxBmp.ReleaseHdc(hdcBitmap)
     if not succeeded then
         gfxBmp.FillRectangle(new System.Drawing.SolidBrush(System.Drawing.Color.Black), new System.Drawing.Rectangle(System.Drawing.Point.Empty, bmp.Size))
-    (*
-    let hRgn = Win32.CreateRectRgn(0, 0, 0, 0)
-    Win32.GetWindowRgn(hwnd, hRgn) |> ignore
-    let region = Region.FromHrgn(hRgn)
-    if not(region.IsEmpty(gfxBmp)) then
-        gfxBmp.ExcludeClip(region)
-        gfxBmp.Clear(Color.Transparent)
-    Win32.DeleteObject(hRgn) |> ignore
-    *)
     gfxBmp.Dispose()
     bmp
 
@@ -34,8 +25,8 @@ let GetRootFolder() = rootFolder
 
 [<AllowNullLiteral>]
 type Game() =   // e.g. Zelda
-    member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1 
-    member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush
+    member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1,...
+    member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush,Shop,FairyFountain
     member val CurZone : int = 0 with get,set
     // cursor
     member val CurX : int = 50 with get,set

@@ -29,6 +29,7 @@
     <Compile Include="MinimapWindow.fs" />
     <Compile Include="Popouts.fs" />
     <Compile Include="BasicLayout.fs" />
+    <Compile Include="TrimWorkflow.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Glass.fs" />

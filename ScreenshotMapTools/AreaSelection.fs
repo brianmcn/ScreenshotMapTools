@@ -81,20 +81,18 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                             rect.Width <- float rectw
                         elif key.Key = Input.Key.S then
                             key.Handled <- true
-                            let oldrecty = recty
                             recty <- recty + delta
                             recty <- min (h-2) recty
                             Canvas.SetTop(rect, recty)
-                            recth <- recth - (oldrecty - recty)
+                            recth <- recth - delta
                             recth <- max 1 recth
                             rect.Height <- float recth
                         elif key.Key = Input.Key.D then
                             key.Handled <- true
-                            let oldrectx = rectx
                             rectx <- rectx + delta
                             rectx <- min (w-2) rectx
                             Canvas.SetLeft(rect, rectx)
-                            rectw <- rectw - (oldrectx - rectx)
+                            rectw <- rectw - delta
                             rectw <- max 1 rectw
                             rect.Width <- float rectw
                         elif key.Key = Input.Key.Escape then

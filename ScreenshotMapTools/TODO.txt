@@ -1,8 +1,8 @@
-﻿default meta projection is too small
-'kludge' is broken, different aspect means wrong number of y shown in meta
-also, meta shows up above image in bottom preview, so if you meta for emuurom tablet text, then get weird screenshot pane, hmmm
-    - probably an option to toggle whether meta shows up?
-also, even if do trim emuurom tablets, '1' still shows map, maybe change it to use current projection
+﻿+ default meta projection is too small
++ 'kludge' is broken, different aspect means wrong number of y shown in meta
++ also, meta shows up above image in bottom preview, so if you meta for emuurom tablet text, then get weird screenshot pane, hmmm
++    - probably an option to toggle whether meta shows up?
+/ also, even if do trim emuurom tablets, '1' still shows map, maybe change it to use current projection
 
 hm, imagine if i can define multiple meta projections
 if i took screenshots of every emuurom menu in zoneKK, i could then project
@@ -14,6 +14,23 @@ then would need to have a way to decide what preview pane shows in each zone... 
  - map (new default)
  - meta-map (current behavior, e.g. elephantasy)
  - some kind of arbitrary combo involving which-meta(s) and which-map(s) from either curzone or absolute zone, and how to specify layout
+
+
+let's assume we get rid of 'meta' and we just have full, map, and customNN for whatever custom projections the player wants
+do we need custom caches? if i get rid of viewing projections in the app (e.g. no more ctrl-*, you always look at 'map', which happens to equal 'full' if no map trim), then i think no
+only use of custom will be cursor preview
+furthermore, we don't need scaling (preview pane will scale a single image each time it's loaded)
+so the most basic cache of 'first time we demand customNN,X,Y, just compute it and store it' should work fine (and updates to that cell would recompute it right then I guess)
+this cuts a lot of surface area (meta projection) and solves a lot of problems I think
+remaining work:
+ - ui to make and label custom projections
+ - json to store custom projections
+ - rest of layout ui to select among projections for single-pane along with rel/abs zone
+ - json to save preview-pane layout per-zone
+ - remove theGame.CurProjection (will always be 1, map)
+
+neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
+
 
 
 

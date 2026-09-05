@@ -45,18 +45,6 @@ type ImgArrayCache(proj,zone) =
             let file = GetCacheFilename(x,y)
             if System.IO.File.Exists(file) then
                 doesFileExist.[x,y] <- 111
-                (*
-                //let bmp = new System.Drawing.Bitmap(file)
-                //let bi = bmp |> Utils.BMPtoBitmapImage
-                use fs = System.IO.File.Open(file, System.IO.FileMode.Open)
-                let bytes = Array.zeroCreate (int fs.Length)
-                let! _ = fs.ReadAsync(bytes, 0, int fs.Length) |> Async.AwaitTask
-                let ms = new System.IO.MemoryStream(bytes)
-                let bmp = new System.Drawing.Bitmap(ms)
-                ms.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore
-                let decoder = new System.Windows.Media.Imaging.PngBitmapDecoder(ms, System.Windows.Media.Imaging.BitmapCreateOptions.PreservePixelFormat, System.Windows.Media.Imaging.BitmapCacheOption.OnLoad)
-                let bi = decoder.Frames.[0]
-                *)
                 let bmp =
                     if true then // load to memory but do not lock file on disk, so can overwrite it later
                         use fs = new System.IO.FileStream(file, System.IO.FileMode.Open, System.IO.FileAccess.Read)
