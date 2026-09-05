@@ -1,11 +1,8 @@
 ﻿module AreaSelection
 
-open System
 open System.Windows
+open System.Windows.Input
 open System.Windows.Media
-open System.Threading
-open System.Runtime.InteropServices
-open System.Text
 open System.Windows.Controls
 
 
@@ -56,7 +53,7 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                 tb.Foreground <- if isUL then ulBrush else lrBrush
                 let cor = if isUL then "upper-left" else "lower-right"
                 let wxh = sprintf "@(%d,%d) - (%d x %d)" rectx recty rectw recth
-                tb.Text <- sprintf "%s\nuse WASD to move %s corner\nENTER switch corners, ESC when done\n%s" label cor wxh
+                tb.Text <- sprintf "%s\nuse WASD to move %s corner\nCTRL+WASD for 10 pixels at a time\nENTER switch corners, ESC when done\n%s" label cor wxh
             async {
                 let rect = new System.Windows.Shapes.Rectangle(Width=float rectw, Height=float recth, Stroke=rectBrush, StrokeThickness=1.)
                 Utils.canvasAdd(c, rect, float rectx, float recty)
@@ -65,34 +62,41 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                     if isUL then
                         // move top left
                         let! key = Async.AwaitEvent this.PreviewKeyDown
+                        let delta = if ((Keyboard.Modifiers &&& ModifierKeys.Control) = ModifierKeys.Control) then 10 else 1
                         if key.Key = Input.Key.W then
                             key.Handled <- true
-                            if recty > 0 then
-                                recty <- recty - 1
-                                Canvas.SetTop(rect, recty)
-                                recth <- recth + 1
-                                rect.Height <- float recth
+                            let oldrecty = recty
+                            recty <- recty - delta
+                            recty <- max 0 recty
+                            Canvas.SetTop(rect, recty)
+                            recth <- recth + (oldrecty - recty)
+                            rect.Height <- float recth
                         elif key.Key = Input.Key.A then
                             key.Handled <- true
-                            if rectx > 0 then
-                                rectx <- rectx - 1
-                                Canvas.SetLeft(rect, rectx)
-                                rectw <- rectw + 1
-                                rect.Width <- float rectw
+                            let oldrectx = rectx
+                            rectx <- rectx - delta
+                            rectx <- max 0 rectx
+                            Canvas.SetLeft(rect, rectx)
+                            rectw <- rectw + (oldrectx - rectx)
+                            rect.Width <- float rectw
                         elif key.Key = Input.Key.S then
                             key.Handled <- true
-                            if h > 1 then
-                                recty <- recty + 1
-                                Canvas.SetTop(rect, recty)
-                                recth <- recth - 1
-                                rect.Height <- float recth
+                            let oldrecty = recty
+                            recty <- recty + delta
+                            recty <- min (h-2) recty
+                            Canvas.SetTop(rect, recty)
+                            recth <- recth - (oldrecty - recty)
+                            recth <- max 1 recth
+                            rect.Height <- float recth
                         elif key.Key = Input.Key.D then
                             key.Handled <- true
-                            if w > 1 then
-                                rectx <- rectx + 1
-                                Canvas.SetLeft(rect, rectx)
-                                rectw <- rectw - 1
-                                rect.Width <- float rectw
+                            let oldrectx = rectx
+                            rectx <- rectx + delta
+                            rectx <- min (w-2) rectx
+                            Canvas.SetLeft(rect, rectx)
+                            rectw <- rectw - (oldrectx - rectx)
+                            rectw <- max 1 rectw
+                            rect.Width <- float rectw
                         elif key.Key = Input.Key.Escape then
                             allDone <- true
                         elif key.Key = Input.Key.Return then
@@ -100,26 +104,27 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                     else
                         // move bottom right
                         let! key = Async.AwaitEvent this.PreviewKeyDown
+                        let delta = if ((Keyboard.Modifiers &&& ModifierKeys.Control) = ModifierKeys.Control) then 10 else 1
                         if key.Key = Input.Key.W then
                             key.Handled <- true
-                            if h > 1 then
-                                recth <- recth - 1
-                                rect.Height <- float recth
+                            recth <- recth - delta
+                            recth <- max 1 recth
+                            rect.Height <- float recth
                         elif key.Key = Input.Key.A then
                             key.Handled <- true
-                            if w > 1 then
-                                rectw <- rectw - 1
-                                rect.Width <- float rectw
+                            rectw <- rectw - delta
+                            rectw <- max 1 rectw
+                            rect.Width <- float rectw
                         elif key.Key = Input.Key.S then
                             key.Handled <- true
-                            if recty+recth < h then
-                                recth <- recth + 1
-                                rect.Height <- float recth
+                            recth <- recth + delta
+                            recth <- min (h-recty-1) recth
+                            rect.Height <- float recth
                         elif key.Key = Input.Key.D then
                             key.Handled <- true
-                            if rectx+rectw < w then
-                                rectw <- rectw + 1
-                                rect.Width <- float rectw
+                            rectw <- rectw + delta
+                            rectw <- min (w-rectx-1) rectw
+                            rect.Width <- float rectw
                         elif key.Key = Input.Key.Escape then
                             allDone <- true
                         elif key.Key = Input.Key.Return then

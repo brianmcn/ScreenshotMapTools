@@ -259,8 +259,8 @@ type TestLayoutWindow(width) as this =
                         hits.[hitsIndex].Highlight()
             )
         let sp = new StackPanel(Orientation=Orientation.Vertical)
-        sp.Children.Add(g) |> ignore
         sp.Children.Add(instructions) |> ignore
+        sp.Children.Add(g) |> ignore
         this.Title <- "Test Layout"
         this.Background <- Brushes.Gray
         this.Content <- sp

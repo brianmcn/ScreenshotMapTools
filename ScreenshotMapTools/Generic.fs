@@ -669,7 +669,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                         for f in files do
                                             System.IO.File.Delete(f)
                             // display a modal UI telling user app will restart
-                            MessageBox.Show("The app will restart to clear the map image cache") |> ignore
+                            MessageBox.Show("The app will now restart to clear and reload the map image cache, which will take a moment") |> ignore
                             // restart
                             this.UnregisterHotKey()
                             System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore

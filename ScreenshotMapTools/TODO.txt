@@ -1,4 +1,4 @@
-﻿default meta projection is too small, and trim-adjustment is too slow for large changes
+﻿default meta projection is too small
 'kludge' is broken, different aspect means wrong number of y shown in meta
 also, meta shows up above image in bottom preview, so if you meta for emuurom tablet text, then get weird screenshot pane, hmmm
     - probably an option to toggle whether meta shows up?
