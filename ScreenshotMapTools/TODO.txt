@@ -1,12 +1,4 @@
-﻿let use arrows in addition to wasd on trim, i always try to arrow
-
-if i took screenshots of every emuurom menu in zoneKK, i could then project
- - room name (puijjo star tower)
- - zone name (syvar lake)
- - tablet icon
- - biomes tab? (show all but with current highlight)
-
-neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
+﻿neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
 
 
 
