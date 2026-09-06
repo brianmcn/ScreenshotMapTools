@@ -214,6 +214,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable doZoom = fun () -> ()
     let mutable cycleZone = fun () -> ()
     let mfsRefresh() =
+        //printfn "previewPane Actual W,H=%d,%d expect %d,%d" (int previewPane.ActualWidth) (int previewPane.ActualHeight) 
+        //                                                    (MAPX - MapIcons.KEYS_LIST_BOX_WIDTH) (int BOTTOM_HEIGHT - MinimapWindow.RICH_TEXT_HEIGHT)
         previewPane.Children.Clear()
         previewPane.Children.Add(PreviewPane.makePreviewPane()) |> ignore
         previewPane.MouseDown.Add(fun ea ->
@@ -980,7 +982,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
     member this.DoSpecial(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then
-            printfn "here"
             setCursor()
             Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
             let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false, fun _ -> ())

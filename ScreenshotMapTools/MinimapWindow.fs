@@ -141,11 +141,12 @@ type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.Zone
 
 ///////////////////////////////////////////////////////
 
+let RICH_TEXT_HEIGHT = 200
 let MakeRichTextBox(margin) = 
     new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
                                 HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
-                                Height=200., VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
+                                Height=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
 let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
     let fd = new System.Windows.Documents.FlowDocument()
     let p = new System.Windows.Documents.Paragraph()

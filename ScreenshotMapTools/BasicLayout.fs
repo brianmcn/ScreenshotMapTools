@@ -78,7 +78,7 @@ and [<RequireQualifiedAccess>] SplitKind<'T> =
     | TopBottom of int * LayoutNode<'T> * LayoutNode<'T>
 and LayoutNode<'T>(orig, idp:IDataPane<'T>) =
     let mutable kind = orig
-    let T = 6.
+    let T = 4.
     let MIN = 10
     let FRBRUSH = Brushes.Cyan
     let HIBRUSH = Brushes.Yellow
@@ -249,7 +249,7 @@ let RunBasicLayoutEditorDialog<'T>(parentWindow, title, width, tree:LayoutNode<'
     let GM = 8.
     let g = Utils.centerWithGrid(tree.AsPanel(true))
     g.Width <- width - 2. * GM
-    g.Height <- g.Width * 9. / 16.
+    g.Height <- g.Width * 268. / 462.        // preview pane is 462x268
     g.Margin <- Thickness(GM)
     let instructions = new TextBox(IsReadOnly=true, FontSize=16., FontWeight=FontWeights.Bold, Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.Gray, 
                                     Margin=Thickness(2.), TextWrapping=TextWrapping.Wrap, Height=140.)
