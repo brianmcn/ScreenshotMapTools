@@ -110,7 +110,7 @@ let deparent(e:FrameworkElement) =
     | null -> ()
     | :? Panel as p -> p.Children.Remove(e)
     | _ -> ()
-let mutable aModalDialogIsOpen = false
+let mutable nestedModalDialogCount = 0      // when >0, app disables own hotkey logic and instead broadcasts events for hotkeys
 let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) =
     let w = new Window()
     w.Title <- title
@@ -119,8 +119,8 @@ let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) 
     w.Owner <- parentWindow
     w.WindowStartupLocation <- WindowStartupLocation.CenterOwner
     close.Add(fun _ -> w.Close())
-    aModalDialogIsOpen <- true
-    w.Closed.Add(fun _ -> aModalDialogIsOpen <- false)
+    nestedModalDialogCount <- nestedModalDialogCount + 1
+    w.Closed.Add(fun _ -> nestedModalDialogCount <- nestedModalDialogCount - 1)
     w.Loaded.Add(fun _ -> onLoad())
     w.ShowDialog() |> ignore
 let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) = DoModalDialogCore(parentWindow, element, title, close, (fun() -> ()))

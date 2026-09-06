@@ -36,7 +36,6 @@ type ChosenGameJson() =
     member val GameWidth : int = 0 with get,set     
     member val GameHeight : int = 0 with get,set    
     member val MapArea : int*int*int*int = 0,0,0,0 with get,set     // x,y,w,h
-    member val MetaArea : int*int*int*int = 0,0,0,0 with get,set  
 
 let WriteAllText(filename, text) =
     let dir = System.IO.Path.GetDirectoryName(filename)
@@ -113,7 +112,6 @@ type ChosenGame() =
                         cgj.GameHeight <- h
                         cgj.GameWidth <- w
                         cgj.MapArea <- 0,0,w,h
-                        cgj.MetaArea <- 0,0,10,1
                         cgj.WindowTitle <- n
                         cgj.ProcessExe <- exe
                         let file = System.IO.Path.Combine(".", r, gameFile)
@@ -137,7 +135,6 @@ type ChosenGame() =
     member this.GAMESCREENW = data.GameWidth
     member this.GAMESCREENH = data.GameHeight
     member this.MapArea  = data.MapArea
-    member this.MetaArea = data.MetaArea
     member this.GamefileFilename = System.IO.Path.Combine([|".";this.GAME;gameFile|])
 let TheChosenGame = ChosenGame()
 let TryFindHwndForTheChosenGame() =
@@ -164,9 +161,6 @@ let ActivateGameWindow() =
 
 let MapAreaRectangle =
     let x,y,w,h = TheChosenGame.MapArea
-    new System.Drawing.Rectangle(x,y,w,h)
-let MetaAreaRectangle =
-    let x,y,w,h = TheChosenGame.MetaArea
     new System.Drawing.Rectangle(x,y,w,h)
 
 //////////////////////////////////////////////////////////////////////////

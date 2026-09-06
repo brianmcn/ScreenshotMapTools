@@ -27,13 +27,17 @@ CUSTOM Trims allow you to customize the appearance of the preview pane in the lo
 Which do you want to do?"""
         element.Children.Add(mkTB(description)) |> ignore
         let mutable whichPressed = 0 // default if user closes choice window without pressing a button
+        let haveCustom = not(theGame.CustomProjections = null || theGame.CustomProjections.Length=0)
         let choices = [|
-            "Modify the MAP Trim",          (fun _ -> whichPressed <- 1; closeEv.Trigger())
-            "Define a new CUSTOM Trim",     (fun _ -> whichPressed <- 2; closeEv.Trigger())
-            "Cancel",                       (fun _ -> whichPressed <- 0; closeEv.Trigger())
+            yield "Modify the MAP Trim",                                      (fun _ -> whichPressed <- 1; closeEv.Trigger())
+            yield "Define a new CUSTOM Trim",                                 (fun _ -> whichPressed <- 2; closeEv.Trigger())
+            if haveCustom then
+                yield "Modify an existing CUSTOM Trim",                           (fun _ -> whichPressed <- 3; closeEv.Trigger())
+            yield "Modify the Preview Pane layout for the current zone",      (fun _ -> whichPressed <- 4; closeEv.Trigger())
+            yield "Cancel",                                                   (fun _ -> whichPressed <- 0; closeEv.Trigger())
             |]
         for label, effect in choices do
-            let b = new Button(Content=label, Width=appWidth/3., Height=24., Margin=Thickness(2.))
+            let b = new Button(Content=label, Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
             b.Click.Add(effect)
             element.Children.Add(b) |> ignore
         Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
@@ -50,7 +54,7 @@ Which do you want to do?"""
                 // for each zone, delete caches
                 for z=0 to theGame.ZoneNames.Length-1 do
                     // we need to delete all caches, as code assume all caches stay in sync
-                    let caches = [| InMemoryStore.MAP_FOLDER_NAME; InMemoryStore.FULL_FOLDER_NAME; InMemoryStore.META_FOLDER_NAME |]
+                    let caches = [| InMemoryStore.MAP_FOLDER_NAME; InMemoryStore.FULL_FOLDER_NAME |]
                     for cache in caches do
                         let folderToDelete = System.IO.Path.Combine([|GetZoneFolder(z);cache|])
                         if System.IO.Directory.Exists(folderToDelete) then
@@ -63,7 +67,45 @@ Which do you want to do?"""
             | None ->
                 MessageBox.Show("No area was selected and no changes were made") |> ignore
         elif whichPressed = 2 then
-            () //TODO
+            // load into temporaries to work with
+            let projs = if theGame.CustomProjections = null then ResizeArray() else ResizeArray(theGame.CustomProjections)
+            let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Provide a descriptive label for this Custom Trim", "", appWidth, 50., false, fun _ -> ())
+            if save then
+                let area = AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area for this custom trim") 
+                match area with
+                | Some(x,y,w,h) ->
+                    // add the new one
+                    projs.Add(CustomProjection(label,(x,y,w,h)))
+                    // put them back in the actual data structure
+                    theGame.CustomProjections <- projs.ToArray()
+                    theGame.Save()
+                    MessageBox.Show(sprintf "Custom Trim custom%02d: '%s' saved" (projs.Count-1) label) |> ignore
+                | None ->
+                    MessageBox.Show("No area was selected and no changes were made") |> ignore
+        elif whichPressed = 3 then
+            let sp = new StackPanel(Orientation=Orientation.Vertical)
+            sp.Children.Add(PreviewPane.mkTxt("You have the following Custom Trims already defined:")) |> ignore
+            for i = 0 to theGame.CustomProjections.Length-1 do
+                let desc = sprintf "  custom%02d: '%s'\n" i theGame.CustomProjections.[i].Label
+                let b = new Button(Content=desc, Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
+                b.Click.Add(fun _ -> whichPressed <- i; closeEv.Trigger())
+                sp.Children.Add(b) |> ignore
+            let b = new Button(Content="Cancel", Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
+            b.Click.Add(fun _ -> whichPressed <- -1; closeEv.Trigger())
+            sp.Children.Add(b) |> ignore
+            sp.Children.Add(PreviewPane.mkTxt("Click on the one you want to modify")) |> ignore
+            Utils.DoModalDialog(parentWindow, sp, "Modify a Trim", closeEv.Publish)
+            if whichPressed <> -1 then
+                let area = AreaSelection.DoAreaSelection((r.left, r.top, r.right-r.left, r.bottom-r.top), theGame.CustomProjections.[whichPressed].XYWH,  "select area for this custom trim") 
+                match area with
+                | Some(x,y,w,h) ->
+                    theGame.CustomProjections.[whichPressed].XYWH <- (x,y,w,h)
+                    theGame.Save()
+                    MessageBox.Show(sprintf "Custom Trim custom%02d: '%s' saved" whichPressed theGame.CustomProjections.[whichPressed].Label) |> ignore
+                | None ->
+                    MessageBox.Show("No area was selected and no changes were made") |> ignore
+        elif whichPressed = 4 then
+            PreviewPane.ModifyPreviewPaneForCurrentZone(parentWindow, appWidth)
         else
             () // nothing, they canceled
     | None -> 

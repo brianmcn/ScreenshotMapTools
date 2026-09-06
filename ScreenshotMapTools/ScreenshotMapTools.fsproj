@@ -19,6 +19,7 @@
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
     <Compile Include="Elephantasy.fs" />
+    <Compile Include="BasicLayout.fs" />
     <Compile Include="GenericMetadata.fs" />
     <Compile Include="GameSpecific.fs" />
     <Compile Include="BackingStoreData.fs" />
@@ -28,7 +29,7 @@
     <Compile Include="FeatureWindow.fs" />
     <Compile Include="MinimapWindow.fs" />
     <Compile Include="Popouts.fs" />
-    <Compile Include="BasicLayout.fs" />
+    <Compile Include="PreviewPane.fs" />
     <Compile Include="TrimWorkflow.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />

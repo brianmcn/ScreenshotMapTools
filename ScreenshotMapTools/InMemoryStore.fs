@@ -8,10 +8,8 @@ let MAX = 100
 
 let FULL = 0
 let MAP  = 1
-let META = 2
 let FULL_FOLDER_NAME = "full-cache"
 let MAP_FOLDER_NAME = "map-cache"
-let META_FOLDER_NAME = "meta-cache"
 
 // caches are per-zone
 type ImgArrayCache(proj,zone) =
@@ -19,7 +17,6 @@ type ImgArrayCache(proj,zone) =
         match proj with
         | x when x=FULL -> FULL_FOLDER_NAME
         | x when x=MAP  -> MAP_FOLDER_NAME
-        | x when x=META -> META_FOLDER_NAME
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
     let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
@@ -120,11 +117,9 @@ type ZoneMemory(zone:int) =
     let mapTiles = Array2D.init MAX MAX (fun _ _ -> MapTile())             // backing store data
     let fullImgArray = ImgArrayCache(0,zone)
     let mapImgArray = ImgArrayCache(1,zone)
-    let metaImgArray = ImgArrayCache(2,zone)
     member this.MapTiles = mapTiles
     member this.FullImgArray = fullImgArray
     member this.MapImgArray = mapImgArray
-    member this.MetaImgArray = metaImgArray
     member this.Zone = zone
     static member Get(z) =
         if dict.ContainsKey(z) then
@@ -149,7 +144,6 @@ let RecomputeBitmap(i,j,zm:ZoneMemory) =
 let RecomputeImageCore(i,j,bmp,zm:ZoneMemory) =
     zm.FullImgArray.Set(i,j,bmp)
     zm.MapImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MapAreaRectangle))
-    zm.MetaImgArray.Set(i,j,Utils.cropToRect(bmp,GameSpecific.MetaAreaRectangle))
 let RecomputeImage(i,j,zm:ZoneMemory) =
     let bmp = RecomputeBitmap(i,j,zm)
     RecomputeImageCore(i,j,bmp,zm)
@@ -183,7 +177,6 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                                 printfn "warning, file '%s' reference by (zone%d,%d,%d) was not found" ssFile theGame.CurZone i j
                     asyncs.Add(zm.FullImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MapImgArray.TryReadFromDisk(i,j))
-                    asyncs.Add(zm.MetaImgArray.TryReadFromDisk(i,j))
                     codas.Add(fun() ->
                         if zm.FullImgArray.[i,j] = null then   // assume 3 disks stay in sync
                             bgWork.Add((i,j))

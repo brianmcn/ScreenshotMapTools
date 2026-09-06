@@ -210,21 +210,13 @@ type MyWindow(mkGlassF : unit->unit) as this =
         metadataKeys.Clear()
         for s in newKeys do
             metadataKeys.Add(s)
-    let metaAndScreenshotPanel = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
+    let previewPane = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
     let mutable doZoom = fun () -> ()
     let mutable cycleZone = fun () -> ()
     let mfsRefresh() =
-        let zm = ZoneMemory.Get(theGame.CurZone)
-        metaAndScreenshotPanel.Children.Clear()
-        if zm.FullImgArray.[theGame.CurX,theGame.CurY] <> null then
-            match TheChosenGame.MetaArea with
-            | _,_,_,1 -> ()  // meta height of 1 means there is none, skip it
-            | _ ->
-                let top = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],TheChosenGame.MetaArea)
-                metaAndScreenshotPanel.AddTop(top) |> ignore
-            let main = Utils.ImageProjection(zm.FullImgArray.[theGame.CurX,theGame.CurY],(0,0,TheChosenGame.GAMESCREENW,TheChosenGame.GAMESCREENH))
-            metaAndScreenshotPanel.Children.Add(main) |> ignore
-        metaAndScreenshotPanel.MouseDown.Add(fun ea ->
+        previewPane.Children.Clear()
+        previewPane.Children.Add(PreviewPane.makePreviewPane()) |> ignore
+        previewPane.MouseDown.Add(fun ea ->
             let zm = ZoneMemory.Get(theGame.CurZone)
             ea.Handled <- true
             let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
@@ -232,6 +224,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm)
                 doZoom()
             )
+        let zm = ZoneMemory.Get(theGame.CurZone)
         let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
         MinimapWindow.UpdateRichTextBox(summaryTB, theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
 //    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
@@ -387,7 +380,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                         theGame.CurX <- i
                         theGame.CurY <- j
                         setCursor()
-                        UpdateGameFile()
+                        theGame.Save()
                         zoom()
                         if me.RightButton = Input.MouseButtonState.Pressed then
                             let swks = zm.MapTiles.[i,j].ScreenshotsWithKinds
@@ -405,10 +398,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     )
             MapIcons.redrawMapIconsEv.Trigger()
             MapIcons.redrawMapIconHoverOnly.Trigger()
-    and UpdateGameFile() =
-        let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
-        let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
-        WriteAllText(gameFile, json)
     let UpdateCurrentNote(origNote, newNote, zm:ZoneMemory) =
         zm.MapTiles.[theGame.CurX,theGame.CurY].Note <- newNote
         SerializeMapTile(theGame.CurX,theGame.CurY,zm)
@@ -466,7 +455,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 theGame.CurY <- loc.Y
                 kbdX.Value <- loc.X
                 kbdY.Value <- loc.Y
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
                 warp()
             )
@@ -481,7 +470,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             if not selectionChangeIsDisabled then
                 theGame.CurZone <- zoneComboBox.SelectedIndex
                 curZoneChanged.Trigger()
-                UpdateGameFile()
+                theGame.Save()
                 zm <- ZoneMemory.Get(theGame.CurZone)
                 refreshMetadataKeys()   // to update counts 
                 zoom()
@@ -491,7 +480,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let n = theGame.ZoneNames.Length
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
             zoneOptions.Add(makeZoneName n)
-            UpdateGameFile()
+            theGame.Save()
             selectionChangeIsDisabled <- true
             zoneComboBox.SelectedIndex <- n
             selectionChangeIsDisabled <- false
@@ -505,7 +494,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false, fun _ -> ())
             if save then
                 theGame.ZoneNames.[theGame.CurZone] <- result
-                UpdateGameFile()
+                theGame.Save()
                 selectionChangeIsDisabled <- true
                 zoneOptions.[theGame.CurZone] <- makeZoneName(theGame.CurZone)
                 zoneComboBox.SelectedIndex <- theGame.CurZone 
@@ -620,7 +609,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     this.UnregisterHotKey()
                     System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
                     Application.Current.Shutdown()
-                    ), APP_WIDTH))
+                    ), APP_WIDTH)
+                mfsRefresh()
+                )
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 
@@ -692,8 +683,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(dualFeatureButton) |> ignore
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
-                let blah = new BasicLayout.TestLayoutWindow(APP_WIDTH)
-                blah.Show()
+                BasicLayout.runBLEW(this, APP_WIDTH)
                 let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
                 miniviz.Show()
                 let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)
@@ -736,7 +726,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     rc.Children.Add(iconKeys) |> ignore
                     )
                 rc
-            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddTop(summaryTB).Add(metaAndScreenshotPanel)
+            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddTop(summaryTB).Add(previewPane)
             let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
             let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
             r.Children.Add(dp) |> ignore
@@ -797,7 +787,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1) |> ignore
     member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
-        if Utils.aModalDialogIsOpen then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
+        if Utils.nestedModalDialogCount > 0 then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
         if msg = WM_HOTKEY && (wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID || wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID+1) then
             if currentlyRunningAHotkeyCommand then
@@ -862,12 +852,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             if theGame.CenterX > 0 then
                 theGame.CenterX <- theGame.CenterX - 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         else
             if theGame.CurX > 0 then
                 theGame.CurX <- theGame.CurX - 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         setCursor()
         warp()
@@ -875,12 +865,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             if theGame.CenterX < 99 then
                 theGame.CenterX <- theGame.CenterX + 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         else
             if theGame.CurX < 99 then
                 theGame.CurX <- theGame.CurX + 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         setCursor()
         warp()
@@ -888,12 +878,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             if theGame.CenterY > 0 then
                 theGame.CenterY <- theGame.CenterY - 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         else
             if theGame.CurY > 0 then
                 theGame.CurY <- theGame.CurY - 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         setCursor()
         warp()
@@ -901,12 +891,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             if theGame.CenterY < 99 then
                 theGame.CenterY <- theGame.CenterY + 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         else
             if theGame.CurY < 99 then
                 theGame.CurY <- theGame.CurY + 1
-                UpdateGameFile()
+                theGame.Save()
                 zoom()
         setCursor()
         warp()
@@ -927,14 +917,14 @@ type MyWindow(mkGlassF : unit->unit) as this =
         setCursor()
         if theGame.CurZoom > 1 then
             theGame.CurZoom <- theGame.CurZoom - 1
-            UpdateGameFile()
+            theGame.Save()
             zoom()
         warp()
     member this.ZoomIn() =
         setCursor()
         if theGame.CurZoom < MAX/2 then
             theGame.CurZoom <- theGame.CurZoom + 1
-            UpdateGameFile()
+            theGame.Save()
             zoom()
         warp()
     member this.DoCentering() =

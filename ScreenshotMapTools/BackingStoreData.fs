@@ -24,7 +24,20 @@ let rootFolder = System.IO.Path.Combine(TheChosenGame.GAME)
 let GetRootFolder() = rootFolder
 
 [<AllowNullLiteral>]
+type PreviewPaneSource(z,p) =
+    new() = PreviewPaneSource(-1,-1)
+    member val ZoneToRead : int = z with get,set           // -2 means this pane should be empty, -1 means current zone, otherwise that zone index
+    member val Projection : int = p with get,set           // -2 means FULL screenshot, -1 means MAP projection, otherwise custom projection index
+
+[<AllowNullLiteral>]
+type CustomProjection(label,xywh) =
+    new() = CustomProjection("<unlabeled>",(0,0,1,1))
+    member val Label : string = label with get,set
+    member val XYWH : (int*int*int*int) = xywh with get,set
+
+[<AllowNullLiteral>]
 type Game() =   // e.g. Zelda
+    static let theGame = Game()
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1,...
     member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush,Shop,FairyFountain
     member val CurZone : int = 0 with get,set
@@ -35,13 +48,19 @@ type Game() =   // e.g. Zelda
     member val CenterX : int = 50 with get,set
     member val CenterY : int = 50 with get,set
     // preferred view
-    member val CurZoom : int = 4 with get,set                    
-    // TODO custom projections (int*int*int*int)[]
-    // TODO custom projection labels string[]
-    // TODO preview projection index per zone int[]     // I guess -1 might indicate 'default' which is a single pane with FULL
+    member val CurZoom : int = 4 with get,set
+    // custom projections
+    member val CustomProjections : CustomProjection[] = null with get,set
+    // preview pane layouts
+    member val PreviewPaneLayoutPerZone : BasicLayout.JsonableTree<PreviewPaneSource>[] = null with get,set     // PPLPZ.[zoneNum] = null means default (FULL), else what to show
+    static member TheGame = theGame
+    member this.Save() = // assumes just one global instance
+        let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
+        let json = System.Text.Json.JsonSerializer.Serialize<Game>(theGame)
+        WriteAllText(gameFile, json)
 
 // load root game data
-let theGame = Game()
+let theGame = Game.TheGame
 let LoadRootGameData() =
     let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
     if not(System.IO.File.Exists(gameFile)) then
@@ -52,13 +71,15 @@ let LoadRootGameData() =
         let json = System.IO.File.ReadAllText(gameFile)
         let data = System.Text.Json.JsonSerializer.Deserialize<Game>(json)
         theGame.ZoneNames <- data.ZoneNames
-        theGame.MetadataNames <- theGame.MetadataNames
+        theGame.MetadataNames <- data.MetadataNames
         theGame.CurZone <- data.CurZone
         theGame.CurX <- data.CurX
         theGame.CurY <- data.CurY
         theGame.CenterX <- data.CenterX
         theGame.CenterY <- data.CenterY
         theGame.CurZoom <- data.CurZoom
+        theGame.CustomProjections <- data.CustomProjections
+        theGame.PreviewPaneLayoutPerZone <- data.PreviewPaneLayoutPerZone
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"

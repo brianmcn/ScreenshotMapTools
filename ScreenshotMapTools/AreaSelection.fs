@@ -135,8 +135,8 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
 
 let DoAreaSelection(windowArea,selectionArea,label) =
     let w = new AreaSelectionWindow(windowArea,selectionArea,label)
-    Utils.aModalDialogIsOpen <- true
-    w.Closed.Add(fun _ -> Utils.aModalDialogIsOpen <- false)
+    Utils.nestedModalDialogCount <- Utils.nestedModalDialogCount + 1
+    w.Closed.Add(fun _ -> Utils.nestedModalDialogCount <- Utils.nestedModalDialogCount - 1)
     w.ShowDialog() |> ignore
     let r = recentAreaSelectionResult
     recentAreaSelectionResult <- None
