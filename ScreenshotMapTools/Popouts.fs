@@ -18,25 +18,37 @@ let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
             w.Close()
         )
 
+let MakeWindowSmartByRememberingPositionAndSize(w:Window, json:AppSettings.PopoutDetailJson) =    // call this in the constructor, after settting Width/Height(/Left/Top) to a default
+    AppSettings.WindowPosition.SetInitialWindowPosition(w, json.XYWH)
+    let save() =
+        json.XYWH <- (int w.Left), (int w.Top), (int w.Width), (int w.Height)
+        AppSettings.theAppSettingsJson.Save()
+    w.SizeChanged.Add(fun _ -> save())
+    w.LocationChanged.Add(fun _ -> save())
+
 //////////////////////////////////////////////////////////////////////////
 
 type ControlsCheatsheetPopoutWindow(owner) as this =
     inherit Window()
+    static let mutable singleton = null
     let g = new Grid()
     let b = new Border(BorderThickness=Thickness(6.), Child=g, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
     do
+        singleton <- this
+        this.Width <- 220.
+        this.Height <- 24. * 10. + 12.
+        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.ControlsCheatSheetPopout)
         this.Owner <- owner
         this.Title <- "Controls cheatsheet"
         this.Loaded.Add(fun _ ->
             ()
             )
         this.Closed.Add(fun _ ->
-            ()
+            singleton <- null
             )
-        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         this.Content <- b
-        this.Width <- 220.
-        this.Height <- 24. * 10. + 12.
+        this.ResizeMode <- ResizeMode.NoResize
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
         for i = 0 to 9 do
@@ -62,6 +74,7 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
         Utils.gridAdd(g, mkTxt("toggle TODO tag"), 1, 8)
         Utils.gridAdd(g, mkTxt("3"), 0, 9)
         Utils.gridAdd(g, mkTxt("edit TODO tag"), 1, 9)
+    static member Singleton = singleton
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -134,30 +147,36 @@ module LocalWinterop =
 
 type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
     inherit Window()
+    static let mutable singleton = null
     let g = new Grid()
     do
-        this.Owner <- owner
-        this.Title <- title
+        singleton <- this
         this.Height <- 300.
         this.Width <- this.Height * aspect
-        this.Content <- g
-        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, true)
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.MapPanePopout)
+        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, true)
+        this.Owner <- owner
+        this.Title <- title
+        this.Content <- g
         this.Loaded.Add(fun _ ->
             g.Background <- new VisualBrush(viz)
             )
         this.Closed.Add(fun _ ->
-            ()
+            singleton <- null
             )
+    static member Singleton = singleton
+
 
 
 //////////////////////////////////////////////////////////////////////////
 
-type ZoomableLiveMinimapWindow(owner, aspect, x, y, zm:InMemoryStore.ZoneMemory, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+type ZoomableLiveMinimapWindow(owner, aspect, x, y, updateEv:IEvent<int*int>) as this =
     inherit Window()
+    static let mutable singleton = null
     let mutable curZoomStep = 3
     let b = new Border(Background=Brushes.DarkMagenta)
-    let mutable curX, curY, curZm = x, y, zm
+    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
     let redraw() =
         let gr = FeatureWindow.GridRange(InMemoryStore.MAX,InMemoryStore.MAX,0,0)
         let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
@@ -200,17 +219,19 @@ type ZoomableLiveMinimapWindow(owner, aspect, x, y, zm:InMemoryStore.ZoneMemory,
                         Utils.gridAdd(g, rect, i, j)
             b.Child <- g                                // TODO also add thick gridline if wrapedge
     do
-        this.Owner <- owner
-        this.Title <- "Zoomable Live Minimap"
+        singleton <- this
         this.Height <- 300.
         this.Width <- this.Height * aspect
-        this.Content <- b
-        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        updateEv.Add(fun (x,y,zm) -> 
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveMinimapPopout)
+        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
+        this.Owner <- owner
+        this.Title <- "Zoomable Live Minimap"
+        this.Content <- b
+        updateEv.Add(fun (x,y) -> 
             curX <- x
             curY <- y
-            curZm <- zm
+            curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
             redraw()
             )
         b.MouseWheel.Add(fun ea ->
@@ -226,8 +247,9 @@ type ZoomableLiveMinimapWindow(owner, aspect, x, y, zm:InMemoryStore.ZoneMemory,
             ()
             )
         this.Closed.Add(fun _ ->
-            ()
+            singleton <- null
             )
+    static member Singleton = singleton
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -238,10 +260,10 @@ type EditNotesListenerMessage =
     | FinishEditing
 
 [<AllowNullLiteral>]
-type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
+type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
     inherit Window()
-    static let mutable theLiveNotesWindow : LiveNotesWindow = null
-    let mutable curX, curY, (curZm : InMemoryStore.ZoneMemory) = x, y, zm
+    static let mutable singleton : LiveNotesWindow = null
+    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
     let mutable fontSize = 20
     let tb = new TextBlock(FontSize=float(fontSize), Foreground=Brushes.White, Background=Brushes.Transparent,
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, IsHitTestVisible=false, 
@@ -268,17 +290,19 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
         brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
         brush
     do
-        this.Owner <- owner
-        this.Title <- "Note at cursor"
-        this.UseLayoutRounding <- true
+        singleton <- this
         this.Width <- 300.
         this.Height <- 80.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveNotesPopout)
+        this.Owner <- owner
+        this.Title <- "Note at cursor"
+        this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
-            theLiveNotesWindow <- this
+            UpdateStaticNote()
             )
         this.Closed.Add(fun _ ->
-            theLiveNotesWindow <- null
+            singleton <- null
             )
         let b = new Border(BorderThickness=Thickness(3.), Background=Brushes.DarkMagenta, BorderBrush=Brushes.DarkMagenta)
         b.MouseWheel.Add(fun ea ->
@@ -295,10 +319,10 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
         tb.Width <- System.Double.NaN
         tb.Height <- System.Double.NaN
         b.Child <- sv
-        updateEv.Add(fun (x,y,zm) ->
+        updateEv.Add(fun (x,y) ->
             curX <- x
             curY <- y
-            curZm <- zm
+            curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
             UpdateStaticNote()
             )
     member this.StartEdit() = 
@@ -330,14 +354,14 @@ type LiveNotesWindow(owner, x, y, zm, updateEv:IEvent<int*int*InMemoryStore.Zone
     member this.FinishEdit() = 
         UpdateStaticNote()
         sv.ScrollToTop()
-    static member TheNotesWindow with get() = theLiveNotesWindow and set(x) = theLiveNotesWindow <- x
+    static member Singleton = singleton
 
 let theEditNotesListenerEvent = new Event<EditNotesListenerMessage>()
 do
     theEditNotesListenerEvent.Publish.Add(fun msg ->
-        if LiveNotesWindow.TheNotesWindow <> null then
+        if LiveNotesWindow.Singleton <> null then
             match msg with 
-            | EditNotesListenerMessage.StartEditing -> LiveNotesWindow.TheNotesWindow.StartEdit()
-            | EditNotesListenerMessage.Edit(t,ci,ss,sl) -> LiveNotesWindow.TheNotesWindow.NoteEdit(t,ci,ss,sl)
-            | EditNotesListenerMessage.FinishEditing -> LiveNotesWindow.TheNotesWindow.FinishEdit()
+            | EditNotesListenerMessage.StartEditing -> LiveNotesWindow.Singleton.StartEdit()
+            | EditNotesListenerMessage.Edit(t,ci,ss,sl) -> LiveNotesWindow.Singleton.NoteEdit(t,ci,ss,sl)
+            | EditNotesListenerMessage.FinishEditing -> LiveNotesWindow.Singleton.FinishEdit()
         )

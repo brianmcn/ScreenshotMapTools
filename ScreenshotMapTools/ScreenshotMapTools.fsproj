@@ -21,6 +21,7 @@
     <Compile Include="Elephantasy.fs" />
     <Compile Include="BasicLayout.fs" />
     <Compile Include="GenericMetadata.fs" />
+    <Compile Include="AppSettings.fs" />
     <Compile Include="GameSpecific.fs" />
     <Compile Include="BackingStoreData.fs" />
     <Compile Include="MultipleScreenshotForOneScreen.fs" />
@@ -29,6 +30,7 @@
     <Compile Include="FeatureWindow.fs" />
     <Compile Include="MinimapWindow.fs" />
     <Compile Include="Popouts.fs" />
+    <Compile Include="PopoutsSettings.fs" />
     <Compile Include="PreviewPane.fs" />
     <Compile Include="TrimWorkflow.fs" />
     <Compile Include="Generic.fs" />

@@ -1,4 +1,26 @@
-﻿neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
+﻿
+make a window that's pinned to editing a note for a fixed cell, e.g. for dwarf-todo
+ - no more having the navigate back and forth to edit master-todo
+ - can resize the window bigger
+ - probably name it (and allowed to have more than 1), for obs capture
+ - need a way to unpin it (when done, switch games, etc)
+ - need to deal with what happens if main app also editing that note (e.g. keep in sync)
+
+
+
+
+
+
+
+tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
+    move 'to the next #save cell' and 'to the prior #save cell' ?
+
+
+consider: dwarf: A future version could just cheekily call a zone "Misc Images" or something to seed that idea to others
+    imagine new game has 'zone00: misc images' and 'zone01: map' and starts you in zone01
+
+
+neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
 
 
 
@@ -11,11 +33,6 @@ recent ideas:
    - wraparound border option when you first create it (pre-populated auto-selected bounds, editable)
    - click and drag to move window, don't have a titlebar, preserve real estate, right click for options (or maybe toggles titlebar)
 
- - popouts windows remembering their sizes/details on save/load
- 
- - maybe a menu to select among all the popouts, with explainer text about LMB/RMB behaviors
-
- - ctrl* may send users into a pit of despair, maybe cycle right past that projection if it still has default no height or whatever
 
 
 In some scenarios I can see the thing you currently have (just a full clone of that pane of the tool) as being good, but I'm thinking now that 

@@ -174,6 +174,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
+    let settledUIPopoutInfoEvent = 
+        let r = new Event<_>()
+        uise.ChangedAndSettled.Add(fun _ ->
+            r.Trigger(kbdX.Value, kbdY.Value)
+            )
+        r
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
         kbdX.Value <- theGame.CurX
@@ -408,6 +414,49 @@ type MyWindow(mkGlassF : unit->unit) as this =
         mfsRefresh()   // redraw note preview in summary area
         MapIcons.redrawMapIconsEv.Trigger()
         MapIcons.redrawMapIconHoverOnly.Trigger()
+    let popout_mp = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.VisualPopoutWindow.Singleton=null then
+                                let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
+                                miniviz.Show()
+                        member _.Close() = 
+                            if Popouts.VisualPopoutWindow.Singleton<>null then
+                                Popouts.VisualPopoutWindow.Singleton.Close()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.MapPanePopout
+                        }
+    let popout_ccs = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.ControlsCheatsheetPopoutWindow.Singleton=null then
+                                let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)
+                                cheat.Show()
+                        member _.Close() = 
+                            if Popouts.ControlsCheatsheetPopoutWindow.Singleton<>null then
+                                Popouts.ControlsCheatsheetPopoutWindow.Singleton.Close()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.ControlsCheatSheetPopout
+                        }
+    let popout_ln = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.LiveNotesWindow.Singleton = null then
+                                let w = new Popouts.LiveNotesWindow(this.Owner, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish)
+                                w.Show()
+                        member _.Close() = 
+                            if Popouts.LiveNotesWindow.Singleton<>null then
+                                Popouts.LiveNotesWindow.Singleton.Close()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.LiveNotesPopout
+                        }
+    let popout_lm = 
+            let _,_,w,h = TheChosenGame.MapArea 
+            let aspect = float w / float h
+            { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.ZoomableLiveMinimapWindow.Singleton = null then
+                                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish)
+                                zlmw.Show()
+                        member _.Close() = 
+                            if Popouts.ZoomableLiveMinimapWindow.Singleton<>null then
+                                Popouts.ZoomableLiveMinimapWindow.Singleton.Close()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.LiveMinimapPopout
+                        }
     do
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
@@ -685,27 +734,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(dualFeatureButton) |> ignore
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
-                BasicLayout.runBLEW(this, APP_WIDTH)
-                let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
-                miniviz.Show()
-                let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)
-                cheat.Show()
-                let uev = new Event<_>()
-                uise.ChangedAndSettled.Add(fun _ ->
-                    uev.Trigger(kbdX.Value, kbdY.Value, zm)
-                    )
-                //let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
-                //mini.Show()
-                //let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
-                //notes.Show()
-                if Popouts.LiveNotesWindow.TheNotesWindow = null then
-                    Popouts.LiveNotesWindow.TheNotesWindow <- new Popouts.LiveNotesWindow(this.Owner, kbdX.Value, kbdY.Value, zm, uev.Publish)
-                    Popouts.LiveNotesWindow.TheNotesWindow.Show()
-                let aspect,_ia,_pw,_ph = GetProjectionDetails(zm)
-                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, kbdX.Value, kbdY.Value, zm, uev.Publish)
-                zlmw.Show()
-                // trigger events
-                uise.Trigger()
+                let closeEv = new Event<unit>()
+                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_mp,float APP_WIDTH), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
@@ -747,6 +777,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 let ctxt = System.Threading.SynchronizationContext.Current
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
+                for p in [popout_ccs; popout_lm; popout_ln; popout_mp] do
+                    if p.GetJson().IsActive then
+                        p.Activate()
                 GameSpecific.ActivateGameWindow()
             } |> Async.StartImmediate
             if false then   // this was useful for sidescape, which had empty screen area

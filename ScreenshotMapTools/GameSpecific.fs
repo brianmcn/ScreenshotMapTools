@@ -37,10 +37,7 @@ type ChosenGameJson() =
     member val GameHeight : int = 0 with get,set    
     member val MapArea : int*int*int*int = 0,0,0,0 with get,set     // x,y,w,h
 
-let WriteAllText(filename, text) =
-    let dir = System.IO.Path.GetDirectoryName(filename)
-    System.IO.Directory.CreateDirectory(dir) |> ignore   // ensure directory exists
-    System.IO.File.WriteAllText(filename, text)
+let WriteAllText = AppSettings.WriteAllText
 
 type ChosenGame() =
     let mutable data = null
