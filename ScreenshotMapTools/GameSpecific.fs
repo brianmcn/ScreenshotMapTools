@@ -126,12 +126,14 @@ type ChosenGame() =
         with e ->
             System.Console.WriteLine(sprintf "%s, aborting..." e.Message)
             System.Environment.Exit(1)
+    // these are static
     member this.GAME = data.GameFolder
     member this.WINDOW_TITLE = data.WindowTitle
     member this.PROCESS_EXE = data.ProcessExe
     member this.GAMESCREENW = data.GameWidth
     member this.GAMESCREENH = data.GameHeight
-    member this.MapArea  = data.MapArea
+    // this can be changed, but forces app to restart
+    member this.MapArea = data.MapArea
     member this.GamefileFilename = System.IO.Path.Combine([|".";this.GAME;gameFile|])
 let TheChosenGame = ChosenGame()
 let TryFindHwndForTheChosenGame() =

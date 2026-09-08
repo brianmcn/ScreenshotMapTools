@@ -146,7 +146,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
-    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_MULTIPLY |]
+    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
     let MAPX,MAPY = APP_WIDTH,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
@@ -457,6 +457,16 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 Popouts.ZoomableLiveMinimapWindow.Singleton.Close()
                         member _.GetJson() = AppSettings.theAppSettingsJson.LiveMinimapPopout
                         }
+    let popout_gn = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.GlobalNoteWindow.Singleton=null then
+                                let w = new Popouts.GlobalNoteWindow(this.Owner)
+                                w.Show()
+                        member _.Close() = 
+                            if Popouts.GlobalNoteWindow.Singleton<>null then
+                                Popouts.GlobalNoteWindow.Singleton.Close()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.GlobalNotePopout
+                        }
     do
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
@@ -735,7 +745,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
-                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_mp,float APP_WIDTH), "Popout Settings", closeEv.Publish)
+                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_mp,popout_gn,float APP_WIDTH), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
@@ -777,7 +787,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 let ctxt = System.Threading.SynchronizationContext.Current
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
-                for p in [popout_ccs; popout_lm; popout_ln; popout_mp] do
+                for p in [popout_ccs; popout_lm; popout_ln; popout_mp; popout_gn] do
                     if p.GetJson().IsActive then
                         p.Activate()
                 GameSpecific.ActivateGameWindow()
@@ -847,7 +857,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 if key = VK_NUMPAD7 then            this.ZoomOut()
                 if key = VK_NUMPAD9 then            this.ZoomIn()
                 if key = VK_NUMPAD5 then            this.DoCentering()
-                if key = VK_DIVIDE then             this.EditNotes()
+                if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD3 then            this.DoSpecial(true) // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
                 if key = VK_DECIMAL then            this.DoSpecial(false)
@@ -997,21 +1007,37 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 zoom()   // redraw note preview in summary area
             else
                 System.Console.Beep()
-    member this.EditNotes() =
-        let zm = ZoneMemory.Get(theGame.CurZone)
-        setCursor()
-        Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
-        let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-        Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
-        let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true, 
-                                (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
-        if save then
-            UpdateCurrentNote(orig, result, zm)
-            pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
-        Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
-        match TryFindHwndForTheChosenGame() with
-        | None -> ()
-        | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
+    member this.EditNotes(ctrl) =
+        if ctrl then
+            if Popouts.GlobalNoteWindow.Singleton = null then
+                // ensure exists
+                let w = new Popouts.GlobalNoteWindow(this.Owner)
+                w.Show()
+            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
+            let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
+            if save then
+                Popouts.GlobalNoteWindow.Singleton.Save(result)
+                pictureChanged.Value <- true    // conservative, note may or may not be onscreen
+            Popouts.GlobalNoteWindow.Singleton.FinishEdit()
+            match TryFindHwndForTheChosenGame() with
+            | None -> ()
+            | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
+        else
+            let zm = ZoneMemory.Get(theGame.CurZone)
+            setCursor()
+            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
+            Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
+            let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true, 
+                                    (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
+            if save then
+                UpdateCurrentNote(orig, result, zm)
+                pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+            Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
+            match TryFindHwndForTheChosenGame() with
+            | None -> ()
+            | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
     member this.DoSpecial(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then

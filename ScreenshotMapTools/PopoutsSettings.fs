@@ -23,7 +23,7 @@ let mkTxtWithStarStarBold(txt:string) =
     tb
 let Bold(tb:TextBlock) = tb.FontWeight <- FontWeights.Bold; tb
 
-let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, mp:IPopoutWindowBehavior, width) =
+let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, mp:IPopoutWindowBehavior, pn:IPopoutWindowBehavior, width) =
     let instructions1 = mkTxt("There are a variety of popout windows which you can choose to enable.")
     let instructions2 = mkTxtWithStarStarBold("""**Each window remembers its size and location you last used it**, for convenience.  
 But if a window ever gets 'lost' (offscreen, on another monitor, etc) you can press its 'Reset' button (above) to restore it.
@@ -64,6 +64,9 @@ The app remembers which popouts you enabled, so next time you start the app, it 
         lm,  "Minimap",             "A resizeable minimap window which displays a group of nearby cells around the cursor." +
                                         "\nMouse-Scroll-Wheel over this window to change how much grid is displayed."
         mp,  "AppGridPane",         "A resizeable window displaying the top half (map grid) portion of the app."
+        pn,  "GlobalNote",          "A resizeable window displaying the 'global' Note." +
+                                        "\nThis is a text note not tied to any particular cell, which you can edit for general notes not related to a particular map cell." +
+                                        "\nThis note can be edited only via the shortcut Ctrl+Numpad/"
         |]
     for ipwb, name, desc in data do
         // layout

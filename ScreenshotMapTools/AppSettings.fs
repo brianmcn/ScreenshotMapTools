@@ -41,6 +41,7 @@ type AppSettingsJson() =
     member val LiveNotesPopout : PopoutDetailJson = null with get,set
     member val LiveMinimapPopout : PopoutDetailJson = null with get,set
     member val MapPanePopout : PopoutDetailJson = null with get,set
+    member val GlobalNotePopout : PopoutDetailJson = null with get,set
     ////
     static member TheAppSettingsJson = theAppSettingsJson 
     member this.Save() = // assumes just one global instance
@@ -56,6 +57,8 @@ type AppSettingsJson() =
             this.LiveMinimapPopout <- new PopoutDetailJson()
         if this.MapPanePopout = null then
             this.MapPanePopout <- new PopoutDetailJson()
+        if this.GlobalNotePopout = null then
+            this.GlobalNotePopout <- new PopoutDetailJson()
 let theAppSettingsJson = AppSettingsJson.TheAppSettingsJson
 
 do  // load at startup
@@ -67,6 +70,7 @@ do  // load at startup
         theAppSettingsJson.LiveNotesPopout <- data.LiveNotesPopout
         theAppSettingsJson.LiveMinimapPopout <- data.LiveMinimapPopout
         theAppSettingsJson.MapPanePopout <- data.MapPanePopout
+        theAppSettingsJson.GlobalNotePopout <- data.GlobalNotePopout
     theAppSettingsJson.EnsurePopoutData()
 
 

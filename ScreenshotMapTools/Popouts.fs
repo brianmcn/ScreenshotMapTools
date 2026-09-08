@@ -259,53 +259,28 @@ type EditNotesListenerMessage =
     | Edit of string*int*int*int   // tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength
     | FinishEditing
 
-[<AllowNullLiteral>]
-type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
-    inherit Window()
-    static let mutable singleton : LiveNotesWindow = null
-    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+let makeBlinkyBrush() =
+    let colorAnimation = new System.Windows.Media.Animation.ColorAnimation()
+    colorAnimation.From <- System.Nullable<_>(System.Windows.Media.Colors.Yellow)
+    colorAnimation.To <- System.Nullable<_>(System.Windows.Media.Colors.DarkMagenta)
+    colorAnimation.Duration <- new Duration(System.TimeSpan.FromSeconds(0.5))
+    colorAnimation.AutoReverse <- true
+    colorAnimation.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
+    let brush = new SolidColorBrush(Colors.Black)
+    brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
+    brush
+
+type NoteHelper() =
     let mutable fontSize = 20
-    let tb = new TextBlock(FontSize=float(fontSize), Foreground=Brushes.White, Background=Brushes.Transparent,
+    let blinkyBrush = makeBlinkyBrush()
+    let tb = new TextBlock(FontSize=float fontSize, Foreground=Brushes.White, Background=Brushes.Transparent,
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, IsHitTestVisible=false, 
                                 HorizontalAlignment=HorizontalAlignment.Stretch, TextWrapping=TextWrapping.Wrap, 
-                                Margin=Thickness(3.))
+                                Margin=Thickness(3.), Width=System.Double.NaN, Height=System.Double.NaN)
     let sv = new ScrollViewer(VerticalScrollBarVisibility=ScrollBarVisibility.Hidden, Content=tb, IsHitTestVisible=false)
-    let UpdateStaticNote() =
-        let note = curZm.MapTiles.[curX,curY].Note
-        tb.Text <- 
-            if System.String.IsNullOrEmpty(note) then 
-                tb.Foreground <- Brushes.Gray
-                "" //"<no note>" // for dwarf
-            else 
-                tb.Foreground <- Brushes.White
-                note
-    let blinkyBrush = 
-        let colorAnimation = new System.Windows.Media.Animation.ColorAnimation()
-        colorAnimation.From <- System.Nullable<_>(System.Windows.Media.Colors.Yellow)
-        colorAnimation.To <- System.Nullable<_>(System.Windows.Media.Colors.DarkMagenta)
-        colorAnimation.Duration <- new Duration(System.TimeSpan.FromSeconds(0.5))
-        colorAnimation.AutoReverse <- true
-        colorAnimation.RepeatBehavior <- System.Windows.Media.Animation.RepeatBehavior.Forever
-        let brush = new SolidColorBrush(Colors.Black)
-        brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
-        brush
-    do
-        singleton <- this
-        this.Width <- 300.
-        this.Height <- 80.
-        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveNotesPopout)
-        this.Owner <- owner
-        this.Title <- "Note at cursor"
-        this.UseLayoutRounding <- true
-        this.Loaded.Add(fun _ ->
-            UpdateStaticNote()
-            )
-        this.Closed.Add(fun _ ->
-            singleton <- null
-            )
-        let b = new Border(BorderThickness=Thickness(3.), Background=Brushes.DarkMagenta, BorderBrush=Brushes.DarkMagenta)
-        b.MouseWheel.Add(fun ea ->
+    let b = 
+        let b = new Border(BorderThickness=Thickness(3.), Background=Brushes.DarkMagenta, BorderBrush=Brushes.DarkMagenta, Child=sv)
+        b.MouseWheel.Add(fun ea -> 
             if ea.Delta > 0 then
                 fontSize <- fontSize + 2
             else
@@ -314,20 +289,12 @@ type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
             fontSize <- max 8 fontSize
             fontSize <- min 72 fontSize
             tb.FontSize <- float fontSize
-        )
-        this.Content <- b
-        tb.Width <- System.Double.NaN
-        tb.Height <- System.Double.NaN
-        b.Child <- sv
-        updateEv.Add(fun (x,y) ->
-            curX <- x
-            curY <- y
-            curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
-            UpdateStaticNote()
             )
-    member this.StartEdit() = 
-        tb.Foreground <- Brushes.Lime
-    member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
+        b
+    member this.TextBlock = tb
+    member this.ScrollViewer = sv
+    member this.Border = b
+    member this.NoteEdit(fullText:string,selectionStart,selectionLength) = 
         let start = selectionStart
         tb.Inlines.Clear()
         let textBefore = fullText.Substring(0, start)
@@ -351,9 +318,89 @@ type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
             tb.Inlines.Add(selectionRun)
         if not (System.String.IsNullOrEmpty(textAfter)) then
             tb.Inlines.Add(System.Windows.Documents.Run(textAfter))
+
+[<AllowNullLiteral>]
+type GlobalNoteWindow(owner) as this =
+    inherit Window()
+    static let mutable singleton : GlobalNoteWindow = null
+    let helper = new NoteHelper()
+    let UpdateNote() =
+        let note = BackingStoreData.theGame.GlobalNote
+        helper.TextBlock.Text <- if System.String.IsNullOrEmpty(note) then "" else note
+    do
+        singleton <- this
+        this.Width <- 300.
+        this.Height <- 80.
+        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.GlobalNotePopout)
+        this.Owner <- owner
+        this.Title <- "Global Note"
+        this.UseLayoutRounding <- true
+        this.Loaded.Add(fun _ ->
+            UpdateNote()
+            )
+        this.Closed.Add(fun _ ->
+            singleton <- null
+            )
+        this.Content <- helper.Border
+    member this.StartEdit() = 
+        helper.TextBlock.Foreground <- Brushes.Lime
+        BackingStoreData.theGame.GlobalNote
+    member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
+        helper.NoteEdit(fullText,selectionStart,selectionLength)
+    member this.Save(result) = 
+        BackingStoreData.theGame.GlobalNote <- result
+        BackingStoreData.theGame.Save()
+    member this.FinishEdit() = 
+        helper.TextBlock.Foreground <- Brushes.White
+        UpdateNote()
+        helper.ScrollViewer.ScrollToTop()
+    static member Singleton = singleton
+
+[<AllowNullLiteral>]
+type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
+    inherit Window()
+    static let mutable singleton : LiveNotesWindow = null
+    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+    let helper = new NoteHelper()
+    let UpdateStaticNote() =
+        let note = curZm.MapTiles.[curX,curY].Note
+        helper.TextBlock.Text <- 
+            if System.String.IsNullOrEmpty(note) then 
+                helper.TextBlock.Foreground <- Brushes.Gray
+                "" //"<no note>" // for dwarf
+            else 
+                helper.TextBlock.Foreground <- Brushes.White
+                note
+    do
+        singleton <- this
+        this.Width <- 300.
+        this.Height <- 80.
+        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveNotesPopout)
+        this.Owner <- owner
+        this.Title <- "Note at cursor"
+        this.UseLayoutRounding <- true
+        this.Loaded.Add(fun _ ->
+            UpdateStaticNote()
+            )
+        this.Closed.Add(fun _ ->
+            singleton <- null
+            )
+        this.Content <- helper.Border
+        updateEv.Add(fun (x,y) ->
+            curX <- x
+            curY <- y
+            curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+            UpdateStaticNote()
+            )
+    member this.StartEdit() = 
+        helper.TextBlock.Foreground <- Brushes.Lime
+    member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
+        helper.NoteEdit(fullText,selectionStart,selectionLength)
     member this.FinishEdit() = 
         UpdateStaticNote()
-        sv.ScrollToTop()
+        helper.ScrollViewer.ScrollToTop()
     static member Singleton = singleton
 
 let theEditNotesListenerEvent = new Event<EditNotesListenerMessage>()

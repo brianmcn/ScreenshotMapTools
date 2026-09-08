@@ -49,10 +49,9 @@ type Game() =   // e.g. Zelda
     member val CenterY : int = 50 with get,set
     // preferred view
     member val CurZoom : int = 4 with get,set
-    // custom projections
     member val CustomProjections : CustomProjection[] = null with get,set
-    // preview pane layouts
     member val PreviewPaneLayoutPerZone : BasicLayout.JsonableTree<PreviewPaneSource>[] = null with get,set     // PPLPZ.[zoneNum] = null means default (FULL), else what to show
+    member val GlobalNote : string = "" with get,set
     static member TheGame = theGame
     member this.Save() = // assumes just one global instance
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
@@ -80,6 +79,7 @@ let LoadRootGameData() =
         theGame.CurZoom <- data.CurZoom
         theGame.CustomProjections <- data.CustomProjections
         theGame.PreviewPaneLayoutPerZone <- data.PreviewPaneLayoutPerZone
+        theGame.GlobalNote <- data.GlobalNote
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
