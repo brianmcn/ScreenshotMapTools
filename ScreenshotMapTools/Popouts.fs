@@ -36,7 +36,6 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
     do
         singleton <- this
         this.Width <- 220.
-        this.Height <- 24. * 10. + 12.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.ControlsCheatSheetPopout)
         this.Owner <- owner
@@ -51,29 +50,27 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
         this.ResizeMode <- ResizeMode.NoResize
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
-        for i = 0 to 9 do
-            g.RowDefinitions.Add(new RowDefinition(Height=GridLength(24.)))
         let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
-        Utils.gridAdd(g, mkTxt("2468"), 0, 0)
-        Utils.gridAdd(g, mkTxt("move cursor"), 1, 0)
-        Utils.gridAdd(g, mkTxt("0"), 0, 1)
-        Utils.gridAdd(g, mkTxt("take screenshot"), 1, 1)
-        Utils.gridAdd(g, mkTxt("- +"), 0, 2)
-        Utils.gridAdd(g, mkTxt("cut/paste"), 1, 2)
-        Utils.gridAdd(g, mkTxt("7 9"), 0, 3)
-        Utils.gridAdd(g, mkTxt("zoom out/in"), 1, 3)
-        Utils.gridAdd(g, mkTxt("*"), 0, 4)
-        Utils.gridAdd(g, mkTxt("cycle zone"), 1, 4)
-        Utils.gridAdd(g, mkTxt("/"), 0, 5)
-        Utils.gridAdd(g, mkTxt("edit notes"), 1, 5)
-        Utils.gridAdd(g, mkTxt("1"), 0, 6)
-        Utils.gridAdd(g, mkTxt("pan/zoom window"), 1, 6)
-        Utils.gridAdd(g, mkTxt("ctrl1"), 0, 7)
-        Utils.gridAdd(g, mkTxt("2x map pan/zoom"), 1, 7)
-        Utils.gridAdd(g, mkTxt("."), 0, 8)
-        Utils.gridAdd(g, mkTxt("toggle TODO tag"), 1, 8)
-        Utils.gridAdd(g, mkTxt("3"), 0, 9)
-        Utils.gridAdd(g, mkTxt("edit TODO tag"), 1, 9)
+        let data = [|
+                "2468", "move cursor"
+                "0", "take screenshot"
+                "- +", "cut/paste"
+                "7 9", "zoom out/in"
+                "*", "cycle zone"
+                "/", "edit note@cursor"
+                "ctrl/", "edit global note"
+                "1", "pan/zoom window"
+                "ctrl1", "2x map pan/zoom"
+                ".", "toggle TODO tag"
+                "3", "edit TODO tag"
+            |]
+        let COUNT = data.Length
+        for i = 0 to COUNT-1 do
+            g.RowDefinitions.Add(new RowDefinition(Height=GridLength(24.)))
+            let a,b = data.[i]
+            Utils.gridAdd(g, mkTxt(a), 0, i)
+            Utils.gridAdd(g, mkTxt(b), 1, i)
+        this.Height <- 24. * float COUNT + 12.
     static member Singleton = singleton
 
 

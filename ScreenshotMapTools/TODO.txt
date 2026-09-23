@@ -1,7 +1,4 @@
-﻿
-
-
-tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
+﻿tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
     move 'to the next #save cell' and 'to the prior #save cell' ?
 
 
@@ -24,18 +21,6 @@ recent ideas:
 
 
 
-In some scenarios I can see the thing you currently have (just a full clone of that pane of the tool) as being good, but I'm thinking now that 
-for stream-minimap-display, you might e.g. want a different zoom level; dwarf might want to be able to see the whole map context zoomed out 
-on the tool window, but the tiny chat-corner-minimap might be better served by just showing e.g. a 3x3 area with the cursor-highlighted tile 
-at the center.  So I'll probably make a separate popout window for that... I have a few ideas so I might implement a few things so you can just 
-play with all of them and decide what seems good.
-   > The popout map itself I'm keeping next to the game, so I am seeing if I forget to get rooms
-yeah another reason I want more popout options is that; just having something small that's in your peripheral vision can be useful for that kind 
-of reminding; I'm starting to think of the main app window as the control center that can let you do everything on its own but takes up a fair 
-bit of screen real estate, and the popouts as serving two auxiliary purposes: (1) to make easily-OBS-capturable targets for specific data looks 
-you want to share with audience, and (2) to provide HUD-peripherals to the game-player that allow them to drive the note-taking via tiny windows 
-nearby the game that take little real estate
-
 -------------------------------------------------------
 
 
@@ -48,7 +33,7 @@ from dwarf:
         - the '1' feature window now renders map icons, still no legend or printing
  - 3 and . is nice, but also nice to be able to 'arrow' thru list of hashtags modally maybe
  - dont let buttons be focusable (e.g. hit enter by accident, print button was focused, hung)
- - semi-transparent view of app, or spearate window around cursor minimap or something
+ - semi-transparent view of app, or separate window around cursor minimap or something
 
 
 
