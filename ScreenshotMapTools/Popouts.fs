@@ -267,7 +267,9 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
         this.Title <- title
         this.Content <- g
         this.Loaded.Add(fun _ ->
-            g.Background <- new VisualBrush(viz)
+            let vb = new VisualBrush(viz)
+            RenderOptions.SetBitmapScalingMode(vb, BitmapScalingMode.HighQuality)
+            g.Background <- vb
             )
         this.Closed.Add(fun _ ->
             singleton <- null
@@ -322,6 +324,7 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
                         img.Width <- w
                         img.Height <- h
                         img.Stretch <- Stretch.Fill
+                        RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality)
                         Utils.gridAdd(g, img, i, j)
                     if i+gr.MinX = curX && j+gr.MinY = curY then
                         let rect = new Shapes.Rectangle(Width=w, Height=h, Stroke=Brushes.Yellow, StrokeThickness=3.)

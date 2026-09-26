@@ -1,7 +1,5 @@
 ﻿MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
 
-zelda dungeon at like 5x5 zoom see artifact lines on floor from pixel rounding or something
-
 trim experience is bad
 
 

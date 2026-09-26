@@ -11,6 +11,22 @@ let MAP  = 1
 let FULL_FOLDER_NAME = "full-cache"
 let MAP_FOLDER_NAME = "map-cache"
 
+open System.Drawing
+open System.Drawing.Drawing2D
+open System.Drawing.Imaging
+
+let ResizeBitmap(bmp: Bitmap, newWidth: int, newHeight: int) : Bitmap =
+    let r = new Bitmap(newWidth, newHeight)
+    use g = Graphics.FromImage(r)
+    g.InterpolationMode <- InterpolationMode.HighQualityBicubic
+    g.SmoothingMode <- SmoothingMode.HighQuality
+    g.PixelOffsetMode <- PixelOffsetMode.HighQuality
+    //use wrapMode = new ImageAttributes()
+    //wrapMode.SetWrapMode(WrapMode.TileFlipXY)
+    let destRect = Rectangle(0, 0, newWidth, newHeight)
+    g.DrawImage(bmp, destRect, 0, 0, bmp.Width, bmp.Height, GraphicsUnit.Pixel (*,wrapMode*))
+    r
+
 // caches are per-zone
 type ImgArrayCache(proj,zone) =
     let prefix = 
@@ -103,7 +119,7 @@ type ImgArrayCache(proj,zone) =
     member this.GetRaw(x, y, width, height) =
         match rawCaches.[x,y].TryGetValue((width,height)) with
         | false, _ ->
-            let bmp = new System.Drawing.Bitmap(downsampledBmps.[x,y], System.Drawing.Size(width,height))
+            let bmp = ResizeBitmap(downsampledBmps.[x,y], width, height)
             let byteArray = Utils.ConvertBmpToBGRA(bmp)
             bmp.Dispose()
             rawCaches.[x,y].Add((width,height), byteArray)
