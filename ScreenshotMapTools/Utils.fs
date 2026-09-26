@@ -413,6 +413,22 @@ let CopyBGRARegionOnlyPartsWithAlpha(destBytes:byte[], destStride, destX, destY,
                 destBytes.[destIndex+i*4+2] <- r
                 destBytes.[destIndex+i*4+3] <- a
             
+let MagentaCore(w:int,h:int,color) =
+(*  
+    let r = new System.Drawing.Bitmap(w,h)
+    for y = 0 to r.Height-1 do
+        for x = 0 to r.Width-1 do
+            r.SetPixel(x,y,System.Drawing.Color.Magenta)
+*)
+    let r = new System.Drawing.Bitmap(w,h, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    let data = r.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.WriteOnly, r.PixelFormat)
+    let sizeInPixels = w*h
+    let pixelSpan = System.Span<uint32>(data.Scan0.ToPointer(), sizeInPixels)
+    pixelSpan.Fill(color)
+    r.UnlockBits(data)
+    r
+let Magenta(w:int,h:int) = MagentaCore(w,h,0xFFFF00FFu)
+
 ////////////////////////////////////////////////////////////
 
 type Win32() =

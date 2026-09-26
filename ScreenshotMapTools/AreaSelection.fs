@@ -5,9 +5,46 @@ open System.Windows.Input
 open System.Windows.Media
 open System.Windows.Controls
 
+type TrimCornerMagnifier(owner) as this =
+    inherit Window()
+    let SCALE = 6
+    let D = (SCALE/2)-1
+    let SZ = float(64 * SCALE)
+    let img = new Image(Width=SZ, Height=SZ)
+    do 
+        this.Title <- "Trim Corner Magnifier"
+        this.SizeToContent <- SizeToContent.WidthAndHeight
+        this.Content <- img
+        this.Owner <- owner
+        this.WindowStartupLocation <- WindowStartupLocation.CenterOwner
+    member this.Update(rx,ry,rw,rh,isUL) =
+        let gameBmp = BackingStoreData.TakeNewScreenshotCore()
+        let magnifyBmp = Utils.Magenta(64*SCALE,64*SCALE)
+        let ok(x,y) = not(x<0 || y<0 || x>=gameBmp.Width || y>=gameBmp.Height)
+        if isUL then
+            for y = ry-16 to ry+47 do
+                for x = rx-16 to rx+47 do
+                    for dy = 0 to SCALE-1 do
+                        for dx = 0 to SCALE-1 do
+                            if ((x=rx-1 && y>=ry-2) && dx>=D) || ((x>=rx-2 && y=ry-1) && dy>=D) then
+                                magnifyBmp.SetPixel(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, System.Drawing.Color.Yellow)
+                            elif ok(x,y) then
+                                magnifyBmp.SetPixel(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, gameBmp.GetPixel(x,y))
+        else
+            for y = ry+rh-48 to ry+rh+15 do
+                for x = rx+rw-48 to rx+rw+15 do
+                    for dy = 0 to SCALE-1 do
+                        for dx = 0 to SCALE-1 do
+                            if ((x=rx+rw && y<=ry+rh+1) && dx<=D) || ((x<=rx+rw+1 && y=ry+rh) && dy<=D) then
+                                magnifyBmp.SetPixel(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, System.Drawing.Color.Cyan)
+                            elif ok(x,y) then
+                                magnifyBmp.SetPixel(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, gameBmp.GetPixel(x,y))
+        img.Source <- Utils.BMPtoImageSource(magnifyBmp)
+                    
+
 
 let mutable recentAreaSelectionResult = None
-type AreaSelectionWindow(windowArea, selectionArea, label) as this =
+type AreaSelectionWindow(windowArea, selectionArea, label, tcm:TrimCornerMagnifier) as this =
     inherit Window()
     let x,y,w,h = windowArea
     let X,Y,W,H = x-1, y-1, w+2, h+2    // lowercase is target window we cover; uppercase is our window, with pixel frame around area
@@ -108,6 +145,7 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                 Utils.canvasAdd(c, rect, float rectx, float recty)
                 updateTB()
                 while not allDone do
+                    tcm.Update(rectx, recty, rectw, recth, isUL)
                     if isUL then
                         // move top left
                         let! key = Async.AwaitEvent this.PreviewKeyDown
@@ -165,12 +203,12 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
                         elif key.Key = Input.Key.S || key.Key = Input.Key.Down then
                             key.Handled <- true
                             recth <- recth + delta
-                            recth <- min (h-recty-1) recth
+                            recth <- min (h-recty) recth
                             rect.Height <- float recth
                         elif key.Key = Input.Key.D || key.Key = Input.Key.Right then
                             key.Handled <- true
                             rectw <- rectw + delta
-                            rectw <- min (w-rectx-1) rectw
+                            rectw <- min (w-rectx) rectw
                             rect.Width <- float rectw
                         elif key.Key = Input.Key.Escape then
                             allDone <- true
@@ -182,11 +220,14 @@ type AreaSelectionWindow(windowArea, selectionArea, label) as this =
             } |> Async.StartImmediate
             )
 
-let DoAreaSelection(windowArea,selectionArea,label) =
-    let w = new AreaSelectionWindow(windowArea,selectionArea,label)
+let DoAreaSelection(parentWindow,windowArea,selectionArea,label) =
+    let tcm = new TrimCornerMagnifier(parentWindow)
+    tcm.Show()
+    let w = new AreaSelectionWindow(windowArea,selectionArea,label, tcm)
     Utils.nestedModalDialogCount <- Utils.nestedModalDialogCount + 1
     w.Closed.Add(fun _ -> Utils.nestedModalDialogCount <- Utils.nestedModalDialogCount - 1)
     w.ShowDialog() |> ignore
+    tcm.Close()
     let r = recentAreaSelectionResult
     recentAreaSelectionResult <- None
     r

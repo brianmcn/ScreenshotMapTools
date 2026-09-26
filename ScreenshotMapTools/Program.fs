@@ -16,9 +16,10 @@ type DummyWindow() as this =
             match ex with
             | _ ->
                 printfn "%s" (ex.ToString())
-                printfn ""
-                printfn "closing app, press enter to exit this window"
-                System.Console.ReadLine() |> ignore
+                if not(Generic.appShutItselfDownAfterTrim) then
+                    printfn ""
+                    printfn "closing app, press enter to exit this window"
+                    System.Console.ReadLine() |> ignore
         System.Windows.Application.Current.DispatcherUnhandledException.Add(fun e -> 
             if System.Diagnostics.Debugger.IsAttached then
                 System.Diagnostics.Debugger.Break()

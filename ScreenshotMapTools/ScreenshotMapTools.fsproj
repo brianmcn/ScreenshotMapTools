@@ -15,7 +15,6 @@
     <Compile Include="WinteropUtils.fs" />
     <Compile Include="WindowFocusTrackingUtils.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="AreaSelection.fs" />
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
     <Compile Include="Elephantasy.fs" />
@@ -24,6 +23,7 @@
     <Compile Include="AppSettings.fs" />
     <Compile Include="GameSpecific.fs" />
     <Compile Include="BackingStoreData.fs" />
+    <Compile Include="AreaSelection.fs" />
     <Compile Include="MultipleScreenshotForOneScreen.fs" />
     <Compile Include="InMemoryStore.fs" />
     <Compile Include="MapIcons.fs" />

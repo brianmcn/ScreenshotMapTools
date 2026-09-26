@@ -113,11 +113,14 @@ let rec GetZoneName(zoneNum) =
         theGame.ZoneNames <- r
         GetZoneName(zoneNum)
 
-let TakeNewScreenshot() =
+let TakeNewScreenshotCore() =
     let bmp =
         match TryFindHwndForTheChosenGame() with
         | Some(hwnd) -> GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
         | None -> failwith "window not found"
+    bmp
+let TakeNewScreenshot() =
+    let bmp = TakeNewScreenshotCore()
     let id,img = SaveScreenshot(bmp)
     img, bmp, id
 

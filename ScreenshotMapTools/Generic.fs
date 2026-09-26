@@ -5,6 +5,8 @@ let APP_HEIGHT = 980. + 16. + 20.
 let BOTTOM_HEIGHT = 480.
 let KEYS_LIST_BOX_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH
 
+let mutable appShutItselfDownAfterTrim = false
+
 //////////////////////////////////////////////////////////
 
 open System
@@ -665,6 +667,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     // restart
                     this.UnregisterHotKey()
                     System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
+                    appShutItselfDownAfterTrim <- true
                     Application.Current.Shutdown()
                     ), APP_WIDTH)
                 mfsRefresh()

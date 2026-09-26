@@ -1,7 +1,5 @@
 ﻿MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
 
-trim experience is bad
-
 
 put like some demo/doc stuff in a demo folder
 
