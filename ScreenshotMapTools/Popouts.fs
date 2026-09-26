@@ -4,6 +4,115 @@ open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
 
+// To make popouts not all come to front when the app comes to front, they need to each live in their own UI dispatcher thread.
+[<AllowNullLiteral>]
+type IndependentWindow() =
+    inherit Window()
+    let mainUIDispatcher = Application.Current.Dispatcher
+    let thisWindowDispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher
+    do
+        if obj.ReferenceEquals(mainUIDispatcher,thisWindowDispatcher) then
+            failwith "created an IndependentWindow on the main UI thread"
+    member this.EnsureOnMainUIThread() =
+        if not(mainUIDispatcher.CheckAccess()) then
+            failwith "EnsureOnMainUIThread failed"
+    member this.EnsureOnThisWindowsOwnThread() =
+        if not(thisWindowDispatcher.CheckAccess()) then
+            failwith "EnsureOnMainUIThread failed"
+    member this.ThreadSafeClose() =     // convenience
+        thisWindowDispatcher.InvokeAsync(fun() -> this.Close()) |> ignore
+
+// WPF Windows on their own threads will not be brought-to-front by Windows when the main window gets focus.  
+let CreateAndShowWindowOnItsOwnUIDispatcherThread(windowCreator:unit->IndependentWindow) =
+    let thread = new System.Threading.Thread(fun() ->
+        let win = windowCreator()
+        win.Closed.Add(fun _ -> System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown())
+        win.Show()
+        System.Windows.Threading.Dispatcher.Run()
+        )
+    thread.SetApartmentState(System.Threading.ApartmentState.STA)
+    thread.IsBackground <- true
+    thread.Start()
+
+let MainUIInvoke<'T>(f:unit->'T) = Application.Current.Dispatcher.Invoke(f)
+
+(*
+Since my model code (e.g. backing store) is not threadsafe, unless I want to rewrite all that, I will need to ensure that all the popout code
+that interacts with the model marshals that work to the 'main' UI thread.
+
+To avoid deadlocks, I should ensure I only Dispatcher.Invoke() in one direction (e.g. from popouts to main app, and never other way around).
+That is, the main UI thread should only fire-and-forget notifications to the popout windows.
+
+Since main app will fire events or call popout methods from main ui thread, I should put explicit guards on all popout entrypoints to ensure
+I'm managing threads correctly.
+
+Note that the popout constructor will run on its own thread, which means any model code needs to be Invoke()d on the main thread.
+
+Make sure have right encapsulation boundaries architected to make it so that stuff above won't be error-prone!
+
+
+
+note that visualbrush won't work across threads.  i'd need something like the code below, and every time the source view changes, call this again
+i think in my specific case, LayoutUpdated on the source would be sufficient, though CompositionTarget.Rendering is a fallback option if not seeing certain changes
+either way probably throttle along lines of UISettlingEvent
+
+
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+
+namespace MultiThreadedWpfBrushes
+{
+    public partial class MainWindow : Window
+    {
+        // Placeholders representing your two separate UI threads/dispatchers
+        private Dispatcher _sourceUIThread;
+        private Dispatcher _targetUIThread;
+
+        // Elements on the respective threads
+        private FrameworkElement _sourceVisual; // The UI element you want to "copy"
+        private Panel _targetElement;           // The UI element you want to paint
+
+        public void ShareVisualAcrossThreads()
+        {
+            // 1. Execute work on the thread that OWNS the source visual
+            _sourceUIThread.InvokeAsync(() =>
+            {
+                // Create the bitmap container
+                int width = (int)_sourceVisual.ActualWidth;
+                int height = (int)_sourceVisual.ActualHeight;
+                
+                if (width <= 0 || height <= 0) return;
+
+                RenderTargetBitmap renderTarget = new RenderTargetBitmap(
+                    width, height, 96, 96, PixelFormats.Pbgra32);
+
+                // Render the visual into the bitmap
+                renderTarget.Render(_sourceVisual);
+
+                // CRITICAL STEP: Freeze the bitmap to remove thread affinity
+                renderTarget.Freeze();
+
+                // 2. Pass the frozen bitmap safely to the target thread
+                _targetUIThread.InvokeAsync(() =>
+                {
+                    // Create an ImageBrush using the frozen bitmap
+                    ImageBrush imageBrush = new ImageBrush(renderTarget);
+                    
+                    // Paint the target element on the second thread
+                    _targetElement.Background = imageBrush;
+                });
+            });
+        }
+    }
+}
+*)
+
+//////////////////////////////////////////////////////////////////////////
+
 let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
     let customChrome = new System.Windows.Shell.WindowChrome(CaptionHeight=0, ResizeBorderThickness = Thickness(8), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0))
     System.Windows.Shell.WindowChrome.SetWindowChrome(w, customChrome)
@@ -21,15 +130,18 @@ let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
 let MakeWindowSmartByRememberingPositionAndSize(w:Window, json:AppSettings.PopoutDetailJson) =    // call this in the constructor, after settting Width/Height(/Left/Top) to a default
     AppSettings.WindowPosition.SetInitialWindowPosition(w, json.XYWH)
     let save() =
-        json.XYWH <- (int w.Left), (int w.Top), (int w.Width), (int w.Height)
-        AppSettings.theAppSettingsJson.Save()
+        let xywh = (int w.Left), (int w.Top), (int w.Width), (int w.Height)
+        MainUIInvoke(fun() ->
+            json.XYWH <- xywh
+            AppSettings.theAppSettingsJson.Save()
+            )
     w.SizeChanged.Add(fun _ -> save())
     w.LocationChanged.Add(fun _ -> save())
 
 //////////////////////////////////////////////////////////////////////////
 
-type ControlsCheatsheetPopoutWindow(owner) as this =
-    inherit Window()
+type ControlsCheatsheetPopoutWindow() as this =
+    inherit IndependentWindow()
     static let mutable singleton = null
     let g = new Grid()
     let b = new Border(BorderThickness=Thickness(6.), Child=g, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
@@ -37,8 +149,7 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
         singleton <- this
         this.Width <- 220.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.ControlsCheatSheetPopout)
-        this.Owner <- owner
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.ControlsCheatSheetPopout))
         this.Title <- "Controls cheatsheet"
         this.Loaded.Add(fun _ ->
             ()
@@ -72,7 +183,6 @@ type ControlsCheatsheetPopoutWindow(owner) as this =
             Utils.gridAdd(g, mkTxt(b), 1, i)
         this.Height <- 24. * float COUNT + 12.
     static member Singleton = singleton
-
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -164,25 +274,27 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
             )
     static member Singleton = singleton
 
-
-
 //////////////////////////////////////////////////////////////////////////
 
-type ZoomableLiveMinimapWindow(owner, aspect, x, y, updateEv:IEvent<int*int>) as this =
-    inherit Window()
+type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
+    inherit IndependentWindow()
     static let mutable singleton = null
     let mutable curZoomStep = 3
     let b = new Border(Background=Brushes.DarkMagenta)
-    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+    let mutable curX, curY, curZm = x, y, MainUIInvoke(fun() -> InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone))
     let redraw() =
-        let gr = FeatureWindow.GridRange(InMemoryStore.MAX,InMemoryStore.MAX,0,0)
-        let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
-        for i = curX-curZoomStep to curX+curZoomStep do
-            for j = curY-curZoomStep to curY+curZoomStep do
-                let bmp = curZm.MapImgArray.GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
-                bmpDict[(i,j)] <- bmp
-                if bmp <> null || (i=curX && j=curY) then
-                    gr.Extend(i,j)
+        this.EnsureOnThisWindowsOwnThread()
+        let gr, bmpDict = MainUIInvoke(fun() ->
+            let gr = FeatureWindow.GridRange(InMemoryStore.MAX,InMemoryStore.MAX,0,0)
+            let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
+            for i = curX-curZoomStep to curX+curZoomStep do
+                for j = curY-curZoomStep to curY+curZoomStep do
+                    let bmp = curZm.MapImgArray.GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
+                    bmpDict[(i,j)] <- bmp
+                    if bmp <> null || (i=curX && j=curY) then
+                        gr.Extend(i,j)
+            gr, bmpDict
+            )
         if not(gr.MaxX >= gr.MinX) then
             b.Child <- null
         else              // there was at least one screenshot
@@ -222,14 +334,14 @@ type ZoomableLiveMinimapWindow(owner, aspect, x, y, updateEv:IEvent<int*int>) as
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveMinimapPopout)
         LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
-        this.Owner <- owner
         this.Title <- "Zoomable Live Minimap"
         this.Content <- b
         updateEv.Add(fun (x,y) -> 
+            this.EnsureOnMainUIThread()
             curX <- x
             curY <- y
             curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
-            redraw()
+            this.Dispatcher.InvokeAsync(redraw) |> ignore
             )
         b.MouseWheel.Add(fun ea ->
             if ea.Delta > 0 then 
@@ -267,7 +379,7 @@ let makeBlinkyBrush() =
     brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
     brush
 
-type NoteHelper() =
+type NoteHelper(dispatcher:System.Windows.Threading.Dispatcher) =
     let mutable fontSize = 20
     let blinkyBrush = makeBlinkyBrush()
     let tb = new TextBlock(FontSize=float fontSize, Foreground=Brushes.White, Background=Brushes.Transparent,
@@ -307,7 +419,7 @@ type NoteHelper() =
             caretElement.Margin <- new Thickness(-1, 2, -1, -2)
             let caretContainer = new System.Windows.Documents.InlineUIContainer(caretElement);
             tb.Inlines.Add(caretContainer)
-            Application.Current.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(fun () -> caretContainer.BringIntoView())) |> ignore
+            dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new System.Action(fun () -> caretContainer.BringIntoView())) |> ignore
         if not (System.String.IsNullOrEmpty(textSelected)) then
             let selectionRun = System.Windows.Documents.Run(textSelected)
             selectionRun.Background <- Brushes.Gray
@@ -317,20 +429,20 @@ type NoteHelper() =
             tb.Inlines.Add(System.Windows.Documents.Run(textAfter))
 
 [<AllowNullLiteral>]
-type GlobalNoteWindow(owner) as this =
-    inherit Window()
+type GlobalNoteWindow() as this =
+    inherit IndependentWindow()
     static let mutable singleton : GlobalNoteWindow = null
-    let helper = new NoteHelper()
+    let helper = new NoteHelper(System.Windows.Threading.Dispatcher.CurrentDispatcher)
     let UpdateNote() =
-        let note = BackingStoreData.theGame.GlobalNote
+        this.EnsureOnThisWindowsOwnThread()
+        let note = MainUIInvoke(fun() -> BackingStoreData.theGame.GlobalNote)
         helper.TextBlock.Text <- if System.String.IsNullOrEmpty(note) then "" else note
     do
         singleton <- this
         this.Width <- 300.
         this.Height <- 80.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.GlobalNotePopout)
-        this.Owner <- owner
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.GlobalNotePopout))
         this.Title <- "Global Note"
         this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
@@ -341,27 +453,34 @@ type GlobalNoteWindow(owner) as this =
             )
         this.Content <- helper.Border
     member this.StartEdit() = 
-        helper.TextBlock.Foreground <- Brushes.Lime
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> helper.TextBlock.Foreground <- Brushes.Lime) |> ignore
         BackingStoreData.theGame.GlobalNote
     member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
-        helper.NoteEdit(fullText,selectionStart,selectionLength)
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> helper.NoteEdit(fullText,selectionStart,selectionLength)) |> ignore
     member this.Save(result) = 
+        this.EnsureOnMainUIThread()
         BackingStoreData.theGame.GlobalNote <- result
         BackingStoreData.theGame.Save()
     member this.FinishEdit() = 
-        helper.TextBlock.Foreground <- Brushes.White
-        UpdateNote()
-        helper.ScrollViewer.ScrollToTop()
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> 
+            helper.TextBlock.Foreground <- Brushes.White
+            UpdateNote()
+            helper.ScrollViewer.ScrollToTop()
+            ) |> ignore
     static member Singleton = singleton
 
 [<AllowNullLiteral>]
-type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
-    inherit Window()
+type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
+    inherit IndependentWindow()
     static let mutable singleton : LiveNotesWindow = null
     let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
-    let helper = new NoteHelper()
+    let helper = new NoteHelper(System.Windows.Threading.Dispatcher.CurrentDispatcher)
     let UpdateStaticNote() =
-        let note = curZm.MapTiles.[curX,curY].Note
+        this.EnsureOnThisWindowsOwnThread()
+        let note = MainUIInvoke(fun() -> curZm.MapTiles.[curX,curY].Note)
         helper.TextBlock.Text <- 
             if System.String.IsNullOrEmpty(note) then 
                 helper.TextBlock.Foreground <- Brushes.Gray
@@ -374,8 +493,7 @@ type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
         this.Width <- 300.
         this.Height <- 80.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveNotesPopout)
-        this.Owner <- owner
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesPopout))
         this.Title <- "Note at cursor"
         this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
@@ -386,18 +504,24 @@ type LiveNotesWindow(owner, x, y, updateEv:IEvent<int*int>) as this =
             )
         this.Content <- helper.Border
         updateEv.Add(fun (x,y) ->
+            this.EnsureOnMainUIThread()
             curX <- x
             curY <- y
             curZm <- InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
-            UpdateStaticNote()
+            this.Dispatcher.InvokeAsync(UpdateStaticNote) |> ignore
             )
     member this.StartEdit() = 
-        helper.TextBlock.Foreground <- Brushes.Lime
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> helper.TextBlock.Foreground <- Brushes.Lime) |> ignore
     member this.NoteEdit(fullText:string,_caretIndex,selectionStart,selectionLength) = 
-        helper.NoteEdit(fullText,selectionStart,selectionLength)
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> helper.NoteEdit(fullText,selectionStart,selectionLength)) |> ignore
     member this.FinishEdit() = 
-        UpdateStaticNote()
-        helper.ScrollViewer.ScrollToTop()
+        this.EnsureOnMainUIThread()
+        this.Dispatcher.InvokeAsync(fun() -> 
+            UpdateStaticNote()
+            helper.ScrollViewer.ScrollToTop()
+            ) |> ignore
     static member Singleton = singleton
 
 let theEditNotesListenerEvent = new Event<EditNotesListenerMessage>()

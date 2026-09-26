@@ -427,21 +427,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let popout_ccs = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.ControlsCheatsheetPopoutWindow.Singleton=null then
-                                let cheat = new Popouts.ControlsCheatsheetPopoutWindow(this.Owner)
-                                cheat.Show()
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.ControlsCheatsheetPopoutWindow())
                         member _.Close() = 
                             if Popouts.ControlsCheatsheetPopoutWindow.Singleton<>null then
-                                Popouts.ControlsCheatsheetPopoutWindow.Singleton.Close()
+                                Popouts.ControlsCheatsheetPopoutWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.ControlsCheatSheetPopout
                         }
     let popout_ln = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.LiveNotesWindow.Singleton = null then
-                                let w = new Popouts.LiveNotesWindow(this.Owner, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish)
-                                w.Show()
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.LiveNotesWindow(kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish))
                         member _.Close() = 
                             if Popouts.LiveNotesWindow.Singleton<>null then
-                                Popouts.LiveNotesWindow.Singleton.Close()
+                                Popouts.LiveNotesWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.LiveNotesPopout
                         }
     let popout_lm = 
@@ -450,21 +448,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
             { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.ZoomableLiveMinimapWindow.Singleton = null then
-                                let zlmw = new Popouts.ZoomableLiveMinimapWindow(this.Owner, aspect, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish)
-                                zlmw.Show()
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.ZoomableLiveMinimapWindow(aspect, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish))
                         member _.Close() = 
                             if Popouts.ZoomableLiveMinimapWindow.Singleton<>null then
-                                Popouts.ZoomableLiveMinimapWindow.Singleton.Close()
+                                Popouts.ZoomableLiveMinimapWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.LiveMinimapPopout
                         }
     let popout_gn = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.GlobalNoteWindow.Singleton=null then
-                                let w = new Popouts.GlobalNoteWindow(this.Owner)
-                                w.Show()
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.GlobalNoteWindow())
                         member _.Close() = 
                             if Popouts.GlobalNoteWindow.Singleton<>null then
-                                Popouts.GlobalNoteWindow.Singleton.Close()
+                                Popouts.GlobalNoteWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.GlobalNotePopout
                         }
     do
@@ -1011,14 +1007,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             if Popouts.GlobalNoteWindow.Singleton = null then
                 // ensure exists
-                let w = new Popouts.GlobalNoteWindow(this.Owner)
-                w.Show()
+                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.GlobalNoteWindow())
             Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
             let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
             let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
             if save then
                 Popouts.GlobalNoteWindow.Singleton.Save(result)
-                pictureChanged.Value <- true    // conservative, note may or may not be onscreen
             Popouts.GlobalNoteWindow.Singleton.FinishEdit()
             match TryFindHwndForTheChosenGame() with
             | None -> ()
@@ -1055,6 +1049,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     UpdateCurrentNote(orig, orig.Substring(0,orig.Length-specialText.Length), zm)
                 else
                     UpdateCurrentNote(orig, orig+"\n"+specialText, zm)
+                pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
             else
                 minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
                 minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden

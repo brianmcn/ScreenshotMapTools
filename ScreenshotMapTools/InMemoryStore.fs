@@ -37,6 +37,8 @@ type ImgArrayCache(proj,zone) =
         else
             bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
             doesFileExist.[x,y] <- 111
+    let FullClone(bmp:System.Drawing.Bitmap) = new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
+    let DownsampleClone(bmp:System.Drawing.Bitmap) = new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2), max 1 (bmp.Height/2)))
     member this.TryReadFromDisk(x,y) =
         async {
             let file = GetCacheFilename(x,y)
@@ -51,7 +53,7 @@ type ImgArrayCache(proj,zone) =
                         new System.Drawing.Bitmap(file)
                 let bi = new Utils.SharedBitmapSource(bmp)
                 ownedBmps.[x,y] <- bmp
-                downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))
+                downsampledBmps.[x,y] <- DownsampleClone(bmp)
                 return Some(fun() -> 
                                 let img = new System.Windows.Controls.Image(Source=bi, Width=float bmp.Width, Height=float bmp.Height)
                                 imgArray.[x,y] <- img
@@ -64,8 +66,8 @@ type ImgArrayCache(proj,zone) =
         CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
         rawCaches.[x,y].Clear()
-        ownedBmps.[x,y] <- if bmp=null then null else new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
-        downsampledBmps.[x,y] <- if bmp=null then null else new System.Drawing.Bitmap(bmp, System.Drawing.Size(max 1 (bmp.Width/2),max 1 (bmp.Height/2)))
+        ownedBmps.[x,y] <- if bmp=null then null else FullClone(bmp)
+        downsampledBmps.[x,y] <- if bmp=null then null else DownsampleClone(bmp)
     member this.HasBmp(x,y) =
         match doesFileExist.[x,y] with
         | 0 ->
@@ -92,8 +94,8 @@ type ImgArrayCache(proj,zone) =
                 if System.IO.File.Exists(file) then
                     doesFileExist.[x,y] <- 111
                     let bmp = Utils.LoadBitmapWithoutLockingFile(file)
-                    ownedBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width,bmp.Height))
-                    downsampledBmps.[x,y] <- new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width/2,bmp.Height/2))
+                    ownedBmps.[x,y] <- FullClone(bmp)
+                    downsampledBmps.[x,y] <- DownsampleClone(bmp)
                     bmp
                 else
                     doesFileExist.[x,y] <- 222

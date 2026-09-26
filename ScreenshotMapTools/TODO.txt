@@ -1,4 +1,14 @@
-﻿tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
+﻿MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
+
+zelda dungeon at like 5x5 zoom see artifact lines on floor from pixel rounding or something
+
+trim experience is bad
+
+
+put like some demo/doc stuff in a demo folder
+
+
+tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
     move 'to the next #save cell' and 'to the prior #save cell' ?
 
 
@@ -7,6 +17,14 @@ consider: dwarf: A future version could just cheekily call a zone "Misc Images" 
 
 
 neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
+
+
+
+docs
+emuurom looks good as example
+ESA might look good, despite some scrolling
+LoZ1 would obviously be good to show e.g. dungeons as zones
+
 
 
 
@@ -21,6 +39,11 @@ recent ideas:
 
 
 
+-------------------------------------------------------
+deployment (can delete all the 'ru' language directories)
+I spent a bit of time (in Sep 2026) looking into other possible framework targeting for deployment, and they all suck.
+netframework48 is still the best for being able to xcopy-deploy a zip of an-exe-and-a-few-dlls (like 2MB) and have things just work.
+so don't spend time thinking about newer net frameworks, winui, etc; no one is going to download 100MB or go thru an installer for this little tool
 -------------------------------------------------------
 
 

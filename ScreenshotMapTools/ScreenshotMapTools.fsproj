@@ -54,4 +54,11 @@
     <Reference Include="UIAutomationTypes" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
+
+	<Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">
+		<ItemGroup>
+			<!-- Removes all non-English localized folders brought in by NuGet packages or 3rd party DLLs -->
+			<ReferenceCopyLocalPaths Remove="@(ReferenceSatellitePaths)" />
+		</ItemGroup>
+	</Target>
 </Project>

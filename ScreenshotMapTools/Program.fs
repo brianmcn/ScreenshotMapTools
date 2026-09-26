@@ -57,6 +57,9 @@ type DummyWindow() as this =
                 )  
             )
 
+[<assembly: System.Resources.NeutralResourcesLanguage("en-US", System.Resources.UltimateResourceFallbackLocation.MainAssembly)>]
+do
+    () 
 
 [<STAThread>]
 [<EntryPoint>]
