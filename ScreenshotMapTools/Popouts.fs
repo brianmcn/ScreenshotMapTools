@@ -262,7 +262,7 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
         this.Width <- this.Height * aspect
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.MapPanePopout)
-        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, true)
+        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
         this.Owner <- owner
         this.Title <- title
         this.Content <- g

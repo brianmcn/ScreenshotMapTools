@@ -127,7 +127,7 @@ on your desktop, if desired; see [popouts](#popouts) for more info.
 ## <a id="popouts"></a>Popout windows
 
 Popouts are little chrome-less windows that display useful projections of information in the app.  One example
-popout that new users are likely to want is the 'Controls Cheatsheet' which summarizes the keyboard
+popout that new users are likely to want is the 'Controls Cheatsheet' which summarizes the NumPad keyboard
 controls of the app:
 
 ![controls cheatsheet](img/ControlsCheatsheet.png)

@@ -1,7 +1,4 @@
-﻿viz popout, left side drag leftright bugged
-
-structure docs like z1r
-motivate trim with LoZ
+﻿docs: setup, motivate trim with LoZ
 add popout for preview-pane
 
 
