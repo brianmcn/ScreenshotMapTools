@@ -126,8 +126,13 @@ on your desktop, if desired; see [popouts](#popouts) for more info.
 
 ## <a id="popouts"></a>Popout windows
 
-Popouts are little windows that display useful projections of information in the app.  All popouts have
-the same mouse controls for interacting:
+Popouts are little chrome-less windows that display useful projections of information in the app.  One example
+popout that new users are likely to want is the 'Controls Cheatsheet' which summarizes the keyboard
+controls of the app:
+
+![controls cheatsheet](img/ControlsCheatsheet.png)
+
+All popouts have the same mouse controls for interacting:
 
 * `Left-click-and-drag` within the window: Move a popout window around on your desktop
 * `Right click`: Close this popout window

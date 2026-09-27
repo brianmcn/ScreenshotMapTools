@@ -25,13 +25,13 @@ if it gets quarantined.
 
 Note: If Chrome prevents you from downloading the zip file, you can disable security temporarily:
 
-In the top-right corner of the browser window, click the three dots icon.
-Select "Settings" from the menu.
-Select "Privacy and security" on the left side of the page.
-In the section "Privacy and security", click "Security".
-Note what security protection level you are currently using, to reset it in a moment.
-Select "No protection".
-Confirm the following pop-up with "Turn off".
-Download the zip file.
-Repeat the first 4 steps to return to the security settings.
-Change back to your original security protection level you noted a moment ago, to re-enable safe browsing.
+* In the top-right corner of the browser window, click the three dots icon.
+* Select "Settings" from the menu.
+* Select "Privacy and security" on the left side of the page.
+* In the section "Privacy and security", click "Security".
+* Note what security protection level you are currently using, to reset it in a moment.
+* Select "No protection".
+* Confirm the following pop-up with "Turn off".
+* Download the zip file.
+* Repeat the first 4 steps to return to the security settings.
+* Change back to your original security protection level you noted a moment ago, to re-enable safe browsing.

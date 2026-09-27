@@ -18,7 +18,7 @@ a grid (like Obsidian or GIMP).  Even the more efficient workflows I've witnesse
 multiple applications and the game itself.
 
 So I made a tool that makes it simple.  The tool just runs in the background, and at any time you can press `Numpad0` to take a new screenshot
-of the game and drop it into the grid, or use `Numpad2468` to move the cursor around the grid, while the game stays running with focus.
+of the game and drop it into the grid, or use `Numpad2468` to move the cursor around the grid, all while the game stays running with focus.
 
 There's lots more features, for notetaking, custom visualizations, and OBS capture.
 
