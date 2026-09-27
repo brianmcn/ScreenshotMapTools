@@ -1,15 +1,26 @@
-## Pre-requisites
 
-To use the tool, you currently will need
+## On this page
 
-* To be running Win10 or Win11
+* [Downloading and running the tool](#downloading)
+* [Setting up a new game for the tool](#newGameSetup)
+* [Basic Controls - Screenshots on a grid](#basicControls)
+* [Multiple screenshots per grid cell](#multipleScreenshots)
+* [Cut and paste](#cutAndPaste)
+* [Text notes and #hashtag labels](#textNotes)
+* [Popout windows](#popouts)
+* [Glass tool for scribbling](#glass)
 
-* To play the targetted game in a window of a constant fixed size of your choosing
+Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
-* A keyboard with a num-pad
+## <a id="downloading"></a>Downloading and running the tool
 
+See the [download page](download.md) for information.
 
-## Basic Controls - Screenshots on a grid
+## <a id="newGameSetup"></a>Setting up a new game for the tool
+
+TODO
+
+## <a id="basicControls"></a>Basic Controls - Screenshots on a grid
 
 The tool is designed to visible to player (off to the side, or on a separate monitor)
 while they are playing the game (via keyboard or controller).  The basic controls of
@@ -45,7 +56,7 @@ multiple maps (e.g. Zelda1 has an overworld map and 9 dungeon maps).
 TODO link to more info on zones
 
 
-## Multiple screenshots per grid cell
+## <a id="multipleScreenshots"></a>Multiple screenshots per grid cell
 
 You can put multiple screenshots in a single cell of the map grid.  By default this will 
 just 'blend' the screenshots into a composite image, which is useful for many games where
@@ -59,7 +70,7 @@ illuminates the whole room:
 ![Minit composite image example](img/MinitExample.png)
 
 
-## Cut and paste
+## <a id="cutAndPaste"></a>Cut and paste
 
 You will inevitably make a mistake and put a screenshot in the wrong grid cell.  The tool
 has basic cut-and-paste functionality to patch up mistaken screenshots.
@@ -74,7 +85,7 @@ The most-recently-cut screenshot appears in a little preview pane in the bottom 
 of the tool.
 
 
-## Text notes and #hashtag labels
+## <a id="textNotes"></a>Text notes and #hashtag labels
 
 You can make text notes for each cell on the grid.  
 
@@ -103,22 +114,19 @@ You can also create clickable **hyperlinks** to jump to other cells by typing e.
 in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
 travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
 
+## <a id="popouts"></a>Popout windows
 
-## Glass
+There are a variety of popout windows that blah blah TODO write this
 
-The 'glass' button in the upper right launches a separate app window which allow you to put 
-a "pane of transparent glass you can draw on" over any window (such as the game).  You can 
-use it for basic temporary 'drawing' tasks to display an idea to livestream viewers, for example.
+## <a id="glass"></a>Glass tool for scribbling
+
+See the [glass page] for more information on the glass tool, which lets you draw on any window.
 
 ![glass example](img/GlassExample.png)
 
-Each glass window has the title "LorgonGlass X" where "X" is the title of the window it is
-targeting.  This helps manage OBS layouts where you might want to draw atop multiple windows;
-you can have multiple 'Window title must match' sources in OBS to capture multiple instances of
-glass, each with the same layout/size as its target window in your OBS scene.
 
 ## Other features
 
-TODO eventually document other features
+TODO eventually document other features (custom trim, preview pane, feature window, ...)
 
 
