@@ -3,7 +3,7 @@
 A tool for making screenshot maps of 2-D screen-at-a-time games, and for taking notes
 associated with locations of the map.
 
-![the tool](doc/img/Tool.png)
+![the tool](doc/img/ToolZBothSmall.png)
 
 This document is a work in progress (as is the tool).
 
@@ -24,7 +24,7 @@ To use the tool, you currently will need
 The tool is designed to visible to player (off to the side, or on a separate monitor)
 while they are playing the game (via keyboard or controller).  The basic controls of
 the tool run via num-pad hotkeys that allow you to move the cursor around the map grid 
-and take screenshots without ever needing have the game lose focus.
+and take screenshots without ever needing to alt-tab or have the game lose focus.
 
 The top area of the tool window displays a grid for screenshots.  A yellow box around
 one cell of the grid is the current location cursor.  The most essential controls:
@@ -33,7 +33,7 @@ one cell of the grid is the current location cursor.  The most essential control
 
 * `(Numpad) 0`: takes a screenshot of the game window, and drops it into the current grid cell
 
-* `(Numpad) 7` and `9`: zoom In and Out on the map grid, to get a more focused, or wider, view
+* `(Numpad) 7` and `9`: zoom In/Out on the map grid, to get a more focused/wider view
 
 The tool supports a grid of 100x100 cells, and starts you by default at coordinate (50,50).
 So when you start the game, you can put the first screenshot at (50,50) and then just start 

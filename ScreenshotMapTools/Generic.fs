@@ -637,6 +637,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         //this.Topmost <- true
         this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
+        this.ResizeMode <- ResizeMode.CanMinimize
         //this.SizeToContent <- SizeToContent.Manual
         //this.Width <- float APP_WIDTH
         //this.Height <- float APP_HEIGHT

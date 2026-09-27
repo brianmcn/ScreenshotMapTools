@@ -1,4 +1,11 @@
-﻿MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
+﻿viz popout, left side drag leftright bugged
+
+structure docs like z1r
+motivate trim with LoZ
+add popout for preview-pane
+
+
+MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
 
 
 put like some demo/doc stuff in a demo folder
