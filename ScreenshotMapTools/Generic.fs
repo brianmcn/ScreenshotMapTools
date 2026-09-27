@@ -1012,15 +1012,20 @@ type MyWindow(mkGlassF : unit->unit) as this =
             if Popouts.GlobalNoteWindow.Singleton = null then
                 // ensure exists
                 Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.GlobalNoteWindow())
-            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
-            let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
-            let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
-            if save then
-                Popouts.GlobalNoteWindow.Singleton.Save(result)
-            Popouts.GlobalNoteWindow.Singleton.FinishEdit()
-            match TryFindHwndForTheChosenGame() with
-            | None -> ()
-            | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
+            // the global note window is created on another thread, so we may need to wait a moment for it to appear
+            Async.StartImmediate(async {
+                while Popouts.GlobalNoteWindow.Singleton = null do
+                    do! Async.Sleep(50)
+                Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+                let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
+                let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
+                if save then
+                    Popouts.GlobalNoteWindow.Singleton.Save(result)
+                Popouts.GlobalNoteWindow.Singleton.FinishEdit()
+                match TryFindHwndForTheChosenGame() with
+                | None -> ()
+                | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
+                })
         else
             let zm = ZoneMemory.Get(theGame.CurZone)
             setCursor()

@@ -2,11 +2,11 @@
 ## On this page
 
 * [Downloading and running the tool](#downloading)
-* [Setting up a new game for the tool](#newGameSetup)
-* [Basic Controls - Screenshots on a grid](#basicControls)
-* [Multiple screenshots per grid cell](#multipleScreenshots)
-* [Cut and paste](#cutAndPaste)
-* [Text notes and #hashtag labels](#textNotes)
+* [Setting up a new game for the tool](#newgamesetup)
+* [Basic Controls - Screenshots on a grid](#basiccontrols)
+* [Multiple screenshots per grid cell](#multiplescreenshots)
+* [Cut and paste](#cutandpaste)
+* [Text notes and #hashtag labels](#textnotes)
 * [Popout windows](#popouts)
 * [Glass tool for scribbling](#glass)
 
@@ -16,11 +16,11 @@ Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
 See the [download page](download.md) for information.
 
-## <a id="newGameSetup"></a>Setting up a new game for the tool
+## <a id="newgamesetup"></a>Setting up a new game for the tool
 
 TODO
 
-## <a id="basicControls"></a>Basic Controls - Screenshots on a grid
+## <a id="basiccontrols"></a>Basic Controls - Screenshots on a grid
 
 The tool is designed to visible to player (off to the side, or on a separate monitor)
 while they are playing the game (via keyboard or controller).  The basic controls of
@@ -56,7 +56,7 @@ multiple maps (e.g. Zelda1 has an overworld map and 9 dungeon maps).
 TODO link to more info on zones
 
 
-## <a id="multipleScreenshots"></a>Multiple screenshots per grid cell
+## <a id="multiplescreenshots"></a>Multiple screenshots per grid cell
 
 You can put multiple screenshots in a single cell of the map grid.  By default this will 
 just 'blend' the screenshots into a composite image, which is useful for many games where
@@ -70,7 +70,7 @@ illuminates the whole room:
 ![Minit composite image example](img/MinitExample.png)
 
 
-## <a id="cutAndPaste"></a>Cut and paste
+## <a id="cutandpaste"></a>Cut and paste
 
 You will inevitably make a mistake and put a screenshot in the wrong grid cell.  The tool
 has basic cut-and-paste functionality to patch up mistaken screenshots.
@@ -85,7 +85,7 @@ The most-recently-cut screenshot appears in a little preview pane in the bottom 
 of the tool.
 
 
-## <a id="textNotes"></a>Text notes and #hashtag labels
+## <a id="textnotes"></a>Text notes and #hashtag labels
 
 You can make text notes for each cell on the grid.  
 
@@ -114,13 +114,33 @@ You can also create clickable **hyperlinks** to jump to other cells by typing e.
 in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
 travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
 
+There is also a 'global note', that is, a note which is not associated with any particular
+map cell.  You can edit the global note with
+
+* `(Numpad) Ctrl-/`: pressing ctrl-slash gives the tool focus and opens a textbox dialog to edit the text
+		of the global note.  It also creates the global note [popout window](#popouts) if that popout
+		was not already active.
+
+The global note is displayed in a popout window, which you can move or resize to keep it visible anywhere 
+on your desktop, if desired; see [popouts](#popouts) for more info.
+
 ## <a id="popouts"></a>Popout windows
 
-There are a variety of popout windows that blah blah TODO write this
+Popouts are little windows that display useful projections of information in the app.  All popouts have
+the same mouse controls for interacting:
+
+* `Left-click-and-drag` within the window: Move a popout window around on your desktop
+* `Right click`: Close this popout window
+* `Left-click-and-drag` the window edge/corner: Resize the popout window (if applicable)
+* `Scroll-wheel`: change the zoom level of the popout (if applicable)
+
+You can manage popouts with the "Popouts" button at the top of the main app.
+
+See the [popouts page](popouts.md) for more information about each popout.
 
 ## <a id="glass"></a>Glass tool for scribbling
 
-See the [glass page] for more information on the glass tool, which lets you draw on any window.
+See the [glass page](glass.md) for more information on the glass tool, which lets you draw on any window.
 
 ![glass example](img/GlassExample.png)
 
