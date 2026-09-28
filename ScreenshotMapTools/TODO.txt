@@ -1,4 +1,6 @@
-﻿get rid of feature/dual buttons (and decide if there is code behind to cut, or rethink, or what)
+﻿minimap window saves size per-app, but aspect ratio differs per-game, so first-resize when change game zoops it, hmm
+
+rework and document feature/dual buttons
 
 i cant test it really on surface, since lack keyboard with numpad (guess I could plug one in)
 i cant test on surface really, since app does not fit on screen (maybe implement scaling a la z1r)
@@ -6,7 +8,6 @@ i cant test on surface really, since app does not fit on screen (maybe implement
 abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
 
 
-docs: setup, motivate trim with LoZ
 add popout for preview-pane
 
 

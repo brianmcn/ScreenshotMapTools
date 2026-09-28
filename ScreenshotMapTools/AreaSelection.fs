@@ -20,25 +20,29 @@ type TrimCornerMagnifier(owner) as this =
     member this.Update(rx,ry,rw,rh,isUL) =
         let gameBmp = BackingStoreData.TakeNewScreenshotCore()
         let magnifyBmp = Utils.Magenta(64*SCALE,64*SCALE)
+        let magnifyData = magnifyBmp.LockBits(System.Drawing.Rectangle(0,0,magnifyBmp.Width,magnifyBmp.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
         let ok(x,y) = not(x<0 || y<0 || x>=gameBmp.Width || y>=gameBmp.Height)
         if isUL then
             for y = ry-16 to ry+47 do
                 for x = rx-16 to rx+47 do
+                    let color = if ok(x,y) then gameBmp.GetPixel(x,y) else System.Drawing.Color.Magenta
                     for dy = 0 to SCALE-1 do
                         for dx = 0 to SCALE-1 do
                             if ((x=rx-1 && y>=ry-2) && dx>=D) || ((x>=rx-2 && y=ry-1) && dy>=D) then
-                                magnifyBmp.SetPixel(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, System.Drawing.Color.Yellow)
+                                Utils.SetColorFromLockedFormat32BppArgb(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, magnifyData, System.Drawing.Color.Yellow)
                             elif ok(x,y) then
-                                magnifyBmp.SetPixel(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, gameBmp.GetPixel(x,y))
+                                Utils.SetColorFromLockedFormat32BppArgb(SCALE*(x+16-rx)+dx, SCALE*(y+16-ry)+dy, magnifyData, color)
         else
             for y = ry+rh-48 to ry+rh+15 do
                 for x = rx+rw-48 to rx+rw+15 do
+                    let color = if ok(x,y) then gameBmp.GetPixel(x,y) else System.Drawing.Color.Magenta
                     for dy = 0 to SCALE-1 do
                         for dx = 0 to SCALE-1 do
                             if ((x=rx+rw && y<=ry+rh+1) && dx<=D) || ((x<=rx+rw+1 && y=ry+rh) && dy<=D) then
-                                magnifyBmp.SetPixel(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, System.Drawing.Color.Cyan)
+                                Utils.SetColorFromLockedFormat32BppArgb(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, magnifyData, System.Drawing.Color.Cyan)
                             elif ok(x,y) then
-                                magnifyBmp.SetPixel(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, gameBmp.GetPixel(x,y))
+                                Utils.SetColorFromLockedFormat32BppArgb(SCALE*(x+48-rx-rw)+dx, SCALE*(y+48-ry-rh)+dy, magnifyData, color)
+        magnifyBmp.UnlockBits(magnifyData)
         img.Source <- Utils.BMPtoImageSource(magnifyBmp)
                     
 
@@ -220,7 +224,10 @@ type AreaSelectionWindow(windowArea, selectionArea, label, tcm:TrimCornerMagnifi
             } |> Async.StartImmediate
             )
 
-let DoAreaSelection(parentWindow,windowArea,selectionArea,label) =
+let DoAreaSelection(parentWindow,windowArea,selectionArea,label) = async {
+    GameSpecific.ActivateGameWindow()       // bring it back in front, to ensure trim window will overlay it
+    do! Async.Sleep(100)                    // pump the UI, so Windows will do the above
+    GameSpecific.ActivateMainAppWindow()    // reactivate app, for focus
     let tcm = new TrimCornerMagnifier(parentWindow)
     tcm.Show()
     let w = new AreaSelectionWindow(windowArea,selectionArea,label, tcm)
@@ -230,5 +237,5 @@ let DoAreaSelection(parentWindow,windowArea,selectionArea,label) =
     tcm.Close()
     let r = recentAreaSelectionResult
     recentAreaSelectionResult <- None
-    r
-
+    return r
+    }

@@ -64,6 +64,8 @@ type ChosenGame() =
                 failwithf "Invalid game folder '%s' specified on command line" CommandLine.initGameFolder
         else
         Winterop.Win32.SetForegroundWindow(Elephantasy.Winterop.GetConsoleWindow()) |> ignore
+        System.Console.WriteLine "(documentation for this tool is found at bottom of this web page https://github.com/brianmcn/ScreenshotMapTools )"
+        System.Console.WriteLine ""
         System.Console.WriteLine "Choose startup option:"
         System.Console.WriteLine "0: New Game"
         let mutable i = 1
@@ -157,6 +159,8 @@ let ActivateGameWindow() =
             System.Console.WriteLine("...but that failed for some reason")
     | None ->
         System.Console.WriteLine("game window not found")
+
+let mutable ActivateMainAppWindow = fun () -> ()
 
 let MapAreaRectangle =
     let x,y,w,h = TheChosenGame.MapArea

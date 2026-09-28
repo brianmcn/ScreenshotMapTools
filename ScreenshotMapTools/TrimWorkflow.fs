@@ -8,7 +8,7 @@ open GameSpecific
 open BackingStoreData
 
 
-let doTheTrimButton(parentWindow, appShutdownF, appWidth) =
+let doTheTrimButton(parentWindow, appShutdownF, appWidth) = async {
     match TryFindHwndForTheChosenGame() with
     | Some(hwnd) -> 
         let r = WinteropUtils.GetWindowClientRect(hwnd)
@@ -42,7 +42,7 @@ Which do you want to do?"""
             element.Children.Add(b) |> ignore
         Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
         if whichPressed = 1 then
-            let area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
+            let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
             match area with
             | Some(x,y,w,h) ->
                 // update MapArea in CurrentGame
@@ -71,7 +71,7 @@ Which do you want to do?"""
             let projs = if theGame.CustomProjections = null then ResizeArray() else ResizeArray(theGame.CustomProjections)
             let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Provide a descriptive label for this Custom Trim", "", appWidth, 50., false, fun _ -> ())
             if save then
-                let area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area for this custom trim") 
+                let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area for this custom trim") 
                 match area with
                 | Some(x,y,w,h) ->
                     // add the new one
@@ -96,7 +96,7 @@ Which do you want to do?"""
             sp.Children.Add(PreviewPane.mkTxt("Click on the one you want to modify")) |> ignore
             Utils.DoModalDialog(parentWindow, sp, "Modify a Trim", closeEv.Publish)
             if whichPressed <> -1 then
-                let area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), theGame.CustomProjections.[whichPressed].XYWH,  "select area for this custom trim") 
+                let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), theGame.CustomProjections.[whichPressed].XYWH,  "select area for this custom trim") 
                 match area with
                 | Some(x,y,w,h) ->
                     theGame.CustomProjections.[whichPressed].XYWH <- (x,y,w,h)
@@ -111,3 +111,4 @@ Which do you want to do?"""
     | None -> 
         System.Console.Beep()
         MessageBox.Show("Could not find the game window, to do trimming") |> ignore
+    }

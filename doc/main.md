@@ -18,7 +18,7 @@ See the [download page](download.md) for information.
 
 ## <a id="newgamesetup"></a>Setting up a new game for the tool
 
-TODO
+See the [setup page](setup.md) for instructions setting up a new game.
 
 ## <a id="basiccontrols"></a>Basic Controls - Screenshots on a grid
 

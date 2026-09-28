@@ -638,13 +638,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
             AppSettings.theAppSettingsJson.MainAppWindowTop <- int(this.Top)
             AppSettings.theAppSettingsJson.Save()
             )
-        //this.Topmost <- true
         this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.ResizeMode <- ResizeMode.CanMinimize
-        //this.SizeToContent <- SizeToContent.Manual
-        //this.Width <- float APP_WIDTH
-        //this.Height <- float APP_HEIGHT
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
@@ -667,8 +663,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(toggleLayoutButton) |> ignore
             *)
             let trimButton = new Button(Margin=CONTROL_MARGIN, Content="Trim")
-            trimButton.Click.Add(fun _ -> 
-                TrimWorkflow.doTheTrimButton(this, (fun () -> 
+            trimButton.Click.Add(fun _ -> Async.StartImmediate(async {
+                do! TrimWorkflow.doTheTrimButton(this, (fun () -> 
                     // restart
                     this.UnregisterHotKey()
                     System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
@@ -676,7 +672,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     Application.Current.Shutdown()
                     ), APP_WIDTH)
                 mfsRefresh()
-                )
+                }))
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 
@@ -781,6 +777,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         all.UseLayoutRounding <- true
         this.Content <- all
         this.Loaded.Add(fun _ ->
+            GameSpecific.ActivateMainAppWindow <- (fun() -> Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore)
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore
             Utils.setup(this)
@@ -794,7 +791,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 for p in [popout_ccs; popout_lm; popout_ln; popout_mp; popout_gn] do
                     if p.GetJson().IsActive then
                         p.Activate()
-                GameSpecific.ActivateGameWindow()
+                do! Async.Sleep(200)                // give popouts a chance to open on their own threads
+                GameSpecific.ActivateGameWindow()   // so that this is likely to be frontmost
             } |> Async.StartImmediate
             if false then   // this was useful for sidescape, which had empty screen area
                 // minimap
@@ -1020,7 +1018,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             Async.StartImmediate(async {
                 while Popouts.GlobalNoteWindow.Singleton = null do
                     do! Async.Sleep(50)
-                Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+                GameSpecific.ActivateMainAppWindow()
                 let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
                 let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
                 if save then
@@ -1033,7 +1031,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         else
             let zm = ZoneMemory.Get(theGame.CurZone)
             setCursor()
-            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            GameSpecific.ActivateMainAppWindow()
             let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
             let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true, 
@@ -1042,14 +1040,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 UpdateCurrentNote(orig, result, zm)
                 pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
-            match TryFindHwndForTheChosenGame() with
-            | None -> ()
-            | Some(hwnd) -> Winterop.Win32.SetForegroundWindow(hwnd) |> ignore
+            GameSpecific.ActivateGameWindow()
     member this.DoSpecial(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then
             setCursor()
-            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore
+            GameSpecific.ActivateMainAppWindow()
             let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false, fun _ -> ())
             if save then
                 specialText <- result
