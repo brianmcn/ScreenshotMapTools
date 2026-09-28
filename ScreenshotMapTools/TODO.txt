@@ -1,4 +1,12 @@
-﻿docs: setup, motivate trim with LoZ
+﻿get rid of feature/dual buttons (and decide if there is code behind to cut, or rethink, or what)
+
+i cant test it really on surface, since lack keyboard with numpad (guess I could plug one in)
+i cant test on surface really, since app does not fit on screen (maybe implement scaling a la z1r)
+
+abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
+
+
+docs: setup, motivate trim with LoZ
 add popout for preview-pane
 
 
@@ -26,6 +34,35 @@ ESA might look good, despite some scrolling
 LoZ1 would obviously be good to show e.g. dungeons as zones
 
 
+history:
+basic screenshots post-hoc (from videos)
+ - Deep Rune                        Nov 2021
+ - Knytt Underground                Aug 2022
+multiple screenshots and fixed markup
+ - Elephantasy                      Feb 2023
+cut and paste; notes and hashtags
+ - Leaf's Odyssey                   Jun 2024
+performance work 
+ - ANIMAL WELL                      Jun 2024
+clickable hyperlinks 
+ - Master Key                       Aug 2024
+minimap
+ - Side Scape                       Sep 2024
+ - Isles of Sea and Sky             Oct 2024
+first 'glass' prototype
+finally started factoring out a zillion per-game hardcoded 
+        constants into json data, made a new-game workflow 
+ - Raider Kid and the Ruby Chest    Apr 2026
+experiment with auto-tracking 
+ - Minit                            May 2026
+improved map marker colors and shapes
+ - EMUUROM                          Jun 2026
+starting Jul 2026, serious work: 
+    performance, usability, features, testers, documentation
+
+
+
+
 
 
 
@@ -40,7 +77,11 @@ recent ideas:
 
 
 -------------------------------------------------------
-deployment (can delete all the 'ru' language directories)
+deployment 
+    - build debug
+    - copy just files (don't need the 'ru' language directories)
+    - remove app.json, printed_map*
+    - zip up
 I spent a bit of time (in Sep 2026) looking into other possible framework targeting for deployment, and they all suck.
 netframework48 is still the best for being able to xcopy-deploy a zip of an-exe-and-a-few-dlls (like 2MB) and have things just work.
 so don't spend time thinking about newer net frameworks, winui, etc; no one is going to download 100MB or go thru an installer for this little tool

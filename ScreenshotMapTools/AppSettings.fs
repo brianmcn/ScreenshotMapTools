@@ -31,12 +31,14 @@ module WindowPosition =
 [<AllowNullLiteral>]
 type PopoutDetailJson() =
     member val IsActive : bool = false with get,set
-    member val XYWH : (int*int*int*int) = (WindowPosition.DEFAULT,WindowPosition.DEFAULT,0,0) with get,set
+    member val XYWH : (int*int*int*int) = WindowPosition.DEFAULTXYWH with get,set
 
 [<AllowNullLiteral>]
 type AppSettingsJson() =
     static let theAppSettingsJson = AppSettingsJson()
     ////
+    member val MainAppWindowLeft : int = WindowPosition.DEFAULT with get,set
+    member val MainAppWindowTop : int = WindowPosition.DEFAULT with get,set
     member val ControlsCheatSheetPopout : PopoutDetailJson = null with get,set
     member val LiveNotesPopout : PopoutDetailJson = null with get,set
     member val LiveMinimapPopout : PopoutDetailJson = null with get,set
@@ -66,6 +68,8 @@ do  // load at startup
     if System.IO.File.Exists(appFile) then
         let json = System.IO.File.ReadAllText(appFile)
         let data = System.Text.Json.JsonSerializer.Deserialize<AppSettingsJson>(json)
+        theAppSettingsJson.MainAppWindowLeft <- data.MainAppWindowLeft
+        theAppSettingsJson.MainAppWindowTop <- data.MainAppWindowTop
         theAppSettingsJson.ControlsCheatSheetPopout <- data.ControlsCheatSheetPopout
         theAppSettingsJson.LiveNotesPopout <- data.LiveNotesPopout
         theAppSettingsJson.LiveMinimapPopout <- data.LiveMinimapPopout

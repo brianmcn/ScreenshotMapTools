@@ -632,8 +632,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         // window
         this.Title <- "Generic Screenshot Mapper"
-        this.Left <- 1290.
-        this.Top <- 4.
+        AppSettings.WindowPosition.SetInitialWindowPosition(this, (AppSettings.theAppSettingsJson.MainAppWindowLeft, AppSettings.theAppSettingsJson.MainAppWindowTop, APP_WIDTH, int APP_HEIGHT))
+        this.LocationChanged.Add(fun _ ->
+            AppSettings.theAppSettingsJson.MainAppWindowLeft <- int(this.Left)
+            AppSettings.theAppSettingsJson.MainAppWindowTop <- int(this.Top)
+            AppSettings.theAppSettingsJson.Save()
+            )
         //this.Topmost <- true
         this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
