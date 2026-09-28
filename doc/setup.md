@@ -27,21 +27,21 @@ Some games have HUDs that always take up a fixed portion of the screen, with the
 
 If we just start taking screenshots of a Zelda window, for instance, the map looks like this:
 
-![map grid before trim](MapGridBeforeTrim.png)
+![map grid before trim](img/MapGridBeforeTrim.png)
 
 The 'MAP Trim' is the tool's way of letting you specify which region of the game window you actually want to display in the map grid.
-(Note that the tool always saves full screenshots of the entire window; this just lets you customize the display, without losing any screenshot information.)
+(Note that the tool always saves full screenshots of the entire window; the 'MAP Trim' just lets you customize the display, without losing any screenshot information.)
 
-Click the 'Trim' button at the top of the app, and then choose 'Modify the MAP Trim' option.
+Click the 'Trim' button at the top of the app, and then choose the 'Modify the MAP Trim' option.
 
 A transparent overlay window now appears over the game, where you can change the rectangular area selection you want.  Here's how it appears after I have pressed
 the down arrow a bunch, to move the upper-left corner of the rectangle (shown in yellow) down some:
 
-![map trim in action](MapTrimInAction.png)
+![map trim in action](img/MapTrimInAction.png)
 
-It can be hard to see exactly where the overlay rectangle is, so while you are moving the corners, the app shows a trim magnifier:
+It can be hard to see exactly where the overlay rectangle is over the game, so while you are adjusting the corners, the main app shows a trim magnifier:
 
-![trim magnifier](MapTrimCornerMagnifier.png)
+![trim magnifier](img/MapTrimCornerMagnifier.png)
 
 You want to adjust things so that the Yellow upper-left corner frames the visible game pixels you wish to capture.
 
@@ -51,10 +51,10 @@ As per the instructions on the game overlay, press ENTER to switch corners, and 
 Once you are done, press ESC as per the on-screen instructions to save this new MAP Trim.  A message box appears saying that the app will restart, as it needs to
 clear and recreate its image cache to account for the new MAP Trim.  Upon restarting:
 
-![map grid after trim](MapGridAfterTrim.png)
+![map grid after trim](img/MapGridAfterTrim.png)
 
 Now the map grid stitches together seamlessly.
 
 If you ever need to make adjustments, you can repeat the whole process via the 'Trim' button at the top of the app, but typically this is a one-and-done setup that 
-you only need to do when first setting up certain games.
+you only need to do once when first setting up the game.
 
