@@ -336,6 +336,10 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
         this.Width <- this.Height * aspect
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveMinimapPopout)
+        // if they just performed a Trim, or switched games, the aspect may have changed since the last time the XYWH of this popout was saved; adjust the H
+        let EPSILON = 0.01
+        if abs(aspect - (this.Width / this.Height)) > EPSILON then
+            this.Height <- (this.Width / aspect)
         LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
         this.Title <- "Zoomable Live Minimap"
         this.Content <- b
