@@ -19,13 +19,18 @@ Press `Numpad 0` to take a test screenshot.  You can then press `Numpad -` to 'c
 
 ### Setting up a 'MAP Trim'
 
-For many games, the 'screenshot map' you want to build will not be comprised of screenshots of the *entire* game window.
+For many games, the 'screenshot map' you want to build will not be comprised of screenshots of the *entire* game window.  
+This section explains how to to go from the map grid on the left to the map grid on the right:
 
-Some games have black bars at the edges of the window.  
+![map grid before and after](img/MapGridBeforeAndAfter.png)
 
-Some games have HUDs that always take up a fixed portion of the screen, with the gameplay happening in the remaining portion.
+The entire game window often displays more that what you want in your map grid:
 
-If we just start taking screenshots of a Zelda window, for instance, the map looks like this:
+* Some games have black bars at the edges of the window.  
+
+* Some games have HUDs that always take up a fixed portion of the screen, with the gameplay happening in the remaining portion.
+
+When we just start taking screenshots of a Zelda window, for instance, the map looks like this:
 
 ![map grid before trim](img/MapGridBeforeTrim.png)
 
