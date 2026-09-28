@@ -1,13 +1,19 @@
 
 ## On this page
 
+SETUP
 * [Downloading and running the tool](#downloading)
 * [Setting up a new game for the tool](#newgamesetup)
+
+TAKING SCREENSHOTS AND NOTES
 * [Basic Controls - Screenshots on a grid](#basiccontrols)
 * [Multiple screenshots per grid cell](#multiplescreenshots)
 * [Cut and paste](#cutandpaste)
 * [Text notes and #hashtag labels](#textnotes)
+
+FEATURES FOR USER-PRODUCTIVITY AND OBS-BROADCASTING
 * [Popout windows](#popouts)
+* [The 'Feature' window](#feature)
 * [Glass tool for scribbling](#glass)
 
 Jump to any of the linked topics above, or scroll down to read them one-by-one.
@@ -142,6 +148,13 @@ All popouts have the same mouse controls for interacting:
 You can manage popouts with the "Popouts" button at the top of the main app.
 
 See the [popouts page](popouts.md) for more information about each popout.
+
+## <a id="feature"></a>The 'Feature' window
+
+See the [feature page](feature.md) for more information about the Feature Window, which provides a number of large-window visualizations
+for when you want to focus on the tool, rather than the game.
+
+![feature examples](img/FeatureExamples.png)
 
 ## <a id="glass"></a>Glass tool for scribbling
 

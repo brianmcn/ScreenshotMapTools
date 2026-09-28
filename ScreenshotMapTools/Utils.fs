@@ -197,6 +197,12 @@ let BMPtoImage(bmp:System.Drawing.Bitmap) =
     i.Height <- float bmp.Height 
     i.Width <- float bmp.Width 
     i
+let BMPtoImageUniformStretch(bmp:System.Drawing.Bitmap) =
+    let i = BMPtoImage(bmp)
+    i.Width <- System.Double.NaN
+    i.Height <- System.Double.NaN
+    i.Stretch <- System.Windows.Media.Stretch.Uniform
+    i
 let BMPtoBitmapImage(bmp:System.Drawing.Bitmap) =  // can be done on background thread
     let ms = new System.IO.MemoryStream()
     bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png)  // must be png (not bmp) to save transparency info

@@ -1,4 +1,8 @@
-﻿rework and document feature/dual buttons
+﻿TODO feature window should probably be resizeable, but allow easy setting to exact size
+
+
+i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
+
 
 i cant test it really on surface, since lack keyboard with numpad (guess I could plug one in)
 i cant test on surface really, since app does not fit on screen (maybe implement scaling a la z1r)

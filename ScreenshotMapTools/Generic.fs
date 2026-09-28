@@ -69,11 +69,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
         border.MouseDown.Add(fun ea ->
             ea.Handled <- true
             if ea.RightButton = System.Windows.Input.MouseButtonState.Pressed then
-                let img = Utils.BMPtoImage(bmp)
-                img.Width <- 1280.
-                img.Height <- 720.
-                img.Stretch <- Stretch.Uniform
-                FeatureWindow.EnsureFeature(parent.Owner, img, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
+                FeatureWindow.EnsureFeature(parent.Owner, Utils.BMPtoImageUniformStretch(bmp), BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
             else
                 whichSSIDisHighlighted <- Some(ssid)
                 for b in allBorders do
@@ -398,9 +394,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 () // do nothing if no screenshots
                             elif swks.Length = 1 then
                                 let ssid = swks.[0].Id
-                                FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
+                                FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImageUniformStretch, BackingStoreData.ScreenshotFilenameFromTimestampId(ssid))
                             else
-                                Utils.DoModalDialog(this, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImage, sprintf "Fullsize(%2d,%2d)" i j, (new Event<unit>()).Publish)
+                                FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImageUniformStretch, null)
                     )
                 warpMouseTo <- (fun (i,j) ->
                     let pos = mapCanvas.TranslatePoint(Point(DX+float(i-ci+level)*W-W/2.,DY+float(j-cj+level)*H-H/2.),this)  // center of i,j   // TODO might be offscreen
@@ -676,6 +672,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 
+                FeatureWindow.MakeFeatureMap(this.Owner, Array2D.init 1 1 (fun _ _ -> Some(ZoneMemory.Get(theGame.CurZone))))
+(*
+                // This is code to feature multiple zones at once, which doesn't seem too useful
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
@@ -703,6 +702,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 with e ->
                     System.Console.Beep()
                     printfn "FEATURE error: %s" (e.ToString())
+*)
                 )
             sp.Children.Add(featureButton) |> ignore
             let dualFeatureButton = new Button(Content="Dual", Margin=CONTROL_MARGIN)
@@ -710,10 +710,10 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 let W = 220
                 let diag = Utils.makeGrid(2,3,W,20)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Left Zone"), 0, 0)
-                let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="0", CaretIndex=1)
                 Utils.gridAdd(diag, lInput, 1, 0)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Right Zone"), 0, 1)
-                let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="2", CaretIndex=1)
+                let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
                 Utils.gridAdd(diag, rInput, 1, 1)
                 Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="minx,miny,maxx,maxy"), 0, 2)
                 let boundsInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="", CaretIndex=0)
@@ -730,7 +730,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                                 with _ -> ()
                                                 )
                 boundsInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
-                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
+                Utils.DoModalDialogCore(this, diag, "Select two zones to feature side-by-side", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
+                // TODO better validate
                 try
                     let l = lInput.Text |> int
                     let r = rInput.Text |> int
