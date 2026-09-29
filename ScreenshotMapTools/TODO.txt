@@ -2,12 +2,6 @@
 
 TODO retake popout settings screenshot once everything there is done
 
-TODO doc numpad 5, 55
- - 5 warps mouse to keyboarded cell; arrowing warps wouse with it
- - (check this) on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects tile where mouse was
- - ctrl-numpad moves viewport
- - mousing: hover shows cell, click to move cursor to that cell
-
 TODO doc screenshot kinds?
 
 TODO decide if my filesystem organization is sane

@@ -168,7 +168,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable warpMouseTo = fun _ -> ()
     let mutable redrawMapIconsFunc = fun _ -> ()
     let mutable redrawMapIconsHoverOnlyFunc = fun _ -> ()
-    let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // last keyboarded cursor location
+    let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // most recent 'hard selected' cursor location (keyboarded to, or clicked on, cell)
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
@@ -182,7 +182,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
         kbdX.Value <- theGame.CurX
         kbdY.Value <- theGame.CurY
-    let warp() = warpMouseTo(theGame.CurX, theGame.CurY)
+    let warp() = if this.IsMouseOver then warpMouseTo(theGame.CurX, theGame.CurY)
     // current zone combobox
     let CONTROL_MARGIN = Thickness(3.)  // margin for buttons in top bar and such
     let addNewZoneButton = new Button(Content="Add zone", Margin=CONTROL_MARGIN)
@@ -244,7 +244,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         g
         )
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
-    let mutable priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999
+    let mutable priorX, priorY, priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999,-999,-999
     let mutable specialText = "#TODO"   // currently uses numpad-3 to edit this
     let GetProjectionDetails(zm:ZoneMemory) =
         let _,_,w,h = TheChosenGame.MapArea 
@@ -264,7 +264,10 @@ type MyWindow(mkGlassF : unit->unit) as this =
         while theGame.CurY >= theGame.CenterY + level do
             theGame.CenterY <- theGame.CenterY + 1
         // see if we need to redraw anything
-        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel || pictureChanged.Value then   
+        if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel 
+                    || theGame.CurX <> priorX || theGame.CurY <> priorY || pictureChanged.Value then   
+            priorX <- theGame.CurX
+            priorY <- theGame.CurY
             priorCenterX <- theGame.CenterX
             priorCenterY <- theGame.CenterY
             priorZone <- theGame.CurZone
@@ -1007,12 +1010,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
             theGame.CenterX <- x
             theGame.CenterY <- y
             zoom()
-            warp()
-        else
+            if wholeMapCanvas.IsMouseOver then
+                warp()
+        elif wholeMapCanvas.IsMouseOver then
             // warp mouse back to last keyboard location
             theGame.CurX <- kbdX.Value
             theGame.CurY <- kbdY.Value
             warp()   
+        else
+            () // do nothing
         // temp kludge, shift things up one y
         if false then
             let zm = ZoneMemory.Get(theGame.CurZone)
