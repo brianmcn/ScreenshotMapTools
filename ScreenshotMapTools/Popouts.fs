@@ -89,6 +89,7 @@ type ControlsCheatsheetPopoutWindow() as this =
     let b = new Border(BorderThickness=Thickness(6.), Child=sp, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
     do
         sp.Children.Add(mkTxt("Be sure NumLock is on!")) |> ignore
+        sp.Children.Add(new DockPanel(Height=2.0, Background=Brushes.Black)) |> ignore
         sp.Children.Add(g) |> ignore
         singleton <- this
         this.Width <- 220.

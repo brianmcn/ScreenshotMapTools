@@ -38,6 +38,10 @@ should 'trim' be able to work on screenshots, as well as game?
 
 
 
+
+
+
+
 tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
     move 'to the next #save cell' and 'to the prior #save cell' ?
 
