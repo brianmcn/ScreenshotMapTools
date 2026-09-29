@@ -3,6 +3,7 @@
 open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
+open Popouts
 
 type IPopoutWindowBehavior =
     abstract member Activate : unit -> unit
@@ -24,7 +25,7 @@ let mkTxtWithStarStarBold(txt:string) =
 let Bold(tb:TextBlock) = tb.FontWeight <- FontWeights.Bold; tb
 
 let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, mp:IPopoutWindowBehavior, pn:IPopoutWindowBehavior, width) =
-    let instructions1 = mkTxt("There are a variety of popout windows which you can choose to enable.")
+    let instructions1 = mkTxt("Click checkboxes in the left column to choose which popout windows to enable.")
     let instructions2 = mkTxtWithStarStarBold("""**Each window remembers its size and location you last used it**, for convenience.  
 But if a window ever gets 'lost' (offscreen, on another monitor, etc) you can press its 'Reset' button (above) to restore it.
 
@@ -32,6 +33,7 @@ Popout windows have no 'Window Chrome' and are controlled thusly:
  - **move popout**: just **left-click and drag** the window
  - **resize popout**: grab and **drag the edges** of the window like a normal window
  - **close popout**: simply **right-click** a popout window to close it
+ - **zoom popout**: Popout descriptions prefixed "**(Z)**" are zoomable, and **scrollwheel** changes the content size
 
 Most of these windows are designed to serve one or both of the following use-cases:
 (1) if you have limited primary screen real estate, you might leave the app itself open on a secondary monitor, and just have e.g. the AppGridPane and CursorNote in the corner of your primary monitor
@@ -54,21 +56,19 @@ The app remembers which popouts you enabled, so next time you start the app, it 
         Utils.gridAdd(g, hruleElement(), 4, row)
         Utils.gridAdd(g, hruleElement(), 6, row)
         addRow()
-    Utils.gridAdd(g, Bold(mkTxt("Enabled")), 0, row)
+    //Utils.gridAdd(g, Bold(mkTxt("Enabled")), 0, row)
     Utils.gridAdd(g, Bold(mkTxt("Popout Name")), 2, row)
     Utils.gridAdd(g, Bold(mkTxt("Popout description")), 4, row)
     addRow()
     let data = [|
-        ccs, "ControlsCheatsheet",  "A 'cheatsheet' list of the main keyboard controls for the app"
-        ln,  "CursorNote",          "A resizable window displaying only the Note for the cell the cursor is on (including 'live' edits you make to that note)"
-        lm,  "Minimap",             "A resizeable minimap window which displays a group of nearby cells around the cursor." +
-                                        "\nMouse-Scroll-Wheel over this window to change how much grid is displayed."
-        mp,  "AppGridPane",         "A resizeable window displaying the top half (map grid) portion of the app."
-        pn,  "GlobalNote",          "A resizeable window displaying the 'global' Note." +
-                                        "\nThis is a text note not tied to any particular cell, which you can edit for general notes not related to a particular map cell." +
-                                        "\nThis note can be edited only via the shortcut Ctrl+Numpad/"
+        ccs, ControlsCheatsheetPopoutWindow.Name,   "A 'cheatsheet' list of the main keyboard controls for the app"
+        mp,  IndependentVisualPopoutWindow.Name,    "A resizeable window displaying the top half (map grid) portion of the app."
+        ln,  LiveNotesWindow.Name,                  "(Z) A resizable window displaying only the Note for the cell the cursor is on (including 'live' edits to that note)"
+        lm,  ZoomableLiveMinimapWindow.Name,        "(Z) A resizeable minimap window which displays a group of nearby cells around the cursor."
+        pn,  GlobalNoteWindow.Name,                 "(Z) A resizeable window displaying the 'global' Note." +
+                                                    "\nThis is a text note not tied to any particular cell, which you can use for general notes about the game." +
+                                                    "\nThis note can be edited only via the shortcut Ctrl+Numpad/"
         |]
-        // TODO mousewheel text font size a la zoom?
     for ipwb, name, desc in data do
         // layout
         hrule()

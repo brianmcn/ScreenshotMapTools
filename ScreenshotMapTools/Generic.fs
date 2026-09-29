@@ -412,14 +412,34 @@ type MyWindow(mkGlassF : unit->unit) as this =
         mfsRefresh()   // redraw note preview in summary area
         MapIcons.redrawMapIconsEv.Trigger()
         MapIcons.redrawMapIconHoverOnly.Trigger()
+    let wholeMapCanvasBundle =  // effectively a cross-thread VisualBrush
+        let ev = new Event<System.Windows.Media.Imaging.BitmapSource>()
+        let sw = System.Diagnostics.Stopwatch.StartNew()
+        let mutable lastUpdate = 0L
+        let visualBrush = VisualBrush(wholeMapCanvas)
+        let drawingVisual = DrawingVisual()
+        let rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(int(wholeMapCanvas.Width), int(wholeMapCanvas.Height), 96, 96, PixelFormats.Pbgra32)
+        CompositionTarget.Rendering.Add(fun _ea ->
+            let t = sw.ElapsedMilliseconds
+            if t - lastUpdate > 100L then   // every 100ms
+                lastUpdate <- t
+                using (drawingVisual.RenderOpen()) (fun context ->
+                    context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, wholeMapCanvas.Width, wholeMapCanvas.Height))
+                )
+                rtb.Clear()
+                rtb.Render(drawingVisual)
+                let clone = System.Windows.Media.Imaging.WriteableBitmap(rtb)
+                clone.Freeze()
+                ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
+            )
+        ev.Publish, wholeMapCanvas.Width, wholeMapCanvas.Height
     let popout_mp = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
-                            if Popouts.VisualPopoutWindow.Singleton=null then
-                                let miniviz = new Popouts.VisualPopoutWindow(this.Owner, "Map popout", wholeMapCanvas, wholeMapCanvas.Width / wholeMapCanvas.Height)
-                                miniviz.Show()
+                            if Popouts.IndependentVisualPopoutWindow.Singleton=null then
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.IndependentVisualPopoutWindow(wholeMapCanvasBundle))
                         member _.Close() = 
-                            if Popouts.VisualPopoutWindow.Singleton<>null then
-                                Popouts.VisualPopoutWindow.Singleton.Close()
+                            if Popouts.IndependentVisualPopoutWindow.Singleton<>null then
+                                Popouts.IndependentVisualPopoutWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.MapPanePopout
                         }
     let popout_ccs = { new PopoutsSettings.IPopoutWindowBehavior with

@@ -49,66 +49,6 @@ I'm managing threads correctly.
 Note that the popout constructor will run on its own thread, which means any model code needs to be Invoke()d on the main thread.
 
 Make sure have right encapsulation boundaries architected to make it so that stuff above won't be error-prone!
-
-
-
-note that visualbrush won't work across threads.  i'd need something like the code below, and every time the source view changes, call this again
-i think in my specific case, LayoutUpdated on the source would be sufficient, though CompositionTarget.Rendering is a fallback option if not seeing certain changes
-either way probably throttle along lines of UISettlingEvent
-
-
-using System;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
-
-namespace MultiThreadedWpfBrushes
-{
-    public partial class MainWindow : Window
-    {
-        // Placeholders representing your two separate UI threads/dispatchers
-        private Dispatcher _sourceUIThread;
-        private Dispatcher _targetUIThread;
-
-        // Elements on the respective threads
-        private FrameworkElement _sourceVisual; // The UI element you want to "copy"
-        private Panel _targetElement;           // The UI element you want to paint
-
-        public void ShareVisualAcrossThreads()
-        {
-            // 1. Execute work on the thread that OWNS the source visual
-            _sourceUIThread.InvokeAsync(() =>
-            {
-                // Create the bitmap container
-                int width = (int)_sourceVisual.ActualWidth;
-                int height = (int)_sourceVisual.ActualHeight;
-                
-                if (width <= 0 || height <= 0) return;
-
-                RenderTargetBitmap renderTarget = new RenderTargetBitmap(
-                    width, height, 96, 96, PixelFormats.Pbgra32);
-
-                // Render the visual into the bitmap
-                renderTarget.Render(_sourceVisual);
-
-                // CRITICAL STEP: Freeze the bitmap to remove thread affinity
-                renderTarget.Freeze();
-
-                // 2. Pass the frozen bitmap safely to the target thread
-                _targetUIThread.InvokeAsync(() =>
-                {
-                    // Create an ImageBrush using the frozen bitmap
-                    ImageBrush imageBrush = new ImageBrush(renderTarget);
-                    
-                    // Paint the target element on the second thread
-                    _targetElement.Background = imageBrush;
-                });
-            });
-        }
-    }
-}
 *)
 
 //////////////////////////////////////////////////////////////////////////
@@ -150,7 +90,7 @@ type ControlsCheatsheetPopoutWindow() as this =
         this.Width <- 220.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.ControlsCheatSheetPopout))
-        this.Title <- "Controls cheatsheet"
+        this.Title <- ControlsCheatsheetPopoutWindow.Name
         this.Loaded.Add(fun _ ->
             ()
             )
@@ -183,6 +123,7 @@ type ControlsCheatsheetPopoutWindow() as this =
             Utils.gridAdd(g, mkTxt(b), 1, i)
         this.Height <- 24. * float COUNT + 12.
     static member Singleton = singleton
+    static member Name = "Cheatsheet"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -251,7 +192,7 @@ module LocalWinterop =
                         IntPtr.Zero
                 )))
         
-
+(*
 type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
     inherit Window()
     static let mutable singleton = null
@@ -275,6 +216,37 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
             singleton <- null
             )
     static member Singleton = singleton
+*)
+
+// same behavior as non-independent, but can run on own UI thread, which means can't use VisualBrush
+type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h) as this =
+    inherit IndependentWindow()
+    static let mutable singleton = null
+    let g = new Grid()
+    let aspect = w/h
+    do
+        singleton <- this
+        this.Height <- 300.
+        this.Width <- this.Height * aspect
+        MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
+        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.MapPanePopout)
+        LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
+        this.Title <- IndependentVisualPopoutWindow.Name
+        this.Content <- g
+        this.Loaded.Add(fun _ ->
+                updateEv.Add(fun bms ->
+                    this.Dispatcher.InvokeAsync(fun() ->
+                        let ib = new ImageBrush(bms)
+                        RenderOptions.SetBitmapScalingMode(ib, BitmapScalingMode.HighQuality)
+                        g.Background <- ib
+                        ) |> ignore
+                )
+            )
+        this.Closed.Add(fun _ ->
+            singleton <- null
+            )
+    static member Singleton = singleton
+    static member Name = "AppGridPane"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -341,7 +313,7 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
         if abs(aspect - (this.Width / this.Height)) > EPSILON then
             this.Height <- (this.Width / aspect)
         LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
-        this.Title <- "Zoomable Live Minimap"
+        this.Title <- ZoomableLiveMinimapWindow.Name
         this.Content <- b
         updateEv.Add(fun (x,y) -> 
             this.EnsureOnMainUIThread()
@@ -366,6 +338,7 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
             singleton <- null
             )
     static member Singleton = singleton
+    static member Name = "Minimap"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -450,7 +423,7 @@ type GlobalNoteWindow() as this =
         this.Height <- 80.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.GlobalNotePopout))
-        this.Title <- "Global Note"
+        this.Title <- GlobalNoteWindow.Name
         this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
             UpdateNote()
@@ -478,6 +451,7 @@ type GlobalNoteWindow() as this =
             helper.ScrollViewer.ScrollToTop()
             ) |> ignore
     static member Singleton = singleton
+    static member Name = "Global Note"
 
 [<AllowNullLiteral>]
 type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
@@ -501,7 +475,7 @@ type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
         this.Height <- 80.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
         MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesPopout))
-        this.Title <- "Note at cursor"
+        this.Title <- LiveNotesWindow.Name
         this.UseLayoutRounding <- true
         this.Loaded.Add(fun _ ->
             UpdateStaticNote()
@@ -530,6 +504,7 @@ type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
             helper.ScrollViewer.ScrollToTop()
             ) |> ignore
     static member Singleton = singleton
+    static member Name = "CursorNote"
 
 let theEditNotesListenerEvent = new Event<EditNotesListenerMessage>()
 do

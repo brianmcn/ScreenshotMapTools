@@ -5,8 +5,7 @@ associated with locations of the map.
 
 ![the tool](doc/img/ToolZBothSmall.png)
 
-This document is a work in progress (as is the tool).
-
+The tool is a work in progress, but nearing initial release.  [Read documentation here.](doc/main.md)
 
 # Motivation
 

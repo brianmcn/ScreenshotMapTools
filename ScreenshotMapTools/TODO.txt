@@ -2,7 +2,11 @@
 
 TODO feature window should probably be resizeable, but allow easy setting to exact size
 
+TODO zoom levels of minimap, and font sizes of notes, are not saved
+
 TODO doc print button, rename zone button, anything else?
+
+TODO retake popout settings screenshot once everything there is done
 
 TODO doc numpad 5, 55
  - 5 warps mouse to keyboarded cell; arrowing warps wouse with it
@@ -27,9 +31,6 @@ abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as 
 add popout for preview-pane
 
 
-MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
-
-
 make a popout mouse control to mimic a numpad, to make app operable with no numpad
 eventually some kind of key rebinding something (noodle on API)
 
@@ -38,6 +39,9 @@ need screenshots of popouts for docs
 
 
 put like some demo/doc stuff in a demo folder
+
+should 'trim' be able to work on screenshots, as well as game?
+
 
 
 tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
