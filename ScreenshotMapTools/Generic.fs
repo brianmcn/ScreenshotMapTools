@@ -427,7 +427,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, wholeMapCanvas.Width, wholeMapCanvas.Height))
                 )
                 rtb.Clear()
-                rtb.Render(drawingVisual)
+                rtb.Render(drawingVisual)   // without the DrawingVisual, rtb renders an element in its layout-in-the-whole-window position; VisualBrush 'deparents' it from layout
                 let clone = System.Windows.Media.Imaging.WriteableBitmap(rtb)
                 clone.Freeze()
                 ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)

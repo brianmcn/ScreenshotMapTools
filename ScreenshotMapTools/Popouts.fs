@@ -83,9 +83,13 @@ let MakeWindowSmartByRememberingPositionAndSize(w:Window, json:AppSettings.Popou
 type ControlsCheatsheetPopoutWindow() as this =
     inherit IndependentWindow()
     static let mutable singleton = null
+    let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
     let g = new Grid()
-    let b = new Border(BorderThickness=Thickness(6.), Child=g, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
+    let sp = new StackPanel(Orientation=Orientation.Vertical)
+    let b = new Border(BorderThickness=Thickness(6.), Child=sp, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
     do
+        sp.Children.Add(mkTxt("Be sure NumLock is on!")) |> ignore
+        sp.Children.Add(g) |> ignore
         singleton <- this
         this.Width <- 220.
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
@@ -101,7 +105,6 @@ type ControlsCheatsheetPopoutWindow() as this =
         this.ResizeMode <- ResizeMode.NoResize
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
-        let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
         let data = [|
                 "2468", "move cursor"
                 "0", "take screenshot"
@@ -121,7 +124,7 @@ type ControlsCheatsheetPopoutWindow() as this =
             let a,b = data.[i]
             Utils.gridAdd(g, mkTxt(a), 0, i)
             Utils.gridAdd(g, mkTxt(b), 1, i)
-        this.Height <- 24. * float COUNT + 12.
+        this.Height <- 24. * float (COUNT+1) + 12.
     static member Singleton = singleton
     static member Name = "Cheatsheet"
 
@@ -229,7 +232,7 @@ type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.
         this.Height <- 300.
         this.Width <- this.Height * aspect
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.MapPanePopout)
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.MapPanePopout))
         LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
         this.Title <- IndependentVisualPopoutWindow.Name
         this.Content <- g
@@ -253,9 +256,9 @@ type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.
 type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
     inherit IndependentWindow()
     static let mutable singleton = null
-    let mutable curZoomStep = 3
+    let mutable curZoomStep, curZm = MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveMinimapZoomLevel, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone))
     let b = new Border(Background=Brushes.DarkMagenta)
-    let mutable curX, curY, curZm = x, y, MainUIInvoke(fun() -> InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone))
+    let mutable curX, curY = x, y
     let redraw() =
         this.EnsureOnThisWindowsOwnThread()
         let gr, bmpDict = MainUIInvoke(fun() ->
@@ -263,7 +266,10 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
             let bmpDict = new System.Collections.Generic.Dictionary<_,_>()
             for i = curX-curZoomStep to curX+curZoomStep do
                 for j = curY-curZoomStep to curY+curZoomStep do
-                    let bmp = curZm.MapImgArray.GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
+                    let bmp = 
+                        if i>=0 && i<=99 && j>=0 && j<=99 then
+                            curZm.MapImgArray.GetCopyOfBmp(i,j)            // TODO if outside wrap range, cycle to grab image, e.g. treat k as ((k-min)%width)+min
+                        else null
                     bmpDict[(i,j)] <- bmp
                     if bmp <> null || (i=curX && j=curY) then
                         gr.Extend(i,j)
@@ -307,7 +313,7 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
         this.Height <- 300.
         this.Width <- this.Height * aspect
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, AppSettings.theAppSettingsJson.LiveMinimapPopout)
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveMinimapPopout))
         // if they just performed a Trim, or switched games, the aspect may have changed since the last time the XYWH of this popout was saved; adjust the H
         let EPSILON = 0.01
         if abs(aspect - (this.Width / this.Height)) > EPSILON then
@@ -329,6 +335,8 @@ type ZoomableLiveMinimapWindow(aspect, x, y, updateEv:IEvent<int*int>) as this =
                 curZoomStep <- curZoomStep - 1
             curZoomStep <- max curZoomStep 1        // 1 is smallest can go
             redraw()
+            let czs = curZoomStep
+            MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveMinimapZoomLevel <- czs; AppSettings.theAppSettingsJson.Save())
             )
         this.SizeChanged.Add(fun _ -> redraw())
         this.Loaded.Add(fun _ ->
@@ -359,8 +367,8 @@ let makeBlinkyBrush() =
     brush.BeginAnimation(SolidColorBrush.ColorProperty, colorAnimation)
     brush
 
-type NoteHelper(dispatcher:System.Windows.Threading.Dispatcher) =
-    let mutable fontSize = 20
+type NoteHelper(fontSizeGetter, fontSizeSetterSaver, dispatcher:System.Windows.Threading.Dispatcher) =
+    let mutable fontSize = fontSizeGetter()
     let blinkyBrush = makeBlinkyBrush()
     let tb = new TextBlock(FontSize=float fontSize, Foreground=Brushes.White, Background=Brushes.Transparent,
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, IsHitTestVisible=false, 
@@ -378,6 +386,7 @@ type NoteHelper(dispatcher:System.Windows.Threading.Dispatcher) =
             fontSize <- max 8 fontSize
             fontSize <- min 72 fontSize
             tb.FontSize <- float fontSize
+            fontSizeSetterSaver(fontSize)
             )
         b
     member this.TextBlock = tb
@@ -412,7 +421,9 @@ type NoteHelper(dispatcher:System.Windows.Threading.Dispatcher) =
 type GlobalNoteWindow() as this =
     inherit IndependentWindow()
     static let mutable singleton : GlobalNoteWindow = null
-    let helper = new NoteHelper(System.Windows.Threading.Dispatcher.CurrentDispatcher)
+    let helper = new NoteHelper((fun() -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.GlobalNoteFontSize)), 
+                                (fun(x) -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.GlobalNoteFontSize <- x; AppSettings.theAppSettingsJson.Save())),  
+                                System.Windows.Threading.Dispatcher.CurrentDispatcher)
     let UpdateNote() =
         this.EnsureOnThisWindowsOwnThread()
         let note = MainUIInvoke(fun() -> BackingStoreData.theGame.GlobalNote)
@@ -458,7 +469,9 @@ type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
     inherit IndependentWindow()
     static let mutable singleton : LiveNotesWindow = null
     let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
-    let helper = new NoteHelper(System.Windows.Threading.Dispatcher.CurrentDispatcher)
+    let helper = new NoteHelper((fun() -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesFontSize)), 
+                                (fun(x) -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesFontSize <- x; AppSettings.theAppSettingsJson.Save())),  
+                                System.Windows.Threading.Dispatcher.CurrentDispatcher)
     let UpdateStaticNote() =
         this.EnsureOnThisWindowsOwnThread()
         let note = MainUIInvoke(fun() -> curZm.MapTiles.[curX,curY].Note)

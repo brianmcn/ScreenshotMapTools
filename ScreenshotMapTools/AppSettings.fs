@@ -41,9 +41,12 @@ type AppSettingsJson() =
     member val MainAppWindowTop : int = WindowPosition.DEFAULT with get,set
     member val ControlsCheatSheetPopout : PopoutDetailJson = null with get,set
     member val LiveNotesPopout : PopoutDetailJson = null with get,set
+    member val LiveNotesFontSize : int = 20 with get,set
     member val LiveMinimapPopout : PopoutDetailJson = null with get,set
+    member val LiveMinimapZoomLevel : int = 3 with get,set
     member val MapPanePopout : PopoutDetailJson = null with get,set
     member val GlobalNotePopout : PopoutDetailJson = null with get,set
+    member val GlobalNoteFontSize : int = 20 with get,set
     ////
     static member TheAppSettingsJson = theAppSettingsJson 
     member this.Save() = // assumes just one global instance
@@ -72,9 +75,12 @@ do  // load at startup
         theAppSettingsJson.MainAppWindowTop <- data.MainAppWindowTop
         theAppSettingsJson.ControlsCheatSheetPopout <- data.ControlsCheatSheetPopout
         theAppSettingsJson.LiveNotesPopout <- data.LiveNotesPopout
+        theAppSettingsJson.LiveNotesFontSize <- data.LiveNotesFontSize
         theAppSettingsJson.LiveMinimapPopout <- data.LiveMinimapPopout
+        theAppSettingsJson.LiveMinimapZoomLevel <- data.LiveMinimapZoomLevel
         theAppSettingsJson.MapPanePopout <- data.MapPanePopout
         theAppSettingsJson.GlobalNotePopout <- data.GlobalNotePopout
+        theAppSettingsJson.GlobalNoteFontSize <- data.GlobalNoteFontSize
     theAppSettingsJson.EnsurePopoutData()
 
 

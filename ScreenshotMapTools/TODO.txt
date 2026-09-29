@@ -1,9 +1,5 @@
 ﻿TODOs in code (none until MapIcons.fs)
 
-TODO feature window should probably be resizeable, but allow easy setting to exact size
-
-TODO zoom levels of minimap, and font sizes of notes, are not saved
-
 TODO doc print button, rename zone button, anything else?
 
 TODO retake popout settings screenshot once everything there is done
@@ -53,6 +49,10 @@ consider: dwarf: A future version could just cheekily call a zone "Misc Images" 
 
 
 neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
+
+--------below this line is still i'm willing to put off--------------
+TODO feature window should probably be resizeable, but allow easy setting to exact size
+
 
 
 
