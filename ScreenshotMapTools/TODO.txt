@@ -1,7 +1,5 @@
 ﻿TODOs in code (none until MapIcons.fs)
 
-TODO doc print button, rename zone button, anything else?
-
 TODO retake popout settings screenshot once everything there is done
 
 TODO doc numpad 5, 55

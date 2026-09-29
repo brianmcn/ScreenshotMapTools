@@ -13,6 +13,7 @@ TAKING SCREENSHOTS AND NOTES
 
 FEATURES FOR USER-PRODUCTIVITY AND OBS-BROADCASTING
 * [Popout windows](#popouts)
+* [Exporting maps](#export)
 * [The 'Feature' window](#feature)
 * [Glass tool for scribbling](#glass)
 
@@ -58,8 +59,21 @@ screenshot the 4th room.  The map would now look like this:
 ![map tool after first 4 screens of EMUUROM](img/DemoScreenshots.png)
 
 Each 100x100 grid is called a 'zone', and you can make multiple zones for games with 
-multiple maps (e.g. Zelda1 has an overworld map and 9 dungeon maps).  
-TODO link to more info on zones
+multiple maps.  For example, in The Legend of Zelda, there is an overworld map and 9
+dungeon maps, so it makes sense to put each map in its own zone.  You can add a new zone
+or rename the current zone using the buttons at the top of the app window, and the dropdown
+between those buttons can be used to select which zone to view.  In the example below,
+I renamed zone00 'Overworld', added and renamed two more zones (zone01 'caves' not shown;
+zone02 'dungeon 1' shown on the right):
+
+![the tool](img/ToolZBoth.png)
+
+Sometimes it makes sense to specially align the coordinates of screenshots in two zones.
+Each time there was a cave at coordinate (zone00,x,y) on the Overworld, I took an interior
+screenshot of the cave at (zone01,x,y).  This helps enable some other useful features of
+the tool, such as a 'Dual' Feature Window, shown below (and described more [here](feature.md#dual)).
+
+![dual feature window](img/FeatureDual.png)
 
 
 ## <a id="multiplescreenshots"></a>Multiple screenshots per grid cell
@@ -148,6 +162,23 @@ All popouts have the same mouse controls for interacting:
 You can manage popouts with the "Popouts" button at the top of the main app.
 
 See the [popouts page](popouts.md) for more information about each popout.
+
+## <a id="export"></a>Exporting maps
+
+After you have made a big screenshot map, you might want to export it as a giant image.  This is what the
+'Print Zone' button at the top of the app is for.  It will export a PNG file that encompasses the rectangular 
+region containing all the screenshots in the current zone.  It saves it to a file in the app directory called
+`printed_map.png`; cells without any screenshots are left transparent.  After clicking the 'Print Zone' button,
+the app also opens the install folder, making it easy to find the PNG file it just wrote.
+
+The 'Print Zone' button actually writes two files.  The second is `printed_map_2x2.png`, and is just the same
+image repeated four times in a 2x2 grid.  This can be useful for games where the game map is topologically a torus
+with wraparound, and the left edge is adjacent to the right edge, or the top edge is adjacent to the bottom edge.
+The 2x2 version lets you inspect those edges side-by-side within a single image file.  Note that the main app 
+hotkeys `Numpad1` and `Ctrl+Numpad1` are the moral equivalent of printed_map and printed_map_2x2, but rather than
+saving them to disk, it displays them in the Feature Window, described next.
+
+(There is currently no mechanism for exporting notes or #hashtag markup.)
 
 ## <a id="feature"></a>The 'Feature' window
 

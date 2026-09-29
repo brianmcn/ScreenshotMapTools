@@ -31,7 +31,9 @@ for example.  A couple of example screenshots are suggestive:
 ![feature zoom out](img/FeatureZoomOut.png)
 ![feature zoom in](img/FeatureZoomIn.png)
 
-TODO discuss ctrl-1
+Note that pressing `Ctrl+Numpad1` does something similar, but with the full map image repeated four times in a 2x2 grid.  This can be useful 
+for games where the game map is topologically a torus with wraparound, and the left edge is adjacent to the right edge, or the top edge is 
+adjacent to the bottom edge. The 2x2 version lets you inspect those edges side-by-side by panning and zooming within the Feature Window.
 
 ### Full zone with notes and links
 
@@ -40,7 +42,7 @@ shows its notes on the left, and any hyperlinked cells on the bottom.
 
 ![feature one zone with extras](img/FeatureZone.png)
 
-### Comparing two zone side by side
+### <a id="dual"></a>Comparing two zone side by side
 
 The 'Dual' button at the top of the app will ask you for two zones, and a range of cells, and show both zones' overview map. Mouse hovering 
 any cell will show a larger preview of the corresponding cell in both zones.
