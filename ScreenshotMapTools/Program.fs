@@ -1,5 +1,4 @@
-﻿open Utils
-open System
+﻿open System
 open System.Windows
 
 // in order for multiple app windows to not have a forced Z-Order from Owner-Child relationship, need a hidden dummy window to own all the visible windows

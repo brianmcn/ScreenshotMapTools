@@ -1,4 +1,5 @@
-﻿TODOs in code (none until MapIcons.fs)
+﻿Glass - if underlying window moves TODO (I can probably fix)
+
 
 TODO retake popout settings screenshot once everything there is done
 
@@ -47,7 +48,7 @@ neat i could have a zone where the preview is koto, forest cover, emuukehto in 3
 
 --------below this line is still i'm willing to put off--------------
 TODO feature window should probably be resizeable, but allow easy setting to exact size
-
+could imagine right-clicking a hashtag in the sidebar opens a window with all the matches across all zones, with clickable links to those cells
 
 
 

@@ -3,8 +3,35 @@
 open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
-open Utils.Extensions
 
+///////////////////////////////////////////////////////
+
+let RICH_TEXT_HEIGHT = 200
+let MakeRichTextBox(margin) = 
+    new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
+                                HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
+                                Height=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
+let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
+    let fd = new System.Windows.Documents.FlowDocument()
+    let p = new System.Windows.Documents.Paragraph()
+    p.Inlines.Add(sprintf "(%02d,%02d) %d screenshots\n" i j (mt.NumScreenshots()))
+    let mutable note = mt.Note
+    if note <> null then
+        let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
+        while linkages.Count > 0 do
+            let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
+            linkages.RemoveAt(li)
+            p.Inlines.Add(note.Substring(0,si))
+            p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
+            note <- note.Substring(si+substr.Length)
+        p.Inlines.Add(note)
+    fd.Blocks.Add(p)
+    tb.Document <- fd
+
+///////////////////////////////////////////////////////
+
+#if OLD_MINIMAP
 let MAX = InMemoryStore.MAX
 
 let WIDTH = 492.   // how wide want minimap to be; height will be based on aspect ratio
@@ -141,31 +168,6 @@ type AbstractFixedMinimapWindow(owner,updateEv:IEvent<int*int*InMemoryStore.Zone
 
 ///////////////////////////////////////////////////////
 
-let RICH_TEXT_HEIGHT = 200
-let MakeRichTextBox(margin) = 
-    new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
-                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
-                                HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
-                                Height=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
-let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
-    let fd = new System.Windows.Documents.FlowDocument()
-    let p = new System.Windows.Documents.Paragraph()
-    p.Inlines.Add(sprintf "(%02d,%02d) %d screenshots\n" i j (mt.NumScreenshots()))
-    let mutable note = mt.Note
-    if note <> null then
-        let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
-        while linkages.Count > 0 do
-            let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
-            linkages.RemoveAt(li)
-            p.Inlines.Add(note.Substring(0,si))
-            p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
-            note <- note.Substring(si+substr.Length)
-        p.Inlines.Add(note)
-    fd.Blocks.Add(p)
-    tb.Document <- fd
-
-///////////////////////////////////////////////////////
-
 [<AllowNullLiteral>]
 type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as this =
     inherit Window()
@@ -193,3 +195,4 @@ type NotesWindow(owner,updateEv:IEvent<int*int*InMemoryStore.ZoneMemory>) as thi
             )
     static member TheNotesWindow with get() = theNotesWindow and set(x) = theNotesWindow <- x
 
+#endif
