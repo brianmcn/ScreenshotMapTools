@@ -35,7 +35,7 @@ type ImgArrayCache(proj,zone) =
         | x when x=MAP  -> MAP_FOLDER_NAME
         | _ -> failwith "bad projection type"
     let imgArray : System.Windows.Controls.Image[,] = Array2D.zeroCreate MAX MAX          // representative single image per screen, displayed on the grid map
-    let rawCaches = Array2D.init MAX MAX (fun _ _ -> new System.Collections.Generic.Dictionary<(int*int),byte[]>())   // BGRA data of screen[x,y] when resized to (w,h)
+    let rawCaches = Array2D.init MAX MAX (fun _ _ -> null : System.Collections.Generic.Dictionary<struct(int*int),byte[]>)   // BGRA data of screen[x,y] when resized to (w,h)
     let ownedBmps = Array2D.zeroCreate MAX MAX
     let downsampledBmps = Array2D.zeroCreate MAX MAX
     let cachedFilenames = Array2D.zeroCreate MAX MAX
@@ -81,7 +81,8 @@ type ImgArrayCache(proj,zone) =
     member this.Set(x,y,bmp) = 
         CacheToDisk(x,y,bmp)
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
-        rawCaches.[x,y].Clear()
+        if rawCaches.[x,y] <> null then
+            rawCaches.[x,y].Clear()
         ownedBmps.[x,y] <- if bmp=null then null else FullClone(bmp)
         downsampledBmps.[x,y] <- if bmp=null then null else DownsampleClone(bmp)
     member this.HasBmp(x,y) =
@@ -117,12 +118,14 @@ type ImgArrayCache(proj,zone) =
                     doesFileExist.[x,y] <- 222
                     null
     member this.GetRaw(x, y, width, height) =
-        match rawCaches.[x,y].TryGetValue((width,height)) with
+        if rawCaches.[x,y] = null then
+            rawCaches.[x,y] <- new System.Collections.Generic.Dictionary<struct(int*int),byte[]>()
+        match rawCaches.[x,y].TryGetValue(struct(width,height)) with
         | false, _ ->
             let bmp = ResizeBitmap(downsampledBmps.[x,y], width, height)
             let byteArray = Utils.ConvertBmpToBGRA(bmp)
             bmp.Dispose()
-            rawCaches.[x,y].Add((width,height), byteArray)
+            rawCaches.[x,y].Add(struct(width,height), byteArray)
             byteArray
         | _, r -> r
 

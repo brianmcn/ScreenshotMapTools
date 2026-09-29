@@ -424,7 +424,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(int(wholeMapCanvas.Width), int(wholeMapCanvas.Height), 96, 96, PixelFormats.Pbgra32)
         CompositionTarget.Rendering.Add(fun _ea ->
             let t = sw.ElapsedMilliseconds
-            if t - lastUpdate > 100L then   // every 100ms
+            if t - lastUpdate > 200L then   // every 200ms
                 lastUpdate <- t
                 using (drawingVisual.RenderOpen()) (fun context ->
                     context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, wholeMapCanvas.Width, wholeMapCanvas.Height))

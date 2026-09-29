@@ -21,7 +21,7 @@ open GameSpecific
 
 //let rootFolder = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, GAME)
 let rootFolder = System.IO.Path.Combine(TheChosenGame.GAME)
-let GetRootFolder() = rootFolder
+let inline GetRootFolder() = rootFolder
 
 [<AllowNullLiteral>]
 type PreviewPaneSource(z,p) =
@@ -197,5 +197,22 @@ type MapTile() =   // e.g. 50,50
     member this.NumScreenshots() = 
         this.Assert()
         this.ScreenshotsWithKinds.Length
-let MapTileFilename(i,j,zone) = System.IO.Path.Combine(GetZoneFolder(zone), sprintf "tile%02d-%02d.json" i j)
+let inline AppendPercentZeroTwoDTo(sb:System.Text.StringBuilder, numberZeroToNinetyNine) =  // sb.Append(sprintf "%02d" numberZeroToNinetyNine)
+    let tens = char (int '0' + (numberZeroToNinetyNine / 10))
+    let ones = char (int '0' + (numberZeroToNinetyNine % 10))
+    sb.Append(tens).Append(ones) |> ignore
+let MapTileFilename(i,j,zone) = 
+    // this is called 10000x per zone, so we try not to create tons of garbage
+    let sb = System.Text.StringBuilder(GetRootFolder().Length + 20)
+    sb.Append(GetRootFolder()).Append(System.IO.Path.DirectorySeparatorChar).Append("zone") |> ignore
+    AppendPercentZeroTwoDTo(sb, zone)
+    sb.Append(System.IO.Path.DirectorySeparatorChar).Append("tile") |> ignore
+    AppendPercentZeroTwoDTo(sb, i)
+    sb.Append('-') |> ignore
+    AppendPercentZeroTwoDTo(sb, j)
+    sb.Append(".json") |> ignore
+    let r = sb.ToString()
+    //if r <> System.IO.Path.Combine(GetZoneFolder(zone), sprintf "tile%02d-%02d.json" i j) then        // sanity test
+    //    failwith "uh oh"
+    r
 

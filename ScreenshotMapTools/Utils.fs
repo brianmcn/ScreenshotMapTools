@@ -412,7 +412,7 @@ let CopyBGRARegionOnlyPartsWithAlpha(destBytes:byte[], destStride, destX, destY,
         let destIndex = (destY+dh) * destStride + destX*4
         for i = 0 to sourceW-1 do
             let j = sourceIndex+i*4
-            let b,g,r,a = sourceBytes.[j], sourceBytes.[j+1], sourceBytes.[j+2], sourceBytes.[j+3]
+            let struct(b,g,r,a) = struct(sourceBytes.[j], sourceBytes.[j+1], sourceBytes.[j+2], sourceBytes.[j+3])
             if a <> 0uy then
                 destBytes.[destIndex+i*4] <- b
                 destBytes.[destIndex+i*4+1] <- g

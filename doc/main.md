@@ -201,10 +201,12 @@ While you typically use the Numpad to move the cursor in the main app window, yo
 Mouse hovering a cell will temporarily change the cell highlight that that cell, which enables you to 
 quickly glance through the notes/previews of many cells, just by passing the mouse over them.
 
+**"Hard-selection"**: \
 Left-clicking on a cell will hard-select that cell, as though you used the Numpad keyboard controls to move the cursor there.  
 If the mouse cursor leaves the map grid area without clicking on any cell, the most recently hard-selected cell
 (that is, keyboard-selected or clicked-on cell) will regain the highlight.
 
+**Mouse Warping**: \
 If the mouse cursor is somewhere inside the map grid, pressing `Numpad 5` will warp the mouse cursor to the most recently
 hard-selected cell.  If the most-recently hard-selected cell is the one with the current cell highlight (either because
 the mouse cursor is outside the grid, or because the mouse is hovering the hard-selected cell), then pressing `Numpad 5`

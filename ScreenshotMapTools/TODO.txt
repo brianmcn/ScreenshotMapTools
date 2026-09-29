@@ -15,7 +15,6 @@ i cant test on surface really, since app does not fit on screen (maybe implement
 abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
  - looks like sidescape maybe made it so if-any-visible-highlight-tag-markup, cell gets different color
 
-
 add popout for preview-pane
 
 

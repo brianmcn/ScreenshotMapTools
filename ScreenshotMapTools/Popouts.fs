@@ -70,7 +70,7 @@ let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
 let MakeWindowSmartByRememberingPositionAndSize(w:Window, json:AppSettings.PopoutDetailJson) =    // call this in the constructor, after settting Width/Height(/Left/Top) to a default
     AppSettings.WindowPosition.SetInitialWindowPosition(w, json.XYWH)
     let save() =
-        let xywh = (int w.Left), (int w.Top), (int w.Width), (int w.Height)
+        let xywh = ((int w.Left), (int w.Top), (int w.Width), (int w.Height))
         MainUIInvoke(fun() ->
             json.XYWH <- xywh
             AppSettings.theAppSettingsJson.Save()
