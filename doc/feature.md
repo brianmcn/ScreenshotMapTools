@@ -42,7 +42,7 @@ shows its notes on the left, and any hyperlinked cells on the bottom.
 
 ### Comparing two zone side by side
 
-The 'Dual' button at the top of the app will ask you for two zones, and a range of cells, and show both zones overview map, and hovering 
+The 'Dual' button at the top of the app will ask you for two zones, and a range of cells, and show both zones' overview map. Mouse hovering 
 any cell will show a larger preview of the corresponding cell in both zones.
 
 ![two zones at once](img/FeatureDual.png)

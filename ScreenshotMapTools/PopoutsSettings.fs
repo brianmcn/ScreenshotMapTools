@@ -68,6 +68,7 @@ The app remembers which popouts you enabled, so next time you start the app, it 
                                         "\nThis is a text note not tied to any particular cell, which you can edit for general notes not related to a particular map cell." +
                                         "\nThis note can be edited only via the shortcut Ctrl+Numpad/"
         |]
+        // TODO mousewheel text font size a la zoom?
     for ipwb, name, desc in data do
         // layout
         hrule()

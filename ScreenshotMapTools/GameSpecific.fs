@@ -148,7 +148,7 @@ let TryFindHwndForTheChosenGame() =
                 r <- Some hwnd
         // old fragile fallback logic, find window with same title prefix
         else
-            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then   // TODO fragile, I had a folder open named EMUUROM, and it got that instead of EMUUROM game window
+            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then   // fragile, I had a folder open named EMUUROM, and it got that instead of EMUUROM game window
                 r <- Some hwnd
     r
 let ActivateGameWindow() = 

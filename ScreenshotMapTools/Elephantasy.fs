@@ -40,6 +40,7 @@ module Screenshot =
         EnumWindows(new EnumWindowsProc(fun h l -> perWindow(h,l)), IntPtr.Zero) |> ignore
         windows
 
+#if ELEPHANTASY
     let findElephantasyWindowLeftTop() =
         let mutable r = None
         for KeyValue(_hwnd,(title,_,rect)) in GetOpenWindows() do
@@ -74,6 +75,7 @@ module Screenshot =
         let bmp1,bmp2 = getScreenInfo()
         bmp1.Save("test1.png", System.Drawing.Imaging.ImageFormat.Png)
         bmp2.Save("test2.png", System.Drawing.Imaging.ImageFormat.Png)
+#endif
 
 module Winterop =
     open System
@@ -117,7 +119,6 @@ module Winterop =
     let SW_MINIMIZE = 6
     [<DllImport("user32.dll")>]
     extern IntPtr SetActiveWindow(IntPtr hWnd)
-
 
 #if ELEPHANTASY
 

@@ -51,7 +51,7 @@ type RepresentativePolicy =
     | Last
     | Union
 
-let thePolicy = RepresentativePolicy.Union   // TODO when toggling it, invalidate all the onscreen images
+let thePolicy = RepresentativePolicy.Union  // I have not used Last in a while
 
 let GetRepresentative(a:ResizeArray<Bitmap>) =
     if a.Count = 0 then 

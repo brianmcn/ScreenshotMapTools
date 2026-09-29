@@ -1,5 +1,18 @@
-﻿TODO feature window should probably be resizeable, but allow easy setting to exact size
+﻿TODOs in code (none until MapIcons.fs)
 
+TODO feature window should probably be resizeable, but allow easy setting to exact size
+
+TODO doc print button, rename zone button, anything else?
+
+TODO doc numpad 5, 55
+ - 5 warps mouse to keyboarded cell; arrowing warps wouse with it
+ - (check this) on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects tile where mouse was
+ - ctrl-numpad moves viewport
+ - mousing: hover shows cell, click to move cursor to that cell
+
+TODO doc screenshot kinds?
+
+TODO decide if my filesystem organization is sane
 
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 
@@ -8,12 +21,20 @@ i cant test it really on surface, since lack keyboard with numpad (guess I could
 i cant test on surface really, since app does not fit on screen (maybe implement scaling a la z1r)
 
 abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
+ - looks like sidescape maybe made it so if-any-visible-highlight-tag-markup, cell gets different color
 
 
 add popout for preview-pane
 
 
 MOSTLY DONE clicking the app brings all the popout windows to the foreground, which i dont think i want
+
+
+make a popout mouse control to mimic a numpad, to make app operable with no numpad
+eventually some kind of key rebinding something (noodle on API)
+
+
+need screenshots of popouts for docs
 
 
 put like some demo/doc stuff in a demo folder
@@ -174,127 +195,22 @@ with the UI thread can scrape N codas off that queue to run them and update the 
 
 
 
-
-
-
-
-
-
-
-
-
-two minimaps? nearby view and full zone view? abstract or screenshots?
-
-
-maybe '55' would 'change center/zoom so that all this zone fits onscreen? (what if keyboard cursor still off?)
-
- - aside: consider separate floating window for 3x3 or 5x5 zoom around cursor (updates when kbdX/kbdY changes)
- - also how do I feature composited screenshots of a tile?
-
 maybe make my own tiny abstract minimap projection window to overlay on HUD?
  - hm, what are odds I can take constant screenshots and guess auto-tracking
  - could just put human in loop, and show me green v red based on if it thinks cursor matches current location
 
 
-crash when press '*'?
-
-what if my icons could include single letter/number/character?
 what if icons could be full rectangles of semi-transparent color?
-
-
-get 'native' scale working again
-
-
-feature window could use an icon legend, somewhere, somehow
-
-for master key:
- - DONE need multiple 'auxiliary' screenshots on a screen (e.g. house interior) as well as main map thing
- - DONE need compositing (light bubbles) as well as choosing (e.g. after bushes cut), in addition to aux. stuff
- - DONE need zone names (for like 'dungeon 1')
-
-general:
- - DONE would be good to redo layout so i can capture/project a useful map, though still not sure what is best
- - i rarely used zoom, and preferred seeing whole map and marker-abstractions, so maybe always just zoom to see all map + 2 tiles on each end?
- - (can always print to see full zoomable map in another image/photo tool; printing to game folder, all zones, by name, maybe in a date folder)
- - DONE my color icons were kinda insufficient as like red X and green X might overwrite each other... kinda want more uniques, or like each color has own left-right jitter so can see both
- - fast travel linkages (visually, click-y, ...)
-   - DONE idea, in addition to e.g. (30,40) to go that that screen in this zone, also allow (zone02) or (zone02,30,40)
-   - DONE and in feature, it should show those labeled with the coords and/or zone label
-   - DONE and in app, should be clickable list to go there
-DONE different UI:
- - cursor seperate from zoom/viewport
- - mousing moves cursor
-   - mousing moves mouse cursor, which affects bottom view and edit focus; keyboard cursor stays put
-   - on mouse leave, cursor jumps back to keyboard cursor
-   - on click, keyboard cursor jumps to mouse position
-   - on arrow, keyboard cursor moves, and mouse warps to new keyboard cursor position (if mouse within app)
-      - '5' just warps mouse back to keyboard location, to give keyboard focus back from mouse
-   - on {slash,0,.,+,-}, keyboard cursor moves to mouse position, and edit affects tile where mouse was
- - ctrl-numpad moves viewport
-
-
-
-are hashtags per zone or global? (should be global?) do testing
-
-
-
-
-
-
-deal with TODOs in code
-
-
-
-watching dwarf play VS: would want multiple screenshots per room (e.g. B029 floor, then B029 mural), but mark one as canonical (as opposed to AnimalWell-compositing)
- - or maybe in AW I will also want 'auxilary screenshots' as well as compositing?
-
-
-maybe turn off meta area (and NUMPAD_STAR cycles) when unused?
-
 
 
 dwarf idea about partial screenshot (e.g. alien font, VS mural square) mapping to letters, how to deal with
 
-
-aside: my tool could use c&p to help solve tail puzzle in VS
-
-animal well pencil, i made way to 'draw' in ztracker, again a 'draw' layer could be good
 
 since i can already pull up full size screenshot, having a way to click bounds a clip a section (e.g. idol out of VS screenshot) could be useful... then e.g. set up
 way to make dwarf's translator, where I have a row of screenshot clips, and a row of alphabet, and a way to click one row input and get other row output...
 basically, try to list all the scenarios it would be nice to support, and see if there is a cleanish way to unify them all under my 
 screenshot-grid-with-associated-other-data whole theme i have going on...
 scenario: even for non-screen-based games (e.g. hero's spirit), taking screenshots of like NPC dialogs and having a 'zone' for each area and just placing screenshots haphazard is useful
-
-------------------------------------------
-
-
-and I'm already forgetting keys, need cheatsheet
-    2468   move
-    0      screenshot
-    +-     paste cut
-    *      change projection (full screen, map area, metadata area)
-    /      edit note
-    79     change zoom
-    .      toggle #TODO note (e.g. take better notes after this recording session)
-    13     unused
-mousing: hover shows cell, click to move cursor to that cell
-also mousing for infrequent stuff (e.g. key search/highlight)
-
-
-
-root directory for games (debug v release, change games, catalogue? app data folders?)
-
-
-Leaf's odysssey also has
- - left HUD
- - screen names like elephantasy
-so I probably want to 
- - capture whole screenshot
- - have a projection mechanism to toggle whole versus just map area
- - have a way to capture metadata from a projection and display it too (e.g. grid of screen names, or screen name in summary area)
-and I'll be playing/capturing 2x or 3x resolution, so want to downscale screenshots/images like Elephantasy to save disk/processing/etc
-
 
 
 time travel/review

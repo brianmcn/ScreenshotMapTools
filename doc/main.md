@@ -165,6 +165,6 @@ See the [glass page](glass.md) for more information on the glass tool, which let
 
 ## Other features
 
-TODO eventually document other features (custom trim, preview pane, feature window, ...)
+TODO eventually document other features (custom trim, preview pane, ...)
 
 
