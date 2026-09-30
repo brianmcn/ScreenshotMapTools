@@ -6,7 +6,7 @@ To use the tool, you currently will need
 
 * To play the targetted game in a window of a constant fixed size of your choosing
 
-* A keyboard with a num-pad
+* A keyboard with a NumPad
 
 ## Downloading the tool
 

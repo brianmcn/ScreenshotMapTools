@@ -24,14 +24,14 @@ on disk where that particular screenshot lives.)
 
 ### Pan and Zoom the whole zone Map
 
-Pressing `Numpad 1` will 'Feature' the entire map grid where you can 'pan' the map by (left-click) dragging, and zoom in and out using 
+Pressing `NumPad 1` will 'Feature' the entire map grid where you can 'pan' the map by (left-click) dragging, and zoom in and out using 
 the mouse scroll-wheel.  This can be useful to show the 'big picture' of an area or to get a close look at the boundary between two screens,
 for example.  A couple of example screenshots are suggestive:
 
 ![feature zoom out](img/FeatureZoomOut.png)
 ![feature zoom in](img/FeatureZoomIn.png)
 
-Note that pressing `Ctrl+Numpad1` does something similar, but with the full map image repeated four times in a 2x2 grid.  This can be useful 
+Note that pressing `Ctrl+NumPad1` does something similar, but with the full map image repeated four times in a 2x2 grid.  This can be useful 
 for games where the game map is topologically a torus with wraparound, and the left edge is adjacent to the right edge, or the top edge is 
 adjacent to the bottom edge. The 2x2 version lets you inspect those edges side-by-side by panning and zooming within the Feature Window.
 

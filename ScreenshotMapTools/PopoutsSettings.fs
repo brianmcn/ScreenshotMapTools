@@ -68,7 +68,7 @@ The app remembers which popouts you enabled, so next time you start the app, it 
         ln,  LiveNotesWindow.Name,                  "(Z) A resizable window displaying only the Note for the cell the cursor is on (including 'live' edits to that note)"
         pn,  GlobalNoteWindow.Name,                 "(Z) A resizable window displaying the 'global' Note." +
                                                     "\nThis is a text note not tied to any particular cell, which you can use for general notes about the game." +
-                                                    "\nEdit this note by pressing Ctrl+Numpad/"
+                                                    "\nEdit this note by pressing Ctrl+NumPad/"
         |]
     for ipwb, name, desc in data do
         // layout

@@ -15,7 +15,7 @@ Then it will ask you for a directory name to save the screenshots; type a valid 
 
 The app then starts up, and you're ready to take your first screenshot!
 
-Press `Numpad 0` to take a test screenshot.  You can then press `Numpad -` to 'cut' that screenshot out of the grid, if it's not one you intend to keep.
+Press `NumPad 0` to take a test screenshot.  You can then press `NumPad -` to 'cut' that screenshot out of the grid, if it's not one you intend to keep.
 
 ### Setting up a 'MAP Trim'
 

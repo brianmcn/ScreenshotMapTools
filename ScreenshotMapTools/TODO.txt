@@ -1,4 +1,6 @@
-﻿TODO decide if my filesystem organization is sane
+﻿glass should not cover the chrome, maybe
+
+TODO decide if my filesystem organization is sane
 
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 

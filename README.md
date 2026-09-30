@@ -16,8 +16,8 @@ saving those screenshots (possibly after spending time trimming or resizing them
 a grid (like Obsidian or GIMP).  Even the more efficient workflows I've witnessed still involve a lot of fiddling about and alt-tabbing between
 multiple applications and the game itself.
 
-So I made a tool that makes it simple.  The tool just runs in the background, and at any time you can press `Numpad0` to take a new screenshot
-of the game and drop it into the grid, or use `Numpad2468` to move the cursor around the grid, all while the game stays running with focus.
+So I made a tool that makes it simple.  The tool just runs in the background, and at any time you can press `NumPad0` to take a new screenshot
+of the game and drop it into the grid, or use `NumPad2468` to move the cursor around the grid, all while the game stays running with focus.
 
 There's lots more features, for notetaking, custom visualizations, and OBS capture.
 
