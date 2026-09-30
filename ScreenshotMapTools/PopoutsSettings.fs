@@ -36,8 +36,8 @@ Popout windows have no 'Window Chrome' and are controlled thusly:
  - **zoom popout**: Popout descriptions prefixed "**(Z)**" are zoomable, and **scrollwheel** changes the content size
 
 Most of these windows are designed to serve one or both of the following use-cases:
-(1) if you have limited primary screen real estate, you might leave the app itself open on a secondary monitor, and just have e.g. the AppGridPane and CursorNote in the corner of your primary monitor
-(2) if you are capturing video (e.g. for Twitch) it usually does not make sense to capture the app window, but often makes sense to incorporate e.g. the Minimap and CursorNote windows into your OBS layout so that the audience can see some map/notes as you play
+(1) if you have limited primary screen real estate, you might leave the app itself open on a secondary monitor, and just have e.g. the AppGridPane and CursorNote visible in the corner of your primary monitor
+(2) if you are capturing video (e.g. for Twitch), it usually does not make sense to capture the full app window, but often makes sense to incorporate e.g. the Minimap and CursorNote windows into your OBS layout, so that the audience can see some essential mapping and notetaking as you play
 
 The app remembers which popouts you enabled, so next time you start the app, it will also open your enabled popouts.""")
     let g,_ = BasicLayout.NewGridWithColumns([0.,GridUnitType.Auto; 0.,GridUnitType.Auto; 0.,GridUnitType.Auto; 0.,GridUnitType.Auto; 1., GridUnitType.Star; 0.,GridUnitType.Auto; 0.,GridUnitType.Auto])

@@ -1,3 +1,4 @@
+# ScreenshotMapTools full documentation
 
 ## On this page
 
@@ -19,6 +20,8 @@ FEATURES FOR USER-PRODUCTIVITY AND OBS-BROADCASTING
 * [Glass tool for scribbling](#glass)
 
 Jump to any of the linked topics above, or scroll down to read them one-by-one.
+
+-----
 
 ## <a id="downloading"></a>Downloading and running the tool
 
