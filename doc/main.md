@@ -158,10 +158,12 @@ controls of the app:
 
 All popouts have the same mouse controls for interacting:
 
-* `Left-click-and-drag` within the window: Move a popout window around on your desktop
-* `Right click`: Close this popout window
-* `Left-click-and-drag` the window edge/corner: Resize the popout window (if applicable)
-* `Scroll-wheel`: change the zoom level of the popout (if applicable)
+| interaction | behavior |
+| ---: | :--- |
+| `Left-click-and-drag` within the window      | **Move** a popout window around on your desktop |
+| `Right-click`                                | **Close** this popout window |
+| `Left-click-and-drag` the window edge/corner | **Resize** the popout window (if applicable) |
+| `Scroll-wheel`                               | change the **Zoom** level of the popout (if applicable) |
 
 You can manage popouts with the "Popouts" button at the top of the main app.  Here's what various popouts look like:
 
@@ -225,7 +227,7 @@ the viewport.
 the current state of affairs with mouse-warping shenanigans.) The basic movement keys, `NumPad 2468` also warp the mouse to 
 match the cursor highlight, but only if the mouse is over the app.  If the mouse is elsewhere (such as over the game window), 
 the app will not warp the mouse cursor.  In other words, the app window won't "steal" the mouse from other windows, but when 
-the mouse is over the app, then the app usually tries to keep the mouse cursor and the currently hard-selected cell in-sync.  
+the mouse is over the app, then the app usually tries to keep the mouse cursor and the currently hard-selected cell in-sync.
 The motivation for all this is to reduce errors while preserving the aforementioned "Mouse Preview" feature.  A scenario
 explains: Suppose the current hard-selected cell is 50,50, which also has the mouse hovering over it.  Now imagine if moving 
 the cursor right with `NumPad 6` _did not_ also warp the mouse.  The cell 51,50 would be hard-selected by the keyboard, but 
@@ -234,11 +236,12 @@ dump a new screenshot into 50,50, despite the fact that the user just keyboarded
 complicated to explain, but feels so natural as to go typically unnoticed while using the app.  The mouse-warping has a 
 secondary benefit, in that the app always warps the mouse into the center of the current cell.  This makes another type of 
 error far less likely, namely the error where you reach your hand from your game controller over to the NumPad to press 
-`NumPad 0` to take a screenshot, but in the act, you bump the mouse a tiny bit.  When the mouse starts in the center of a cell, 
-tiny movements are less likely to accidentally cause the mouse to wander to a new cell and cause your screenshot to get misplaced.
+`NumPad 0` to take a screenshot, but in the act, you accidentally bump the mouse a tiny bit.  When the mouse starts in the 
+center of a cell, tiny movements are less likely to cause the mouse to wander to a new cell and cause your screenshot to 
+get misplaced.
 
 Editing actions (e.g. `NumPad /0.+-`) target the currently highlighted cell.  As a result, you can use "Mouse Preview" to 
-quickly target a cell that's not near the cursor; rather than press e.g. `NumPad 8888/` to edit the Note in the cell four 
+quickly target a cell that's not near the cursor; e.g. rather than press `NumPad 8888/` to edit the Note in the cell four 
 cells above the current cell, you could also just push the mouse up to the cell whose Note you want to edit and then press 
 `NumPad /`.  Editing actions hard-select the cell being edited, so if afterwards you move the mouse outside the app, the 
 cell highlight will remain on the cell that was just edited.
