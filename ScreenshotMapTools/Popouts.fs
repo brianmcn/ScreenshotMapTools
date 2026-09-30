@@ -83,10 +83,10 @@ let MakeWindowSmartByRememberingPositionAndSize(w:Window, json:AppSettings.Popou
 type ControlsCheatsheetPopoutWindow() as this =
     inherit IndependentWindow()
     static let mutable singleton = null
-    let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
+    let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=18., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent)
     let g = new Grid()
     let sp = new StackPanel(Orientation=Orientation.Vertical)
-    let b = new Border(BorderThickness=Thickness(6.), Child=sp, Background=Brushes.Gray, BorderBrush=Brushes.Gray)
+    let b = new Border(BorderThickness=Thickness(6.), Child=sp, Background=Brushes.Gray, BorderBrush=Brushes.Gray, Margin=Thickness(0.,-4.,0.,0.))
     do
         sp.Children.Add(mkTxt("Be sure NumLock is on!")) |> ignore
         sp.Children.Add(new DockPanel(Height=2.0, Background=Brushes.Black)) |> ignore
@@ -107,23 +107,29 @@ type ControlsCheatsheetPopoutWindow() as this =
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
         g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
         let data = [|
-                "2468", "move cursor"
-                "0", "take screenshot"
-                "- +", "cut/paste"
-                "7 9", "zoom out/in"
-                "*", "cycle zone"
-                "/", "edit note@cursor"
-                "ctrl/", "edit global note"
-                "1", "pan/zoom window"
-                "ctrl1", "2x map pan/zoom"
-                ".", "toggle TODO tag"
-                "3", "edit TODO tag"
+                "2468",     "move cursor"
+                "0",        "take screenshot"
+                "-  +",     "cut  paste"
+                "7 9",      "zoom out/in"
+                "*",        "cycle zone"
+                "/",        "edit note@cursor"
+                "ctrl /",   "edit global note"
+                "1",        "pan/zoom window"
+                "ctrl 1",   "2x map pan/zoom"
+                ".",        "toggle TODO tag"
+                "3",        "edit TODO tag"
             |]
         let COUNT = data.Length
         for i = 0 to COUNT-1 do
             g.RowDefinitions.Add(new RowDefinition(Height=GridLength(24.)))
             let a,b = data.[i]
-            Utils.gridAdd(g, mkTxt(a), 0, i)
+            let at = mkTxt(a)
+            at.TextAlignment <- TextAlignment.Right
+            at.Padding <- Thickness(0.,0.,8.,0.)
+            if at.Text="." || at.Text="*" || at.Text="-  +" then
+                at.FontSize <- at.FontSize + 4.0
+                at.Margin <- Thickness(0., -2., 0., 0.)
+            Utils.gridAdd(g, at, 0, i)
             Utils.gridAdd(g, mkTxt(b), 1, i)
         this.Height <- 24. * float (COUNT+1) + 12.
     static member Singleton = singleton

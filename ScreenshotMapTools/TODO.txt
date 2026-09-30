@@ -1,9 +1,4 @@
-﻿Glass - if underlying window moves TODO (I can probably fix)
-
-
-TODO retake popout settings screenshot once everything there is done
-
-TODO doc screenshot kinds?
+﻿TODO retake popout settings screenshot once everything there is done
 
 TODO decide if my filesystem organization is sane
 
@@ -12,9 +7,6 @@ i might need a name for this thing, as i keep referring to 'the app' and 'the to
 
 i cant test it really on surface, since lack keyboard with numpad (guess I could plug one in)
 i cant test on surface really, since app does not fit on screen (maybe implement scaling a la z1r)
-
-abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
- - looks like sidescape maybe made it so if-any-visible-highlight-tag-markup, cell gets different color
 
 add popout for preview-pane
 
@@ -32,30 +24,28 @@ should 'trim' be able to work on screenshots, as well as game?
 
 
 
-
-
-
-
-tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
-    move 'to the next #save cell' and 'to the prior #save cell' ?
-
-
 consider: dwarf: A future version could just cheekily call a zone "Misc Images" or something to seed that idea to others
     imagine new game has 'zone00: misc images' and 'zone01: map' and starts you in zone01
 
 
-neat i could have a zone where the preview is koto, forest cover, emuukehto in 3 quadrants, which could be useful
-
 --------below this line is still i'm willing to put off--------------
+
 TODO feature window should probably be resizeable, but allow easy setting to exact size
+
 could imagine right-clicking a hashtag in the sidebar opens a window with all the matches across all zones, with clickable links to those cells
 
+abstracted minimap (per sidescape) that shows where-in-the-whole-map we are, as compliment to minimap
+ - looks like sidescape maybe made it so if-any-visible-highlight-tag-markup, cell gets different color
+ - but kinda presupposes knowing full map size, that being a rectangle... utility is limited
+
+tag-navigation? what if somehow a mode where #save is the tage of choice, and then like 4 and 6 instead of moving left/right 
+    move 'to the next #save cell' and 'to the prior #save cell' ?
+
+TODO doc screenshot kinds?
 
 
-docs
-emuurom looks good as example
-ESA might look good, despite some scrolling
-LoZ1 would obviously be good to show e.g. dungeons as zones
+
+
 
 
 history:

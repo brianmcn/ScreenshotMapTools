@@ -107,6 +107,9 @@ let main _argv =
     else
 
     if GameSpecific.CommandLine.glass then
+        if false then
+            System.Console.WriteLine("press enter to start glass")
+            System.Console.ReadLine() |> ignore
         // glass is a separate application to decouple its window activation/z-order from the rest of the app
         let app = new Application()
         app.Run(new Glass.DrawingGlassWindow())

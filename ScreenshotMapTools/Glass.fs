@@ -89,23 +89,172 @@ let setOverlayClickThrough(overlayHwnd: nativeint, isClickThrough: bool) =
             else
                 currentExStyle &&& ~~~WS_EX_TRANSPARENT
         Win32.SetWindowLongPtrA(overlayHwnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
-        // 4. Force Windows to redraw the frame and update hit-testing behavior immediately
+        // Force Windows to redraw the frame and update hit-testing behavior immediately
         // SWP_FRAMECHANGED (0x0020u) is critical here to tell the OS the window frame/styles changed.
         Win32.SetWindowPos(
             overlayHwnd, HWND_TOP, 0, 0, 0, 0, 
             SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE ||| SWP_FRAMECHANGED
         ) |> ignore
 
+module OffscreenCheck =
+    open System.Drawing
+    open System.Windows.Forms
+    /// Determines if a target WPF position (Left, Top) would fall completely offscreen
+    let IsWindowLeftTopOffscreen(window: Window) =
+        let targetLeft, targetTop = window.Left, window.Top
+        // 1. Get the current DPI scaling factors for the window
+        let dpiInfo = VisualTreeHelper.GetDpi(window)
+        // 2. Convert WPF DIPs back to Win32 Physical Pixels
+        let physicalX = int (targetLeft * dpiInfo.DpiScaleX)
+        let physicalY = int (targetTop * dpiInfo.DpiScaleY)
+        // 3. Create a tiny 1x1 tracking point in physical space
+        let targetPoint = Point(physicalX, physicalY)
+        // 4. Ask Windows Forms which display monitor contains this point
+        let targetScreen = Screen.FromPoint(targetPoint)
+        // If the point is outside all screens, Screen.FromPoint returns the primary screen,
+        // so we must explicitly check if the point resides inside that screen's physical bounds.
+        not (targetScreen.Bounds.Contains(targetPoint))
+
+    type TaskbarState =
+        | CompletelyClear
+        | PartiallyCovered
+        | CompletelyCovered
+    /// Checks if a target WPF window placement will collide with the taskbar (assumes Left/Top/Width/Height all set)
+    let IsWindowInsideMonitorWorkingArea(window: Window) =
+        let targetLeft, targetTop = window.Left, window.Top
+        let dpiInfo = VisualTreeHelper.GetDpi(window)
+        // 1. Calculate the target window rectangle in physical pixels
+        let physLeft = int (targetLeft * dpiInfo.DpiScaleX)
+        let physTop = int (targetTop * dpiInfo.DpiScaleY)
+        let physWidth = int (window.Width * dpiInfo.DpiScaleX)
+        let physHeight = int (window.Height * dpiInfo.DpiScaleY)
+        let targetWindowRect = Rectangle(physLeft, physTop, physWidth, physHeight)
+        // 2. Identify which monitor contains the center of your target window placement
+        let windowCenter = Point(physLeft + (physWidth / 2), physTop + (physHeight / 2))
+        let currentScreen = Screen.FromPoint(windowCenter)
+        // 3. Extract monitor spaces
+        let monitorBounds = currentScreen.Bounds      // Total screen size (e.g., 1920x1080)
+        let workingArea = currentScreen.WorkingArea   // Screen size MINUS taskbar (e.g., 1920x1040) [1]
+        // 4. If it's completely off the monitor entirely, handle it
+        if not (monitorBounds.IntersectsWith(targetWindowRect)) then
+            CompletelyCovered // Technically "offscreen" entirely
+        // 5. If it's on screen, check its relationship with the Working Area [1]
+        elif workingArea.Contains(targetWindowRect) then
+            CompletelyClear // Fully inside the safe zone, no taskbar overlap [1]
+        elif not (workingArea.IntersectsWith(targetWindowRect)) then
+            CompletelyCovered // On the screen, but exclusively inside the taskbar space
+        else
+            PartiallyCovered // Overlapping the edge of the working area onto the taskbar [1]
+
+
+module ThirdPartyDeltaTracker =
+    open System.Runtime.InteropServices
+    [<Struct>]
+    type RECT =
+        val Left: int
+        val Top: int
+        val Right: int
+        val Bottom: int
+
+    type WinEventDelegate = delegate of IntPtr * uint32 * IntPtr * int32 * int32 * uint32 * uint32 -> unit
+
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern IntPtr SetWinEventHook(uint32 eventMin, uint32 eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint32 idProcess, uint32 idThread, uint32 dwFlags)
+
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool UnhookWinEvent(IntPtr hWinEventHook)
+
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern bool GetWindowRect(IntPtr hWnd, RECT& lpRect)
+
+    [<DllImport("user32.dll")>]
+    extern IntPtr GetAncestor(IntPtr hWnd, uint32 gaFlags)
+    
+    let EVENT_OBJECT_LOCATIONCHANGE = 0x800Bu
+    let WINEVENT_OUTOFCONTEXT = 0x0000u
+    let OBJID_WINDOW = 0x00000000l
+    // Ancestor Flag: 2u means "GA_ROOT" (Climbs all parents up to the top-level window)
+    let GA_ROOT = 2u
+    let CHILDID_SELF = 0l // Used sometimes to verify it's the element itself
+
+    type WindowMovedEventArgs(deltaX: int, deltaY: int, currentRect: RECT) =
+        inherit EventArgs()
+        member _.DeltaX = deltaX
+        member _.DeltaY = deltaY
+        member _.CurrentRect = currentRect
+
+    type ExternalDeltaTracker(targetHwnd: IntPtr) =
+        let movedEvent = Event<WindowMovedEventArgs>()
+        let mutable hookId = IntPtr.Zero
+        let mutable eventDelegate = null
+        // Track the prior position coordinates
+        let mutable lastX = 0
+        let mutable lastY = 0
+        let mutable isFirstPosition = true
+
+        member this.Start() =
+            if hookId = IntPtr.Zero then
+                // Initialize the starting position right before hooking
+                let mutable rect = RECT()
+                if GetWindowRect(targetHwnd, &rect) then
+                    lastX <- rect.Left
+                    lastY <- rect.Top
+                    isFirstPosition <- false
+
+                eventDelegate <- WinEventDelegate(fun hWinEventHook event hwnd idObject idChild idEventThread dwmsEventTime ->
+                    // Check if the event's window is either your target directly, OR 
+                    // climbs structural parent relationships back up to your target window.
+                    let rootHwnd = if hwnd = targetHwnd then hwnd else GetAncestor(hwnd, GA_ROOT)
+                    if rootHwnd = targetHwnd then
+                        let mutable currentRect = RECT()
+                        if GetWindowRect(targetHwnd, &currentRect) then
+                            // Handle cases where start tracking missed the initial paint
+                            if isFirstPosition then
+                                lastX <- currentRect.Left
+                                lastY <- currentRect.Top
+                                isFirstPosition <- false
+                            // Calculate movement deltas
+                            let deltaX = currentRect.Left - lastX
+                            let deltaY = currentRect.Top - lastY
+                            // Only fire if an actual coordinate change happened 
+                            // (LocationChange can occasionally fire for layout/Z-index changes)
+                            if deltaX <> 0 || deltaY <> 0 then
+                                // Update stored states
+                                lastX <- currentRect.Left
+                                lastY <- currentRect.Top
+                                // Trigger the event with metrics
+                                let args = WindowMovedEventArgs(deltaX, deltaY, currentRect)
+                                movedEvent.Trigger(args)
+                    )
+                hookId <- SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, eventDelegate, 0u, 0u, WINEVENT_OUTOFCONTEXT)
+
+        member _.Stop() =
+            if hookId <> IntPtr.Zero then
+                UnhookWinEvent(hookId) |> ignore
+                hookId <- IntPtr.Zero
+                eventDelegate <- null
+                isFirstPosition <- true
+
+        [<CLIEvent>]
+        member _.WindowMoved = movedEvent.Publish
+
+        interface IDisposable with
+            member this.Dispose() = this.Stop()
+
 
 type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
     let mutable clickThru = false
     let mutable hwndGlassTarget = IntPtr(0)
+    let mutable edt = null
     let isFirstClickFocusSwitch = ref false
     let label = new Label(Content="switch to click-thru")
     let toggleClickThruButton = new Button(Content=label, Margin=Thickness(2.))
+    let expectedW, expectedH = 384., 95.
     do
         this.Title <- "GlassControl"
+        this.Width <- expectedW
+        this.Height <- expectedH
         this.Loaded.Add(fun _ ->
             //printfn "loading controls"
             this.Content <- new TextBox(Text="focus the window you\nwant to draw on top of", Margin=Thickness(8.), BorderThickness=Thickness(0.))
@@ -121,9 +270,39 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 let r = WinteropUtils.GetActiveWindowClientRect()
                 this.Top <- float(r.bottom + 4)
                 this.Left <- float(r.left)
+                match OffscreenCheck.IsWindowInsideMonitorWorkingArea(this) with
+                | OffscreenCheck.CompletelyClear -> ()
+                | _ ->
+                    this.Top <- float(r.top)
+                    this.Left <- float(r.right + 4)
+                    match OffscreenCheck.IsWindowInsideMonitorWorkingArea(this) with
+                    | OffscreenCheck.CompletelyClear -> ()
+                    | _ ->
+                        this.Top <- float(r.top)
+                        this.Left <- float(r.left - 4)  - expectedW
+                        match OffscreenCheck.IsWindowInsideMonitorWorkingArea(this) with
+                        | OffscreenCheck.CompletelyClear -> ()
+                        | _ ->
+                            this.Top <- float(r.top - 4) - expectedH
+                            this.Left <- float(r.left)
                 setupOverlayWindow(parentGlass,hwndGlassTarget,this,isFirstClickFocusSwitch)
                 Win32.SetWindowLongPtrA(System.Windows.Interop.WindowInteropHelper(this).Handle, GWLP_HWNDPARENT, hwndGlassTarget) |> ignore
                 let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
+                edt <- new ThirdPartyDeltaTracker.ExternalDeltaTracker(hwndGlassTarget)
+                edt.WindowMoved.Add(fun args -> 
+                    try
+                        for w in [this :> Window; parentGlass] do
+                            let dpiInfo = VisualTreeHelper.GetDpi(w)
+                            let wpfDeltaX = float args.DeltaX / dpiInfo.DpiScaleX
+                            let wpfDeltaY = float args.DeltaY / dpiInfo.DpiScaleY
+                            w.Left <- w.Left + wpfDeltaX
+                            w.Top <- w.Top + wpfDeltaY
+                    with e ->
+                        printfn "error in ExternalDeltaTracker's WindowMoved:"
+                        printfn "%s" (e.ToString())
+                        edt.Stop()
+                )
+                edt.Start()
                 toggleClickThruButton.Click.Add(fun _ ->
                     clickThru <- not clickThru
                     setOverlayClickThrough(hwndParentGlass, clickThru)
@@ -210,11 +389,17 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 parentGlass.Topmost <- true
                 parentGlass.Activate() |> ignore
                 parentGlass.Topmost <- false
+                do! Async.Sleep(200)
+                // sanity check
+                if int this.ActualWidth <> int expectedW || int this.ActualHeight <> int expectedH then
+                    printfn "Unexpected Glass Controls size: %f %f vs. %f %f" this.ActualWidth this.ActualHeight expectedW expectedH
                 } |> Async.StartImmediate
         )
         this.SizeToContent <- SizeToContent.WidthAndHeight
         this.Closed.Add(fun _ ->
             async { 
+                if edt <> null then
+                    edt.Stop()
                 let ctxt = SynchronizationContext.Current
                 do! Async.Sleep(20)
                 do! Async.SwitchToContext(ctxt)
@@ -224,7 +409,6 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
     member this.TargetHwnd = hwndGlassTarget
     member this.IsFirstClickFocusSwitch = isFirstClickFocusSwitch.Value
 
-// TODO if the target window moves or changes size, things kinda fall apart
 type DrawingGlassWindow() as this =
     inherit Window()
     let mutable isCurrentlyClickThru = false
