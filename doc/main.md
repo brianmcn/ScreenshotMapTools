@@ -21,13 +21,7 @@ FEATURES FOR USER-PRODUCTIVITY AND OBS-BROADCASTING
 
 Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
-<hr style="height: 8px">
-
-| |
-| :--- |
-
-<hr style="height: 20px">
-
+<hr style="height: 8px; background-color: #333; border: none;">
 
 ## <a id="downloading"></a>Downloading and running the tool
 
