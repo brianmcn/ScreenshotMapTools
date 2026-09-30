@@ -159,11 +159,11 @@ controls of the app:
 All popouts have the same mouse controls for interacting:
 
 | interaction | behavior |
-| ---: | :--- |
-| `Left-click-and-drag` within the window      | **Move** a popout window around on your desktop |
-| `Right-click`                                | **Close** this popout window |
-| `Left-click-and-drag` the window edge/corner | **Resize** the popout window (if applicable) |
-| `Scroll-wheel`                               | change the **Zoom** level of the popout (if applicable) |
+| :--- | :--- |
+| `Left-click-and-drag` (within the window)      | **Move** a popout window around on your desktop |
+| `Right-click`                                  | **Close** this popout window |
+| `Left-click-and-drag` (the window edge/corner) | **Resize** the popout window (if applicable) |
+| `Scroll-wheel`                                 | change the **Zoom** level of the popout (if applicable) |
 
 You can manage popouts with the "Popouts" button at the top of the main app.  Here's what various popouts look like:
 
