@@ -23,16 +23,19 @@ type IndependentWindow() =
         thisWindowDispatcher.InvokeAsync(fun() -> this.Close()) |> ignore
 
 // WPF Windows on their own threads will not be brought-to-front by Windows when the main window gets focus.  
-let CreateAndShowWindowOnItsOwnUIDispatcherThread(windowCreator:unit->IndependentWindow) =
+let CreateAndShowWindowOnItsOwnUIDispatcherThreadCore(windowCreator:unit->IndependentWindow, uponLoadedF) =
     let thread = new System.Threading.Thread(fun() ->
         let win = windowCreator()
         win.Closed.Add(fun _ -> System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown())
+        win.Loaded.Add(fun _ -> uponLoadedF())
         win.Show()
         System.Windows.Threading.Dispatcher.Run()
         )
     thread.SetApartmentState(System.Threading.ApartmentState.STA)
     thread.IsBackground <- true
     thread.Start()
+let CreateAndShowWindowOnItsOwnUIDispatcherThread(windowCreator:unit->IndependentWindow) =
+    CreateAndShowWindowOnItsOwnUIDispatcherThreadCore(windowCreator, fun() -> ())
 
 let MainUIInvoke<'T>(f:unit->'T) = Application.Current.Dispatcher.Invoke(f)
 
@@ -229,19 +232,17 @@ type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
 *)
 
 // same behavior as non-independent, but can run on own UI thread, which means can't use VisualBrush
-type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h) as this =
+type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h, thisName, popoutJsonF) as this =
     inherit IndependentWindow()
-    static let mutable singleton = null
     let g = new Grid()
     let aspect = w/h
     do
-        singleton <- this
         this.Height <- 300.
         this.Width <- this.Height * aspect
         MakeWindowChromelessAndHandleClicksForMoveAndClose(this)
-        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.MapPanePopout))
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(popoutJsonF))
         LocalWinterop.LockWindowAspectRatioButAllowResizing(this, 100., 100., aspect, false)
-        this.Title <- IndependentVisualPopoutWindow.Name
+        this.Title <- thisName
         this.Content <- g
         this.Loaded.Add(fun _ ->
                 updateEv.Add(fun bms ->
@@ -252,11 +253,29 @@ type IndependentVisualPopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.
                         ) |> ignore
                 )
             )
+
+type AppGridPanePopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h) as this =
+    inherit IndependentVisualPopoutWindow(updateEv, w, h, AppGridPanePopoutWindow.Name, fun() -> AppSettings.theAppSettingsJson.AppGridPanePopout)
+    static let mutable singleton = null
+    do
+        singleton <- this
         this.Closed.Add(fun _ ->
             singleton <- null
             )
     static member Singleton = singleton
     static member Name = "AppGridPane"
+
+type AppPreviewPanePopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h) as this =
+    inherit IndependentVisualPopoutWindow(updateEv, w, h, AppGridPanePopoutWindow.Name, fun() -> AppSettings.theAppSettingsJson.AppPreviewPanePopout)
+    static let mutable singleton = null
+    do
+        singleton <- this
+        this.Background <- Brushes.DarkSlateBlue    // takes a moment to populate, don't flashbang with white
+        this.Closed.Add(fun _ ->
+            singleton <- null
+            )
+    static member Singleton = singleton
+    static member Name = "AppPreviewPane"
 
 //////////////////////////////////////////////////////////////////////////
 

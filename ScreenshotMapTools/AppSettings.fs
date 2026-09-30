@@ -44,7 +44,8 @@ type AppSettingsJson() =
     member val LiveNotesFontSize : int = 20 with get,set
     member val LiveMinimapPopout : PopoutDetailJson = null with get,set
     member val LiveMinimapZoomLevel : int = 3 with get,set
-    member val MapPanePopout : PopoutDetailJson = null with get,set
+    member val AppGridPanePopout : PopoutDetailJson = null with get,set
+    member val AppPreviewPanePopout : PopoutDetailJson = null with get,set
     member val GlobalNotePopout : PopoutDetailJson = null with get,set
     member val GlobalNoteFontSize : int = 20 with get,set
     ////
@@ -60,8 +61,10 @@ type AppSettingsJson() =
             this.LiveNotesPopout <- new PopoutDetailJson()
         if this.LiveMinimapPopout = null then
             this.LiveMinimapPopout <- new PopoutDetailJson()
-        if this.MapPanePopout = null then
-            this.MapPanePopout <- new PopoutDetailJson()
+        if this.AppGridPanePopout = null then
+            this.AppGridPanePopout <- new PopoutDetailJson()
+        if this.AppPreviewPanePopout = null then
+            this.AppPreviewPanePopout <- new PopoutDetailJson()
         if this.GlobalNotePopout = null then
             this.GlobalNotePopout <- new PopoutDetailJson()
 let theAppSettingsJson = AppSettingsJson.TheAppSettingsJson
@@ -78,7 +81,8 @@ do  // load at startup
         theAppSettingsJson.LiveNotesFontSize <- data.LiveNotesFontSize
         theAppSettingsJson.LiveMinimapPopout <- data.LiveMinimapPopout
         theAppSettingsJson.LiveMinimapZoomLevel <- data.LiveMinimapZoomLevel
-        theAppSettingsJson.MapPanePopout <- data.MapPanePopout
+        theAppSettingsJson.AppGridPanePopout <- data.AppGridPanePopout
+        theAppSettingsJson.AppPreviewPanePopout <- data.AppPreviewPanePopout
         theAppSettingsJson.GlobalNotePopout <- data.GlobalNotePopout
         theAppSettingsJson.GlobalNoteFontSize <- data.GlobalNoteFontSize
     theAppSettingsJson.EnsurePopoutData()

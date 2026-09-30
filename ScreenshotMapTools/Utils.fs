@@ -26,7 +26,7 @@ type SyntheticEventingBool(recompute, changesToWatch:seq<IEvent<unit>>) =
         member this.Value with get() = this.Value
         member this.Changed = this.Changed
 
-type UISettlingEvent(ms, evs:IEvent<unit>[]) =
+type UISettlingEvent(ms, evs:IEvent<unit>[], triggerAfterTimerIfStillMoreEvents) =      // evert stream debouncer/throttler
     let e = new Event<unit>()
     let mutable dt = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.Loaded, Interval=System.TimeSpan.FromMilliseconds(float ms))
     let mutable moreEvents = false
@@ -40,6 +40,8 @@ type UISettlingEvent(ms, evs:IEvent<unit>[]) =
                 dt.Stop()
                 e.Trigger()
             else
+                if triggerAfterTimerIfStillMoreEvents then      // this makes it behave like a throttle, rather than a debouncer
+                    e.Trigger()
                 moreEvents <- false
             )
         for ev in evs do

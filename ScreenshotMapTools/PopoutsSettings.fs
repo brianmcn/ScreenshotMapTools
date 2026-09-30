@@ -24,7 +24,7 @@ let mkTxtWithStarStarBold(txt:string) =
     tb
 let Bold(tb:TextBlock) = tb.FontWeight <- FontWeights.Bold; tb
 
-let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, mp:IPopoutWindowBehavior, pn:IPopoutWindowBehavior, width) =
+let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, agp:IPopoutWindowBehavior, app:IPopoutWindowBehavior, pn:IPopoutWindowBehavior, width) =
     let instructions1 = mkTxt("Click checkboxes in the left column to choose which popout windows to enable.")
     let instructions2 = mkTxtWithStarStarBold("""**Each window remembers its size and location you last used it**, for convenience.  
 But if a window ever gets 'lost' (offscreen, on another monitor, etc) you can press its 'Reset' button (above) to restore it.
@@ -61,13 +61,14 @@ The app remembers which popouts you enabled, so next time you start the app, it 
     Utils.gridAdd(g, Bold(mkTxt("Popout description")), 4, row)
     addRow()
     let data = [|
-        ccs, ControlsCheatsheetPopoutWindow.Name,   "A 'cheatsheet' list of the main keyboard controls for the app"
-        mp,  IndependentVisualPopoutWindow.Name,    "A resizeable window displaying the top half (map grid) portion of the app."
+        ccs, ControlsCheatsheetPopoutWindow.Name,   "A 'cheatsheet' for the main keyboard controls of the app"
+        agp, AppGridPanePopoutWindow.Name,          "A resizable window displaying the top half (map grid) portion of the app."
+        app, AppPreviewPanePopoutWindow.Name,       "A resizable window displaying the lower left (preview pane) portion of the app."
+        lm,  ZoomableLiveMinimapWindow.Name,        "(Z) A resizable minimap window which displays a group of nearby cells around the cursor."
         ln,  LiveNotesWindow.Name,                  "(Z) A resizable window displaying only the Note for the cell the cursor is on (including 'live' edits to that note)"
-        lm,  ZoomableLiveMinimapWindow.Name,        "(Z) A resizeable minimap window which displays a group of nearby cells around the cursor."
-        pn,  GlobalNoteWindow.Name,                 "(Z) A resizeable window displaying the 'global' Note." +
+        pn,  GlobalNoteWindow.Name,                 "(Z) A resizable window displaying the 'global' Note." +
                                                     "\nThis is a text note not tied to any particular cell, which you can use for general notes about the game." +
-                                                    "\nThis note can be edited only via the shortcut Ctrl+Numpad/"
+                                                    "\nEdit this note by pressing Ctrl+Numpad/"
         |]
     for ipwb, name, desc in data do
         // layout

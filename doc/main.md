@@ -160,7 +160,9 @@ All popouts have the same mouse controls for interacting:
 * `Left-click-and-drag` the window edge/corner: Resize the popout window (if applicable)
 * `Scroll-wheel`: change the zoom level of the popout (if applicable)
 
-You can manage popouts with the "Popouts" button at the top of the main app.
+You can manage popouts with the "Popouts" button at the top of the main app.  Here's what various popouts look like:
+
+![popout samples](img/PopoutSamples.png)
 
 See the [popouts page](popouts.md) for more information about each popout.
 

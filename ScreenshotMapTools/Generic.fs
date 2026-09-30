@@ -171,7 +171,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let kbdX, kbdY = Utils.EventingInt(0), Utils.EventingInt(0)    // most recent 'hard selected' cursor location (keyboarded to, or clicked on, cell)
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
-    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |])
+    let previewPaneChanged = new Event<unit>()
+    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |], false)
     let settledUIPopoutInfoEvent = 
         let r = new Event<_>()
         uise.ChangedAndSettled.Add(fun _ ->
@@ -222,6 +223,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         //                                                    (MAPX - MapIcons.KEYS_LIST_BOX_WIDTH) (int BOTTOM_HEIGHT - MinimapWindow.RICH_TEXT_HEIGHT)
         previewPane.Children.Clear()
         previewPane.Children.Add(PreviewPane.makePreviewPane()) |> ignore
+        previewPaneChanged.Trigger()
         previewPane.MouseDown.Add(fun ea ->
             let zm = ZoneMemory.Get(theGame.CurZone)
             ea.Handled <- true
@@ -415,6 +417,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         mfsRefresh()   // redraw note preview in summary area
         MapIcons.redrawMapIconsEv.Trigger()
         MapIcons.redrawMapIconHoverOnly.Trigger()
+    /////////
     let wholeMapCanvasBundle =  // effectively a cross-thread VisualBrush
         let ev = new Event<System.Windows.Media.Imaging.BitmapSource>()
         let sw = System.Diagnostics.Stopwatch.StartNew()
@@ -436,14 +439,44 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
             )
         ev.Publish, wholeMapCanvas.Width, wholeMapCanvas.Height
-    let popout_mp = { new PopoutsSettings.IPopoutWindowBehavior with
+    let previewPaneW, previewPaneH = 462,268
+    let previewPaneUISE = 
+        let ev = new Event<System.Windows.Media.Imaging.BitmapSource>()
+        let uise = new Utils.UISettlingEvent(200, [|previewPaneChanged.Publish|], true)
+        let visualBrush = VisualBrush(previewPane)
+        let drawingVisual = DrawingVisual()
+        let rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(previewPaneW, previewPaneH, 96, 96, PixelFormats.Pbgra32)
+        uise.ChangedAndSettled.Add(fun _ -> 
+            if rtb.PixelWidth <> int(previewPane.ActualWidth) || rtb.PixelHeight <> int(previewPane.ActualHeight) then
+                failwithf "fix rtb size to (%d,%d)" (int previewPane.ActualWidth) (int previewPane.ActualHeight)
+            using (drawingVisual.RenderOpen()) (fun context ->
+                context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, previewPane.ActualWidth, previewPane.ActualHeight))
+            )
+            rtb.Clear()
+            rtb.Render(drawingVisual)   // without the DrawingVisual, rtb renders an element in its layout-in-the-whole-window position; VisualBrush 'deparents' it from layout
+            let clone = System.Windows.Media.Imaging.WriteableBitmap(rtb)
+            clone.Freeze()
+            ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
+            )
+        ev.Publish
+    let popout_agp = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
-                            if Popouts.IndependentVisualPopoutWindow.Singleton=null then
-                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.IndependentVisualPopoutWindow(wholeMapCanvasBundle))
+                            if Popouts.AppGridPanePopoutWindow.Singleton=null then
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() -> new Popouts.AppGridPanePopoutWindow(wholeMapCanvasBundle))
                         member _.Close() = 
-                            if Popouts.IndependentVisualPopoutWindow.Singleton<>null then
-                                Popouts.IndependentVisualPopoutWindow.Singleton.ThreadSafeClose()
-                        member _.GetJson() = AppSettings.theAppSettingsJson.MapPanePopout
+                            if Popouts.AppGridPanePopoutWindow.Singleton<>null then
+                                Popouts.AppGridPanePopoutWindow.Singleton.ThreadSafeClose()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.AppGridPanePopout
+                        }
+    let popout_app = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.AppPreviewPanePopoutWindow.Singleton=null then
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThreadCore((fun() -> new Popouts.AppPreviewPanePopoutWindow(previewPaneUISE, float previewPaneW, float previewPaneH)),
+                                                                                            fun() -> previewPaneChanged.Trigger())
+                        member _.Close() = 
+                            if Popouts.AppPreviewPanePopoutWindow.Singleton<>null then
+                                Popouts.AppPreviewPanePopoutWindow.Singleton.ThreadSafeClose()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.AppPreviewPanePopout
                         }
     let popout_ccs = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
@@ -484,6 +517,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 Popouts.GlobalNoteWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.GlobalNotePopout
                         }
+    /////////
     do
         doZoom <- zoom
         mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
@@ -769,7 +803,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
-                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_mp,popout_gn,float APP_WIDTH), "Popout Settings", closeEv.Publish)
+                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,float APP_WIDTH), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
@@ -812,7 +846,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 let ctxt = System.Threading.SynchronizationContext.Current
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
-                for p in [popout_ccs; popout_lm; popout_ln; popout_mp; popout_gn] do
+                for p in [popout_ccs; popout_lm; popout_ln; popout_agp; popout_app; popout_gn] do
                     if p.GetJson().IsActive then
                         p.Activate()
                 do! Async.Sleep(200)                // give popouts a chance to open on their own threads
