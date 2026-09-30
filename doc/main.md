@@ -23,6 +23,12 @@ Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
 <hr style="height: 8px">
 
+| |
+| :--- |
+
+<hr style="height: 20px">
+
+
 ## <a id="downloading"></a>Downloading and running the tool
 
 See the [download page](download.md) for information.
