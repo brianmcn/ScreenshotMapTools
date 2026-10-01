@@ -19,33 +19,35 @@ let GetGameWindowRectOrFailWithAppropriateUI() =
 
 let doTheTrimButton(parentWindow, appShutdownF, appWidth) = async {
     let closeEv = Event<unit>()
-    let element = new StackPanel(Orientation=Orientation.Vertical, Width=appWidth*2./3., Margin=Thickness(2.))
-    let mkTB(txt) = new TextBox(IsReadOnly=true, FontSize=16., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.),
+    let element = new StackPanel(Orientation=Orientation.Vertical, Width=appWidth*3./4., Margin=Thickness(2.))
+    let mkTB(txt) = new TextBox(IsReadOnly=true, FontSize=16., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.), Padding=Thickness(4.),
                                 TextWrapping=TextWrapping.Wrap, Text=txt)
     let description = """Trims allow you to capture a rectangular portion of an image.
 
-Trims can be used in two main ways:
+Trims serve two distinct purposes:
 
-The MAP Trim lets you cut out black bars at the edges of your game window, or cut off fixed HUDs in some games, so that your map cells stitch together seamlessly.
+The MAP Trim lets you cut out black bars at the edges of your game window, or cut off fixed HUDs in some games, so that your map cells stitch together seamlessly in the grid.
 
-CUSTOM Trims allow you to customize the appearance of the preview pane in the lower portion of the app, which shows information about the cell the cursor is currently on.
+CUSTOM Trims allow you to customize the appearance of the Preview Pane in the lower portion of the app, which shows information about the cell the cursor is currently on.
 
 Which do you want to do?"""
     element.Children.Add(mkTB(description)) |> ignore
+    element.Children.Add(new DockPanel(Height=8.)) |> ignore
     let mutable whichPressed = 0 // default if user closes choice window without pressing a button
     let haveCustom = not(theGame.CustomProjections = null || theGame.CustomProjections.Length=0)
     let choices = [|
-        yield "Modify the MAP Trim",                                      (fun _ -> whichPressed <- 1; closeEv.Trigger())
-        yield "Define a new CUSTOM Trim",                                 (fun _ -> whichPressed <- 2; closeEv.Trigger())
+        yield "Modify the MAP Trim",                                      true,  (fun _ -> whichPressed <- 1; closeEv.Trigger())
+        yield "Define a new CUSTOM Trim",                                 false, (fun _ -> whichPressed <- 2; closeEv.Trigger())
         if haveCustom then
-            yield "Modify an existing CUSTOM Trim",                           (fun _ -> whichPressed <- 3; closeEv.Trigger())
-        yield "Modify the Preview Pane layout for the current zone",      (fun _ -> whichPressed <- 4; closeEv.Trigger())
-        yield "Cancel",                                                   (fun _ -> whichPressed <- 0; closeEv.Trigger())
+            yield "Modify an existing CUSTOM Trim",                       false, (fun _ -> whichPressed <- 3; closeEv.Trigger())
+        yield "Modify the Preview Pane layout for the current zone",      true,  (fun _ -> whichPressed <- 4; closeEv.Trigger())
+        yield "Cancel",                                                   false, (fun _ -> whichPressed <- 0; closeEv.Trigger())
         |]
-    for label, effect in choices do
-        let b = new Button(Content=label, Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
+    for label, extraSpaceBelow, effect in choices do
+        let b = new Button(Content=label, Width=appWidth*0.5, Height=24., Margin=if extraSpaceBelow then Thickness(2.,2.,2.,12.) else Thickness(2.))
         b.Click.Add(effect)
         element.Children.Add(b) |> ignore
+    element.Children.Add(new DockPanel(Height=4.)) |> ignore
     Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
     if whichPressed = 1 then
         match GetGameWindowRectOrFailWithAppropriateUI() with
@@ -81,7 +83,7 @@ Which do you want to do?"""
         | Some(r) ->
             // load into temporaries to work with
             let projs = if theGame.CustomProjections = null then ResizeArray() else ResizeArray(theGame.CustomProjections)
-            let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Provide a descriptive label for this Custom Trim", "", appWidth, 50., false, fun _ -> ())
+            let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Name this Custom Trim", "", appWidth/2., 50., false, fun _ -> ())
             if save then
                 let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area for this custom trim") 
                 match area with

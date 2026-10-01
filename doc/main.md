@@ -17,6 +17,7 @@ FEATURES FOR USER-PRODUCTIVITY AND OBS-BROADCASTING
 * [Exporting maps](#export)
 * [The 'Feature' window](#feature)
 * [Advanced Navigation](#navigation)
+* [Customizing the preview pane](#custompreview)
 * [Glass tool for scribbling](#glass)
 
 AI DISCLOSURE
@@ -249,9 +250,15 @@ cells above the current cell, you could also just push the mouse up to the cell 
 `NumPad /`.  Editing actions hard-select the cell being edited, so if afterwards you move the mouse outside the app, the 
 cell highlight will remain on the cell that was just edited.
 
+## <a id="custompreview"></a>Customizing the preview pane
+
+See the [custom trim page](customtrim.md) for information about using CUSTOM Trims to customize the appearance of the Preview Pane.
+
+![emuurom start screen customized preview](img/emuuromStartCustom.png)
+
 ## <a id="glass"></a>Glass tool for scribbling
 
-See the [glass page](glass.md) for more information on the glass tool, which lets you draw on any window.
+See the [glass page](glass.md) for information on the glass tool, which lets you draw on any window.
 
 ![glass example](img/GlassExample.png)
 
@@ -266,9 +273,5 @@ The specific instances are all clearly delimited in F# `module`s with the commen
 modules all involve interfacing with Windows native code APIs for window management, which is fiddly to do from managed 
 languages like F#.  I asked Google for help with how to do these bits, and it spat out some useful code, which I cleaned 
 up and debugged and put into the project.)
-
-## Other features
-
-TODO eventually document other features (custom trim, preview pane, ...)
 
 

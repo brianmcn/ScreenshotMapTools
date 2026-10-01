@@ -6,6 +6,8 @@ put like some demo/doc stuff in a demo folder
 
 should 'trim' be able to work on screenshots, as well as game?
 
+ctrl-* cycle thru 'favorite' zones?
+
 
 --------below this line is still i'm willing to put off--------------
 
