@@ -1,6 +1,4 @@
-﻿glass should not cover the chrome, maybe
-
-TODO decide if my filesystem organization is sane
+﻿TODO decide if my filesystem organization is sane
 
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 
@@ -12,6 +10,8 @@ should 'trim' be able to work on screenshots, as well as game?
 --------below this line is still i'm willing to put off--------------
 
 TODO feature window should probably be resizeable, but allow easy setting to exact size
+
+glass should not cover the window chrome, maybe
 
 could imagine right-clicking a hashtag in the sidebar opens a window with all the matches across all zones, with clickable links to those cells
 
@@ -84,6 +84,7 @@ deployment
     - copy just files (don't need the 'ru' language directories)
     - remove app.json, printed_map*
     - zip up
+ - for release build, same but also remove the pdb file
 I spent a bit of time (in Sep 2026) looking into other possible framework targeting for deployment, and they all suck.
 netframework48 is still the best for being able to xcopy-deploy a zip of an-exe-and-a-few-dlls (like 2MB) and have things just work.
 so don't spend time thinking about newer net frameworks, winui, etc; no one is going to download 100MB or go thru an installer for this little tool
@@ -103,7 +104,7 @@ from dwarf:
 
 
 
-'tweak' is hardcoded on or off, decide about some options for that if needed
+MultipleScreenshotForOneScreen.tweak() is hardcoded on or off (currently off), decide about some options for that if needed
 
 documentation
 

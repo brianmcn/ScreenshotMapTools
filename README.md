@@ -25,7 +25,7 @@ Check out the [full documentation here](doc/main.md).
 
 # History
 
-At the time I wrote this (Sep 2026) I've been working on this app on and off for about five years.  I'd used some variation of the tool 
+At the time I wrote this text section (Oct 2026), I've been working on this app on and off for about five years now.  I'd used some variation of the tool 
 for myself on about a dozen games I played on [YouTube](https://www.youtube.com/@lorgon111/playlists) over that time; here's a smattering of suggestive screenshots:
 
 ![the tool](doc/img/History.png)

@@ -4,6 +4,76 @@ open System.Windows
 open System.Windows.Controls
 open System.Windows.Media
 
+//////////////////////////////////////////////////////////////////////////
+
+module LocalWinterop =
+    // Gemini
+    open System.Runtime.InteropServices
+    type IntPtr = System.IntPtr
+    [<Struct; StructLayout(LayoutKind.Sequential)>]
+    type RECT =
+        val mutable Left: int
+        val mutable Top: int
+        val mutable Right: int
+        val mutable Bottom: int
+    let WM_SIZING = 0x0214
+    let WMSZ_LEFT = 1
+    let WMSZ_RIGHT = 2
+    let WMSZ_TOP = 3
+    let WMSZ_BOTTOM = 6
+    let LockWindowAspectRatioButAllowResizing(this:Window, minWidth, minHeight, aspectRatio, expectChrome) =
+        // Hook the window lifecycle on initialization
+        this.SourceInitialized.Add(fun _ ->
+            let chromeW, chromeH =
+                if expectChrome then
+                    SystemParameters.WindowResizeBorderThickness.Left + SystemParameters.WindowResizeBorderThickness.Right, // plus SystemParameters.FixedFrameHorizontalBorderHeight depending on your window style
+                        SystemParameters.WindowCaptionHeight + SystemParameters.WindowResizeBorderThickness.Top + SystemParameters.WindowResizeBorderThickness.Bottom
+                else
+                    0., 0.
+            let helper = System.Windows.Interop.WindowInteropHelper(this)
+            let source = System.Windows.Interop.HwndSource.FromHwnd(helper.Handle)
+            if source <> null then
+                source.AddHook(System.Windows.Interop.HwndSourceHook(fun (hwnd: IntPtr) (msg: int) (wParam: IntPtr) (lParam: IntPtr) (handled: byref<bool>) ->
+                        // Intercept sizing messages and modify the bounding rectangle
+                        if msg = WM_SIZING then
+                            let mutable rect = System.Runtime.InteropServices.Marshal.PtrToStructure<RECT>(lParam)
+                            // Calculate current dragged dimensions, first subtracting window chrome
+                            let mutable width = rect.Right - rect.Left - int chromeW
+                            let mutable height = rect.Bottom - rect.Top - int chromeH
+                            let side = wParam.ToInt32()
+                            // 1. Apply Minimum Bounds Check
+                            if float width < minWidth then
+                                width <- int minWidth
+                                if side = WMSZ_LEFT then rect.Left <- rect.Right - width
+                                else rect.Right <- rect.Left + width
+                            if float height < minHeight then
+                                height <- int minHeight
+                                if side = WMSZ_TOP then rect.Top <- rect.Bottom - height
+                                else rect.Bottom <- rect.Top + height
+                            // 2. Adjust for Aspect Ratio based on drag direction
+                            if side = WMSZ_LEFT || side = WMSZ_RIGHT then
+                                // Dragging horizontally: force height to match width
+                                let newHeight = int (float width / aspectRatio)
+                                rect.Bottom <- rect.Top + newHeight
+                            elif side = WMSZ_TOP || side = WMSZ_BOTTOM then
+                                // Dragging vertically: force width to match height
+                                let newWidth = int (float height * aspectRatio)
+                                rect.Right <- rect.Left + newWidth
+                            else
+                                // Dragging a corner: prioritize width changes
+                                let newHeight = int (float width / aspectRatio)
+                                rect.Bottom <- rect.Top + newHeight
+                            // add back window chrome
+                            rect.Right <- rect.Right + int chromeW
+                            rect.Bottom <- rect.Bottom + int chromeH
+                            // Marshal changes back to Windows
+                            System.Runtime.InteropServices.Marshal.StructureToPtr(rect, lParam, false)
+                            handled <- true
+                        IntPtr.Zero
+                )))
+        
+//////////////////////////////////////////////////////////////////////////
+
 // To make popouts not all come to front when the app comes to front, they need to each live in their own UI dispatcher thread.
 [<AllowNullLiteral>]
 type IndependentWindow() =
@@ -138,73 +208,6 @@ type ControlsCheatsheetPopoutWindow() as this =
     static member Singleton = singleton
     static member Name = "Cheatsheet"
 
-//////////////////////////////////////////////////////////////////////////
-
-module LocalWinterop =
-    open System.Runtime.InteropServices
-    type IntPtr = System.IntPtr
-    [<Struct; StructLayout(LayoutKind.Sequential)>]
-    type RECT =
-        val mutable Left: int
-        val mutable Top: int
-        val mutable Right: int
-        val mutable Bottom: int
-    let WM_SIZING = 0x0214
-    let WMSZ_LEFT = 1
-    let WMSZ_RIGHT = 2
-    let WMSZ_TOP = 3
-    let WMSZ_BOTTOM = 6
-    let LockWindowAspectRatioButAllowResizing(this:Window, minWidth, minHeight, aspectRatio, expectChrome) =
-        // Hook the window lifecycle on initialization
-        this.SourceInitialized.Add(fun _ ->
-            let chromeW, chromeH =
-                if expectChrome then
-                    SystemParameters.WindowResizeBorderThickness.Left + SystemParameters.WindowResizeBorderThickness.Right, // plus SystemParameters.FixedFrameHorizontalBorderHeight depending on your window style
-                        SystemParameters.WindowCaptionHeight + SystemParameters.WindowResizeBorderThickness.Top + SystemParameters.WindowResizeBorderThickness.Bottom
-                else
-                    0., 0.
-            let helper = System.Windows.Interop.WindowInteropHelper(this)
-            let source = System.Windows.Interop.HwndSource.FromHwnd(helper.Handle)
-            if source <> null then
-                source.AddHook(System.Windows.Interop.HwndSourceHook(fun (hwnd: IntPtr) (msg: int) (wParam: IntPtr) (lParam: IntPtr) (handled: byref<bool>) ->
-                        // Intercept sizing messages and modify the bounding rectangle
-                        if msg = WM_SIZING then
-                            let mutable rect = System.Runtime.InteropServices.Marshal.PtrToStructure<RECT>(lParam)
-                            // Calculate current dragged dimensions, first subtracting window chrome
-                            let mutable width = rect.Right - rect.Left - int chromeW
-                            let mutable height = rect.Bottom - rect.Top - int chromeH
-                            let side = wParam.ToInt32()
-                            // 1. Apply Minimum Bounds Check
-                            if float width < minWidth then
-                                width <- int minWidth
-                                if side = WMSZ_LEFT then rect.Left <- rect.Right - width
-                                else rect.Right <- rect.Left + width
-                            if float height < minHeight then
-                                height <- int minHeight
-                                if side = WMSZ_TOP then rect.Top <- rect.Bottom - height
-                                else rect.Bottom <- rect.Top + height
-                            // 2. Adjust for Aspect Ratio based on drag direction
-                            if side = WMSZ_LEFT || side = WMSZ_RIGHT then
-                                // Dragging horizontally: force height to match width
-                                let newHeight = int (float width / aspectRatio)
-                                rect.Bottom <- rect.Top + newHeight
-                            elif side = WMSZ_TOP || side = WMSZ_BOTTOM then
-                                // Dragging vertically: force width to match height
-                                let newWidth = int (float height * aspectRatio)
-                                rect.Right <- rect.Left + newWidth
-                            else
-                                // Dragging a corner: prioritize width changes
-                                let newHeight = int (float width / aspectRatio)
-                                rect.Bottom <- rect.Top + newHeight
-                            // add back window chrome
-                            rect.Right <- rect.Right + int chromeW
-                            rect.Bottom <- rect.Bottom + int chromeH
-                            // Marshal changes back to Windows
-                            System.Runtime.InteropServices.Marshal.StructureToPtr(rect, lParam, false)
-                            handled <- true
-                        IntPtr.Zero
-                )))
-        
 (*
 type VisualPopoutWindow(owner, title, viz:Visual, aspect) as this =
     inherit Window()

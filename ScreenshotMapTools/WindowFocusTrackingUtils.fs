@@ -1,9 +1,7 @@
 ﻿module WindowFocusTrackingUtils
+// Gemini
 
 open System
-open System.Runtime.InteropServices
-open System.Text
-
 open Winterop
 
 let mutable previousForegroundWindow = IntPtr.Zero

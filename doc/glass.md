@@ -19,7 +19,7 @@ the GlassControl window will remove all the scribbles.
 
 The GlassControl is modal, toggling between 'drawing' and 'click-thru' modes.  It starts out in 
 'drawing' mode, where clicks on the glass pane are interpreted as scribbling strokes.  If you want to 
-interact with the window below the glass pane with the mouse, click the 'switch to click-thru' button
+interact with the window beneath the glass pane with the mouse, click the 'switch to click-thru' button
 on the GlassControl.  That will toggle the mode, and mouse clicks will now go through the glass pane
 and be received by the window beneath it.  To switch back, click the 'switch to drawing' button in
 the GlassControl.

@@ -8,95 +8,64 @@ open System.Windows.Controls
 
 open Winterop
 
-let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
-    let tx,ty = targetX, targetY
-    let sx,sy = sourceX, sourceY
-    // line from source to target
-    let line = new Shapes.Line(X1=sx, Y1=sy, X2=tx, Y2=ty, Stroke=brush, StrokeThickness=3.)
-    line.StrokeDashArray <- new DoubleCollection(seq[5.;4.])
-    let sq(x) = x*x
-    let pct = 1. - 15./sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base ideally 15 pixels down the line
-    let pct = max pct 0.93                         // but at most 93% towards the target, for small lines
-    let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
-    // differential between target and arrowhead base
-    let dx,dy = tx-ax, ty-ay
-    // points orthogonal to the line from the base
-    let p1x,p1y = ax+dy/2., ay-dx/2.
-    let p2x,p2y = ax-dy/2., ay+dx/2.
-    // triangle to make arrowhead
-    let triangle = new Shapes.Polygon(Fill=brush)
-    triangle.Points <- new PointCollection([Point(tx,ty); Point(p1x,p1y); Point(p2x,p2y)])
-    line, triangle
-
-let debugOutput = true
-let debugWindowZOrder() =
-    if debugOutput then
-        let mutable hwndCur = Win32.GetTopWindow(IntPtr(0))
-        let mutable count = 0
-        printfn "Current top of window stack:"
-        while hwndCur <> IntPtr(0) && count < 5 do
-            if Win32.IsWindowVisible(hwndCur) then
-                let title = WinteropUtils.GetWindowTitle(hwndCur)
-                if not(System.String.IsNullOrEmpty(title)) then
-                    printfn "    %s" (WinteropUtils.GetWindowTitle hwndCur)
-                    count <- count + 1
-            hwndCur <- Win32.GetWindow(hwndCur, GW_HWNDNEXT)
-
-/// Configures a WPF window to hover seamlessly over a target external HWND
-let setupOverlayWindow(overlayWindow: Window, targetHWnd: nativeint, controlsWindow:Window, isFirstClickFocusSwitch:bool ref) =
-    let helper = System.Windows.Interop.WindowInteropHelper(overlayWindow)
-    let overlayHWnd = helper.Handle
-    let controlsHwnd = System.Windows.Interop.WindowInteropHelper(controlsWindow).Handle
-    // Establish native Window Ownership
-    // This forces Windows to keep the overlay above the target in Z-order automatically
-    Win32.SetWindowLongPtrA(overlayHWnd, GWLP_HWNDPARENT, targetHWnd) |> ignore
-    // Inject Click-Through (TRANSPARENT) and Focus Prevention (NOACTIVATE) styles
-    let currentExStyle = Win32.GetWindowLong(overlayHWnd, GWL_EXSTYLE)
-    let newExStyle = currentExStyle ||| WS_EX_TRANSPARENT ||| WS_EX_NOACTIVATE
-    Win32.SetWindowLongPtrA(overlayHWnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
-    // Intercept the native Win32 Message Pump
-    let source = System.Windows.Interop.HwndSource.FromHwnd(overlayHWnd)
-    source.AddHook(System.Windows.Interop.HwndSourceHook(fun hwnd msg wParam lParam handled ->
-        if msg = WM_MOUSEACTIVATE then
-            let currentForeground = Win32.GetForegroundWindow()
-            // If unrelated third-party window currently has focus
-            if currentForeground <> overlayHWnd && currentForeground <> targetHWnd && currentForeground <> controlsHwnd then
-                isFirstClickFocusSwitch.Value <- true
-                // Explicitly bring your target window cluster forward
-                Win32.SetForegroundWindow(targetHWnd) |> ignore
-                handled <- true
-                MA_NOACTIVATEANDEAT
+module OverlayHelper =
+    // Gemini
+    /// Configures a WPF window to hover seamlessly over a target external HWND
+    let setupOverlayWindow(overlayWindow: Window, targetHWnd: nativeint, controlsWindow:Window, isFirstClickFocusSwitch:bool ref) =
+        let helper = System.Windows.Interop.WindowInteropHelper(overlayWindow)
+        let overlayHWnd = helper.Handle
+        let controlsHwnd = System.Windows.Interop.WindowInteropHelper(controlsWindow).Handle
+        // Establish native Window Ownership
+        // This forces Windows to keep the overlay above the target in Z-order automatically
+        Win32.SetWindowLongPtrA(overlayHWnd, GWLP_HWNDPARENT, targetHWnd) |> ignore
+        // Inject Click-Through (TRANSPARENT) and Focus Prevention (NOACTIVATE) styles
+        let currentExStyle = Win32.GetWindowLong(overlayHWnd, GWL_EXSTYLE)
+        let newExStyle = currentExStyle ||| WS_EX_TRANSPARENT ||| WS_EX_NOACTIVATE
+        Win32.SetWindowLongPtrA(overlayHWnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
+        // Intercept the native Win32 Message Pump
+        let source = System.Windows.Interop.HwndSource.FromHwnd(overlayHWnd)
+        source.AddHook(System.Windows.Interop.HwndSourceHook(fun hwnd msg wParam lParam handled ->
+            if msg = WM_MOUSEACTIVATE then
+                let currentForeground = Win32.GetForegroundWindow()
+                // If unrelated third-party window currently has focus
+                if currentForeground <> overlayHWnd && currentForeground <> targetHWnd && currentForeground <> controlsHwnd then
+                    isFirstClickFocusSwitch.Value <- true
+                    // Explicitly bring your target window cluster forward
+                    Win32.SetForegroundWindow(targetHWnd) |> ignore
+                    handled <- true
+                    MA_NOACTIVATEANDEAT
+                else
+                    isFirstClickFocusSwitch.Value <- false
+                    // Tell the OS to process the click locally, but do not trigger 
+                    // an OS activation cycle (restores smooth clicking to 3rd party windows)
+                    handled <- true
+                    MA_NOACTIVATE
             else
-                isFirstClickFocusSwitch.Value <- false
-                // Tell the OS to process the click locally, but do not trigger 
-                // an OS activation cycle (restores smooth clicking to 3rd party windows)
-                handled <- true
-                MA_NOACTIVATE
-        else
-            0n
-        ))
-    // Refresh Z-order to apply changes immediately without shifting position
-    Win32.SetWindowPos(overlayHWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE) |> ignore
+                0n
+            ))
+        // Refresh Z-order to apply changes immediately without shifting position
+        Win32.SetWindowPos(overlayHWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE) |> ignore
 
-/// Toggles whether the overlay window blocks mouse clicks or lets them pass through.
-/// Set 'isClickThrough' to true to make it click-through, or false to intercept clicks.
-let setOverlayClickThrough(overlayHwnd: nativeint, isClickThrough: bool) =
-    if overlayHwnd <> 0n then
-        let currentExStyle = Win32.GetWindowLong(overlayHwnd, GWL_EXSTYLE)
-        let newExStyle = 
-            if isClickThrough then
-                currentExStyle ||| WS_EX_TRANSPARENT
-            else
-                currentExStyle &&& ~~~WS_EX_TRANSPARENT
-        Win32.SetWindowLongPtrA(overlayHwnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
-        // Force Windows to redraw the frame and update hit-testing behavior immediately
-        // SWP_FRAMECHANGED (0x0020u) is critical here to tell the OS the window frame/styles changed.
-        Win32.SetWindowPos(
-            overlayHwnd, HWND_TOP, 0, 0, 0, 0, 
-            SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE ||| SWP_FRAMECHANGED
-        ) |> ignore
+    /// Toggles whether the overlay window blocks mouse clicks or lets them pass through.
+    /// Set 'isClickThrough' to true to make it click-through, or false to intercept clicks.
+    let setOverlayClickThrough(overlayHwnd: nativeint, isClickThrough: bool) =
+        if overlayHwnd <> 0n then
+            let currentExStyle = Win32.GetWindowLong(overlayHwnd, GWL_EXSTYLE)
+            let newExStyle = 
+                if isClickThrough then
+                    currentExStyle ||| WS_EX_TRANSPARENT
+                else
+                    currentExStyle &&& ~~~WS_EX_TRANSPARENT
+            Win32.SetWindowLongPtrA(overlayHwnd, GWL_EXSTYLE, nativeint newExStyle) |> ignore
+            // Force Windows to redraw the frame and update hit-testing behavior immediately
+            // SWP_FRAMECHANGED (0x0020u) is critical here to tell the OS the window frame/styles changed.
+            Win32.SetWindowPos(
+                overlayHwnd, HWND_TOP, 0, 0, 0, 0, 
+                SWP_NOMOVE ||| SWP_NOSIZE ||| SWP_NOACTIVATE ||| SWP_FRAMECHANGED
+            ) |> ignore
 
 module OffscreenCheck =
+    // Gemini
     open System.Drawing
     open System.Windows.Forms
     /// Determines if a target WPF position (Left, Top) would fall completely offscreen
@@ -148,6 +117,7 @@ module OffscreenCheck =
 
 
 module ThirdPartyDeltaTracker =
+    // Gemini
     open System.Runtime.InteropServices
     [<Struct>]
     type RECT =
@@ -241,6 +211,41 @@ module ThirdPartyDeltaTracker =
         interface IDisposable with
             member this.Dispose() = this.Stop()
 
+//////////////////////////////////////////////////////////////////////////
+
+let makeArrow(targetX, targetY, sourceX, sourceY, brush) =
+    let tx,ty = targetX, targetY
+    let sx,sy = sourceX, sourceY
+    // line from source to target
+    let line = new Shapes.Line(X1=sx, Y1=sy, X2=tx, Y2=ty, Stroke=brush, StrokeThickness=3.)
+    line.StrokeDashArray <- new DoubleCollection(seq[5.;4.])
+    let sq(x) = x*x
+    let pct = 1. - 15./sqrt(sq(tx-sx)+sq(ty-sy))   // arrowhead base ideally 15 pixels down the line
+    let pct = max pct 0.93                         // but at most 93% towards the target, for small lines
+    let ax,ay = (tx-sx)*pct+sx, (ty-sy)*pct+sy
+    // differential between target and arrowhead base
+    let dx,dy = tx-ax, ty-ay
+    // points orthogonal to the line from the base
+    let p1x,p1y = ax+dy/2., ay-dx/2.
+    let p2x,p2y = ax-dy/2., ay+dx/2.
+    // triangle to make arrowhead
+    let triangle = new Shapes.Polygon(Fill=brush)
+    triangle.Points <- new PointCollection([Point(tx,ty); Point(p1x,p1y); Point(p2x,p2y)])
+    line, triangle
+
+let debugOutput = true
+let debugWindowZOrder() =
+    if debugOutput then
+        let mutable hwndCur = Win32.GetTopWindow(IntPtr(0))
+        let mutable count = 0
+        printfn "Current top of window stack:"
+        while hwndCur <> IntPtr(0) && count < 5 do
+            if Win32.IsWindowVisible(hwndCur) then
+                let title = WinteropUtils.GetWindowTitle(hwndCur)
+                if not(System.String.IsNullOrEmpty(title)) then
+                    printfn "    %s" (WinteropUtils.GetWindowTitle hwndCur)
+                    count <- count + 1
+            hwndCur <- Win32.GetWindow(hwndCur, GW_HWNDNEXT)
 
 type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateClickThruModeF, updatePenShapeF, updateModeF, updateDrawArrowHeadsF, updatePenColorF) as this =
     inherit Window()
@@ -285,7 +290,7 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                         | _ ->
                             this.Top <- float(r.top - 4) - expectedH
                             this.Left <- float(r.left)
-                setupOverlayWindow(parentGlass,hwndGlassTarget,this,isFirstClickFocusSwitch)
+                OverlayHelper.setupOverlayWindow(parentGlass,hwndGlassTarget,this,isFirstClickFocusSwitch)
                 Win32.SetWindowLongPtrA(System.Windows.Interop.WindowInteropHelper(this).Handle, GWLP_HWNDPARENT, hwndGlassTarget) |> ignore
                 let hwndParentGlass = System.Windows.Interop.WindowInteropHelper(parentGlass).Handle
                 edt <- new ThirdPartyDeltaTracker.ExternalDeltaTracker(hwndGlassTarget)
@@ -305,11 +310,11 @@ type ControlsWindow(parentGlass : Window, renameF, eraseF, sizeParentF, updateCl
                 edt.Start()
                 toggleClickThruButton.Click.Add(fun _ ->
                     clickThru <- not clickThru
-                    setOverlayClickThrough(hwndParentGlass, clickThru)
+                    OverlayHelper.setOverlayClickThrough(hwndParentGlass, clickThru)
                     label.Content <- if clickThru then "switch to drawing" else "switch to click-thru"
                     updateClickThruModeF(clickThru)
                     )
-                setOverlayClickThrough(hwndParentGlass, clickThru)
+                OverlayHelper.setOverlayClickThrough(hwndParentGlass, clickThru)
                 let eraseButton = new Button(Content=new Label(Content="erase all"), Margin=Thickness(2.))
                 eraseButton.Click.Add(fun _ -> eraseF())
                 (*
