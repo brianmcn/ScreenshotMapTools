@@ -287,18 +287,29 @@ RIGHT CLICK to split it in half"""
             "Split with empty pane below"
             "Split with empty pane to the left"
             |]
+        let mutable wasItemSelected = false
+        let handleContextMenuDone() =   // if they clicked a menu item in the context menu, or if they dismissed the menu without a selection
+            // note: we may or may not have been in depth selection mode, this works in either case
+            if hitsIndex <> -1 then
+                hits.[hitsIndex].UnHighlight()              // we were in depth selection and this had been selected
+            for hit in hits do
+                hit.SwitchToNormalMode()                    // everybody changes mode back
+            instructions.Text <- NORMAL()
+            instructions.Foreground <- Brushes.Black        // instructions change back
+            hits <- null
+            hitsIndex <- -1
+            g.ContextMenu <- null
+        cm.Closed.Add(fun _ ->
+            if not(wasItemSelected) then
+                handleContextMenuDone()
+            )
         for x = 0 to a.Length-1 do
             let mi = new MenuItem(Header=a.[x])
             mi.Click.Add(fun _ -> 
-                for hit in hits do
-                    hit.SwitchToNormalMode()
-                instructions.Text <- NORMAL()
-                instructions.Foreground <- Brushes.Black
                 let guyToSplit = hits.[hitsIndex]
-                hits <- null
-                hitsIndex <- -1
+                wasItemSelected <- true
+                handleContextMenuDone()
                 guyToSplit.Split(x)     // do it after we updated hits, so that the changed event will swap instructions appropriately
-                g.ContextMenu <- null
                 )
             cm.Items.Add(mi) |> ignore
         g.ContextMenu <- cm

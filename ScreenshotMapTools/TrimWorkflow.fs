@@ -7,16 +7,22 @@ open System.Windows.Media
 open GameSpecific
 open BackingStoreData
 
-
-let doTheTrimButton(parentWindow, appShutdownF, appWidth) = async {
+let GetGameWindowRectOrFailWithAppropriateUI() =
     match TryFindHwndForTheChosenGame() with
     | Some(hwnd) -> 
         let r = WinteropUtils.GetWindowClientRect(hwnd)
-        let closeEv = Event<unit>()
-        let element = new StackPanel(Orientation=Orientation.Vertical, Width=appWidth*2./3., Margin=Thickness(2.))
-        let mkTB(txt) = new TextBox(IsReadOnly=true, FontSize=16., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.),
-                                    TextWrapping=TextWrapping.Wrap, Text=txt)
-        let description = """Trims allow you to capture a rectangular portion of an image.
+        Some(r)
+    | None -> 
+        System.Console.Beep()
+        MessageBox.Show("Could not find the game window, to do trimming") |> ignore
+        None
+
+let doTheTrimButton(parentWindow, appShutdownF, appWidth) = async {
+    let closeEv = Event<unit>()
+    let element = new StackPanel(Orientation=Orientation.Vertical, Width=appWidth*2./3., Margin=Thickness(2.))
+    let mkTB(txt) = new TextBox(IsReadOnly=true, FontSize=16., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.),
+                                TextWrapping=TextWrapping.Wrap, Text=txt)
+    let description = """Trims allow you to capture a rectangular portion of an image.
 
 Trims can be used in two main ways:
 
@@ -25,23 +31,26 @@ The MAP Trim lets you cut out black bars at the edges of your game window, or cu
 CUSTOM Trims allow you to customize the appearance of the preview pane in the lower portion of the app, which shows information about the cell the cursor is currently on.
 
 Which do you want to do?"""
-        element.Children.Add(mkTB(description)) |> ignore
-        let mutable whichPressed = 0 // default if user closes choice window without pressing a button
-        let haveCustom = not(theGame.CustomProjections = null || theGame.CustomProjections.Length=0)
-        let choices = [|
-            yield "Modify the MAP Trim",                                      (fun _ -> whichPressed <- 1; closeEv.Trigger())
-            yield "Define a new CUSTOM Trim",                                 (fun _ -> whichPressed <- 2; closeEv.Trigger())
-            if haveCustom then
-                yield "Modify an existing CUSTOM Trim",                           (fun _ -> whichPressed <- 3; closeEv.Trigger())
-            yield "Modify the Preview Pane layout for the current zone",      (fun _ -> whichPressed <- 4; closeEv.Trigger())
-            yield "Cancel",                                                   (fun _ -> whichPressed <- 0; closeEv.Trigger())
-            |]
-        for label, effect in choices do
-            let b = new Button(Content=label, Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
-            b.Click.Add(effect)
-            element.Children.Add(b) |> ignore
-        Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
-        if whichPressed = 1 then
+    element.Children.Add(mkTB(description)) |> ignore
+    let mutable whichPressed = 0 // default if user closes choice window without pressing a button
+    let haveCustom = not(theGame.CustomProjections = null || theGame.CustomProjections.Length=0)
+    let choices = [|
+        yield "Modify the MAP Trim",                                      (fun _ -> whichPressed <- 1; closeEv.Trigger())
+        yield "Define a new CUSTOM Trim",                                 (fun _ -> whichPressed <- 2; closeEv.Trigger())
+        if haveCustom then
+            yield "Modify an existing CUSTOM Trim",                           (fun _ -> whichPressed <- 3; closeEv.Trigger())
+        yield "Modify the Preview Pane layout for the current zone",      (fun _ -> whichPressed <- 4; closeEv.Trigger())
+        yield "Cancel",                                                   (fun _ -> whichPressed <- 0; closeEv.Trigger())
+        |]
+    for label, effect in choices do
+        let b = new Button(Content=label, Width=appWidth*0.5, Height=24., Margin=Thickness(2.))
+        b.Click.Add(effect)
+        element.Children.Add(b) |> ignore
+    Utils.DoModalDialog(parentWindow, element, "Choose a Trim Type", closeEv.Publish)
+    if whichPressed = 1 then
+        match GetGameWindowRectOrFailWithAppropriateUI() with
+        | None -> ()
+        | Some(r) ->
             let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area to display on map") 
             match area with
             | Some(x,y,w,h) ->
@@ -66,7 +75,10 @@ Which do you want to do?"""
                 appShutdownF()
             | None ->
                 MessageBox.Show("No area was selected and no changes were made") |> ignore
-        elif whichPressed = 2 then
+    elif whichPressed = 2 then
+        match GetGameWindowRectOrFailWithAppropriateUI() with
+        | None -> ()
+        | Some(r) ->
             // load into temporaries to work with
             let projs = if theGame.CustomProjections = null then ResizeArray() else ResizeArray(theGame.CustomProjections)
             let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Provide a descriptive label for this Custom Trim", "", appWidth, 50., false, fun _ -> ())
@@ -82,7 +94,10 @@ Which do you want to do?"""
                     MessageBox.Show(sprintf "Custom Trim custom%02d: '%s' saved" (projs.Count-1) label) |> ignore
                 | None ->
                     MessageBox.Show("No area was selected and no changes were made") |> ignore
-        elif whichPressed = 3 then
+    elif whichPressed = 3 then
+        match GetGameWindowRectOrFailWithAppropriateUI() with
+        | None -> ()
+        | Some(r) ->
             let sp = new StackPanel(Orientation=Orientation.Vertical)
             sp.Children.Add(PreviewPane.mkTxt("You have the following Custom Trims already defined:")) |> ignore
             for i = 0 to theGame.CustomProjections.Length-1 do
@@ -104,11 +119,8 @@ Which do you want to do?"""
                     MessageBox.Show(sprintf "Custom Trim custom%02d: '%s' saved" whichPressed theGame.CustomProjections.[whichPressed].Label) |> ignore
                 | None ->
                     MessageBox.Show("No area was selected and no changes were made") |> ignore
-        elif whichPressed = 4 then
-            PreviewPane.ModifyPreviewPaneForCurrentZone(parentWindow, appWidth)
-        else
-            () // nothing, they canceled
-    | None -> 
-        System.Console.Beep()
-        MessageBox.Show("Could not find the game window, to do trimming") |> ignore
+    elif whichPressed = 4 then
+        PreviewPane.ModifyPreviewPaneForCurrentZone(parentWindow, appWidth)
+    else
+        () // nothing, they canceled
     }
