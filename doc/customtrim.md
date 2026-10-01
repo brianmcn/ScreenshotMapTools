@@ -41,7 +41,7 @@ button in the ensuing menu:
 You'll be asked to provide a name for this trim, so that we can refer to it later.  Something like 'dungeon name' is fine.
 
 Then select the screen area we want to trim (this UI works just like the [MAP Trim you may have set up when setting up
-the game](setup.md):
+the game](setup.md)):
 
 ![trim action](img/CustomTrimWorksLikeMapTrim.png)
 
@@ -53,30 +53,35 @@ Once again, click the 'Trim' button at the top of the app, but this time click t
 layout.  A new 'Modify Preview Pane Layout' dialog box shows the preview pane along with instructions for modifying it.
 
 The first step is to change the source of the existing image from 'Full Screenshot' to 'Map-Trim screenshot'.
-Left-click the image in the pane to bring up this dialog and select the Map-Trim from the dropdown in the lower right:
+Left-click the image in the pane to bring up the following dialog, and in that dialog, select the Map-Trim from the 
+dropdown in the lower right:
 
 ![pane source](img/PaneSourceExample.png)
 
-Click 'Save changes'.
+Click 'Save Changes'.
 
 Next we want to split the pane in two, which we do by right-clicking the image in the 'Modify Preview Pane Layout' 
 dialog and choosing 'split with empty pane above' from the ensuing context menu.
 
 Next, left-click on the empty pane, and in the dialog, in the lower left change the dropdown from 'this pane should 
 just always be empty' to 'current cursor zone', and in the lower right change the dropdown to 'Trim:custom00:dungeon name',
-the CUSTOM Trim that we defined in the prior step.  Click 'Save changes'.
+the CUSTOM Trim that we defined earlier.  Click 'Save Changes'.
 
 Finally, drag the magenta bar between the two panes to change the relative size proportions of the two panes:
 
 ![pane source](img/ModifyPreviewPaneLayoutExample.png)
 
-until it matches the desired layout.  Click 'Save changes'.
+until it matches the desired layout.  Click 'Save Changes'.
+
+The final result:
+
+![zelda dungeon 1 custom](img/zeldaDungeon1Custom.png)
 
 ### Summary 
 
 The UI for customizing the Preview Pane is a little clunky, but hopefully this walkthrough example shows you the gist.
-The end result can create powerful visualizations that utilize screenshots from multiple zones, e.g. the EMUUROM
-example where I had taken screenshots of each screen of the world in one zone, and screenshots of the in-game map 
+The end result can create powerful visualizations that utilize screenshots from multiple zones. For example, in EMUUROM
+I had taken screenshots of each screen of the world in one zone, and screenshots of the in-game map screens 
 for each of those screens in another zone, and then combined the two into this collage, which acts almost like a 
 heads-up display summarizing information about the current screen, in a way that the game itself does not provide:
 
