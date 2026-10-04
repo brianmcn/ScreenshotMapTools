@@ -312,6 +312,7 @@ let MakeIconUI(parentWindow, appMAPX) =
             (fun _ -> currentlyHoveredHashtagKey <- null; redrawMapIconHoverOnly.Trigger())
             )
         b.MouseDown.Add(fun me ->
+            let currentSelectionBorder = Brushes.Magenta
             if me.RightButton = Input.MouseButtonState.Pressed then
                 // dialog window to select color and shape
                 let cur = 
@@ -324,27 +325,27 @@ let MakeIconUI(parentWindow, appMAPX) =
                         icon.IsEnabled <- true
                         icon
 
-                let dp = new DockPanel(MinWidth=200., MaxWidth=400., MaxHeight=400., LastChildFill=true)
+                let dp = new DockPanel(MaxWidth=400., MaxHeight=400., LastChildFill=true, HorizontalAlignment=HorizontalAlignment.Center)
 
                 // shapes
                 let makeShapeSelector() =   // function as it references current color, draw a new one when change color
                     let curBrush = new SolidColorBrush(cur.GetColor())
-                    let shapeSelector = Utils.makeGrid(1, IconShape.AllBasicShapes.Length + 1, 72, 44)
+                    let shapeSelector = Utils.makeGrid(1, IconShape.AllBasicShapes.Length + 1, 80, 52)
                     let mutable i = 0
                     let allBorders = ResizeArray()
                     for s in IconShape.AllBasicShapes do
                         let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
                         s.AddToCanvas(c, curBrush, c.Width, c.Height)
-                        let b = new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                        let b = new Border(Child=new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=BG), BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
                         Utils.gridAdd(shapeSelector, b, 0, i)
                         i <- i + 1
                         if cur.Shape = s.AsString() then
-                            b.BorderBrush <- Brushes.Cyan
+                            b.BorderBrush <- currentSelectionBorder
                         allBorders.Add(b)
                         b.MouseDown.Add(fun _ ->
                             for x in allBorders do
                                 x.BorderBrush <- Brushes.Transparent
-                            b.BorderBrush <- Brushes.Cyan
+                            b.BorderBrush <- currentSelectionBorder
                             cur.Shape <- s.AsString()
                             )
                     if true then  // AlphaNum option
@@ -355,16 +356,16 @@ let MakeIconUI(parentWindow, appMAPX) =
                             | Some(IconShape.AlphaNum(ch)) -> IconShape.AlphaNum(ch), ch
                             | _ -> IconShape.AlphaNum('A'), 'A'
                         s.AddToCanvas(c, curBrush, c.Width, c.Height)
-                        let b = new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                        let b = new Border(Child=new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=BG), BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
                         Utils.gridAdd(shapeSelector, b, 0, i)
                         i <- i + 1
                         if cur.Shape = s.AsString() then
-                            b.BorderBrush <- Brushes.Cyan
+                            b.BorderBrush <- currentSelectionBorder
                         allBorders.Add(b)
                         b.MouseDown.Add(fun _ ->
                             for x in allBorders do
                                 x.BorderBrush <- Brushes.Transparent
-                            b.BorderBrush <- Brushes.Cyan
+                            b.BorderBrush <- currentSelectionBorder
                             Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
                             let save, result = 
                                 Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2), false)
@@ -383,32 +384,32 @@ let MakeIconUI(parentWindow, appMAPX) =
                 
                 // colors
                 let COLORW,COLORH,BORDER = 40, 30, 4
-                let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, COLORW+2*BORDER, COLORH+2*BORDER)
+                let colorSelector = Utils.makeGrid(1, hexColorUniverse.Count, COLORW+4*BORDER, COLORH+4*BORDER)
                 let mutable i = 0
                 let all = ResizeArray()
                 for KeyValue(c,_) in hexColorUniverse do
                     let col = Icon.GetColor(c)
                     let swatch = new DockPanel(Width=float COLORW, Height=float COLORH, Background=new SolidColorBrush(col))
                     ToolTipService.SetToolTip(swatch, col)
-                    let b = new Border(Child=swatch, BorderThickness=Thickness(float BORDER), BorderBrush=Brushes.Transparent)
+                    let b = new Border(Child=new Border(Child=swatch, BorderThickness=Thickness(float BORDER), BorderBrush=BG), BorderThickness=Thickness(float BORDER), BorderBrush=Brushes.Transparent)
                     Utils.gridAdd(colorSelector, b, 0, i)
                     i <- i + 1
                     if cur.HexColorRGB = c then
-                        b.BorderBrush <- Brushes.Cyan
+                        b.BorderBrush <- currentSelectionBorder
                     all.Add(b)
                     b.MouseDown.Add(fun _ ->
                         for x in all do
                             x.BorderBrush <- Brushes.Transparent
-                        b.BorderBrush <- Brushes.Cyan
+                        b.BorderBrush <- currentSelectionBorder
                         cur.HexColorRGB <- c
                         dp.Children.RemoveAt(dp.Children.Count-1)
                         dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                         )
 
-                dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,10.,0.))) |> ignore
                 dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
                 let closeEv = new Event<unit>()
-                let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.))
+                let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.), Background=BG, MinWidth=250., MaxWidth=400.)
                 let addColorButton = new Button(Content="Add color", MaxWidth=150., Margin=Thickness(4.))
                 addColorButton.Click.Add(fun _ ->
                     let save, result = Utils.DoBasicModalTextDialog(parentWindow, "New hex color RRGGBB", "00FF00", float(appMAPX/2), float(appMAPX/2), false)
@@ -419,13 +420,18 @@ let MakeIconUI(parentWindow, appMAPX) =
                     )
                 let doneButton = new Button(Content="Done", MaxWidth=150., Margin=Thickness(4.))
                 doneButton.Click.Add(fun _ -> closeEv.Trigger())
-                let sp = new StackPanel(Orientation=Orientation.Horizontal)
+                let sp = new StackPanel(Orientation=Orientation.Horizontal, HorizontalAlignment=HorizontalAlignment.Center)
                 sp.Children.Add(addColorButton) |> ignore
                 sp.Children.Add(doneButton) |> ignore
                 DockPanel.SetDock(sp, Dock.Bottom)
                 total.Children.Add(sp) |> ignore
+                let header = mkTxt(sprintf "Choose appearance for #%s" k)
+                header.BorderThickness <- Thickness(1.)
+                header.HorizontalAlignment <- HorizontalAlignment.Center
+                DockPanel.SetDock(header, Dock.Top)
+                total.Children.Add(header) |> ignore
                 total.Children.Add(dp) |> ignore
-                Utils.DoModalDialog(parentWindow, total, "Choose appearance", closeEv.Publish)
+                Utils.DoModalDialog(parentWindow, total, "Appearance", closeEv.Publish)
                 mapIconData.[k] <- cur
                 updateMMC(k,cur)
             else
