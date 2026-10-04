@@ -144,7 +144,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable currentlyRunningAHotkeyCommand = false
     let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
-    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
+    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
     let MAPX,MAPY = APP_WIDTH,420
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
     let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
@@ -160,8 +160,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
         r
     let RT = 4.
     let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
-    let mutable minitPlayerFinderAgentHasBeenCreated,minitPlayerFinderAgentIsRunning = false,false
-    let minitAutoTrackerInfo = new TextBox(FontSize=12., IsReadOnly=true, Text="AUTO", Foreground=Brushes.Red, Visibility=Visibility.Hidden, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center)
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseLeaveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
@@ -459,6 +457,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
             ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
             )
         ev.Publish
+    let curNoteUISE = 
+        let ev = new Event<int*int>()
+        let uise = new Utils.UISettlingEvent(100, [|kbdX.Changed; kbdY.Changed; previewPaneChanged.Publish|], true)
+        uise.ChangedAndSettled.Add(fun _ -> ev.Trigger(kbdX.Value, kbdY.Value))
+        ev.Publish
     let popout_agp = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.AppGridPanePopoutWindow.Singleton=null then
@@ -490,7 +493,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let popout_ln = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.LiveNotesWindow.Singleton = null then
-                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.LiveNotesWindow(kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish))
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.LiveNotesWindow(kbdX.Value, kbdY.Value, curNoteUISE))
                         member _.Close() = 
                             if Popouts.LiveNotesWindow.Singleton<>null then
                                 Popouts.LiveNotesWindow.Singleton.ThreadSafeClose()
@@ -809,7 +812,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
             glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
-            sp.Children.Add(minitAutoTrackerInfo) |> ignore
             sp
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
@@ -921,8 +923,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 if key = VK_NUMPAD5 then            this.DoCentering()
                 if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
                 if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD3 then            this.DoSpecial(true) // ctrl-decimal is not interceptable as a hotkey, so use 3 instead
-                if key = VK_DECIMAL then            this.DoSpecial(false)
+                if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
+                if key = VK_DECIMAL then            () // TODO
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
     member this.DoCut() =
@@ -1101,88 +1103,26 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                     (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
             if save then
                 UpdateCurrentNote(orig, result, zm)
-                pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+                mfsRefresh()
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
             GameSpecific.ActivateGameWindow()
-    member this.DoSpecial(ctrl) =
+    member this.DoSpecialText(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then
             setCursor()
             GameSpecific.ActivateMainAppWindow()
-            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false)
+            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Change NumPad3 text macro", specialText, float(MAPX/2), float(MAPX/2), fun(_) -> ())
             if save then
                 specialText <- result
         else
-            if true then
-                setCursor()
-                let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
-                let orig = if orig = null then "" else orig
-                if orig.EndsWith(specialText) then
-                    UpdateCurrentNote(orig, orig.Substring(0,orig.Length-specialText.Length), zm)
-                else
-                    UpdateCurrentNote(orig, orig+"\n"+specialText, zm)
-                pictureChanged.Value <- true // TODO decide if want separate updates for notes window changing, or how want to do this
+            setCursor()
+            let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
+            let orig = if orig = null then "" else orig
+            if orig.EndsWith(specialText) then
+                UpdateCurrentNote(orig, orig.Substring(0,orig.Length-specialText.Length), zm)
             else
-                minitPlayerFinderAgentIsRunning <- not minitPlayerFinderAgentIsRunning
-                minitAutoTrackerInfo.Visibility <- if minitPlayerFinderAgentIsRunning then Visibility.Visible else Visibility.Hidden
-                if minitPlayerFinderAgentIsRunning && not(minitPlayerFinderAgentHasBeenCreated) then
-                    minitPlayerFinderAgentHasBeenCreated <- true
-                    // Minit player finder agent
-                    let dt = new System.Windows.Threading.DispatcherTimer()
-                    dt.Interval <- System.TimeSpan.FromMilliseconds(1)  // in practice will only be called like every 20ms
-                    let hwnd = 
-                        let mutable r = None
-                        for KeyValue(hwnd,(title,_,_rect)) in Elephantasy.Screenshot.GetOpenWindows() do
-                            if title.StartsWith(TheChosenGame.WINDOW_TITLE) then
-                                r <- Some hwnd
-                        match r with
-                        | Some(hwnd) -> hwnd
-                        | None -> failwith "window not found"
-                    //let sw = System.Diagnostics.Stopwatch.StartNew()
-                    let mutable priorX, priorY = -1, -1
-                    let DEBUG_AUTO = true
-                    dt.Tick.Add(fun _ea ->
-                        if minitPlayerFinderAgentIsRunning then
-                            let bmp = GetWindowScreenshot(hwnd, TheChosenGame.GAMESCREENW, TheChosenGame.GAMESCREENH)
-                            let w,h = bmp.Width, bmp.Height
-                            let rData = bmp.LockBits(System.Drawing.Rectangle(0,0,w,h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                            let N=4
-                            let mutable foundX, foundY = -1,-1
-                            for i = 0 to (w-1)/N do
-                                for j = 0 to (h-1)/N do
-                                    let color = Utils.GetColorFromLockedFormat32BppArgb(N*i,N*j,rData)
-                                    if color.R = 252uy then
-                                        foundX <- i
-                                        foundY <- j
-                            if foundX <> -1 then
-                                if priorX <> -1 then
-                                    //if DEBUG_AUTO then printfn "%8dms: found %d,%d" sw.ElapsedMilliseconds foundX foundY
-                                    let mutable moved = false
-                                    // Minit is 320x240 base resolution
-                                    if priorX > 280 && foundX < 40 then
-                                        if DEBUG_AUTO then printfn "MOVE RIGHT"
-                                        this.MoveRight(false)
-                                        moved <- true
-                                    if priorX < 40 && foundX > 280 then
-                                        if DEBUG_AUTO then printfn "MOVE LEFT"
-                                        this.MoveLeft(false)
-                                        moved <- true
-                                    if priorY > 200 && foundY < 40 then
-                                        if DEBUG_AUTO then printfn "MOVE DOWN"
-                                        this.MoveDown(false)
-                                        moved <- true
-                                    if priorY < 40 && foundY > 200 then
-                                        if DEBUG_AUTO then printfn "MOVE UP"
-                                        this.MoveUp(false)
-                                        moved <- true
-                                    if moved then
-                                        let zm = ZoneMemory.Get(theGame.CurZone)
-                                        if not(zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots()) then
-                                            this.DoScreenshot()
-                                priorX <- foundX
-                                priorY <- foundY
-                        )
-                    dt.Start()
+                UpdateCurrentNote(orig, (if orig.EndsWith("\n") then orig+specialText else orig+"\n"+specialText), zm)
+            mfsRefresh()
     member this.DoFullMapPanZoomFeatureWindow(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         let bmps = Array2D.create MAX MAX (null, -1)

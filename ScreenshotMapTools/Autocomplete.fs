@@ -103,32 +103,31 @@ let DoAutocompleteModalTextDialog(parentWindow, windowTitle, origText, winWidth,
                 // don't handle, but close popup since cursor is moving
                 popup.IsOpen <- false
             | _ -> ()
-        else
-            if ea.Key = Key.Back then
-                match preCommitmentTag with
-                | Some(startIdx, tag) ->
-                    ea.Handled <- true
-                    preCommitmentTag <- None
-                    let caret = tb.CaretIndex
-                    dontFireChangedEvents <- true
-                    tb.Text <- tb.Text.Remove(startIdx, caret-startIdx).Insert(startIdx, tag)
-                    tb.CaretIndex <- startIdx + tag.Length
-                    textChangedCallback(tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength)
-                    dontFireChangedEvents <- false
-                    updatePopupVisibility()
-                | _ -> ()
-            elif ea.Key = Key.Enter then
-                if ((Keyboard.Modifiers &&& ModifierKeys.Control) = ModifierKeys.Control || (Keyboard.Modifiers &&& ModifierKeys.Shift) = ModifierKeys.Shift) then 
-                    // make <shift/ctrl>-enter behave like a normal textbox 'return'
-                    ea.Handled <- true
-                    let caretIndex = tb.CaretIndex
-                    tb.Text <- tb.Text.Insert(caretIndex, System.Environment.NewLine)
-                    tb.CaretIndex <- caretIndex + 1
-                else
-                    // enter behaves like they click save
-                    ea.Handled <- true
-                    save <- true
-                    closeEv.Trigger()
+        if ea.Key = Key.Back then
+            match preCommitmentTag with
+            | Some(startIdx, tag) ->
+                ea.Handled <- true
+                preCommitmentTag <- None
+                let caret = tb.CaretIndex
+                dontFireChangedEvents <- true
+                tb.Text <- tb.Text.Remove(startIdx, caret-startIdx).Insert(startIdx, tag)
+                tb.CaretIndex <- startIdx + tag.Length
+                textChangedCallback(tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength)
+                dontFireChangedEvents <- false
+                updatePopupVisibility()
+            | _ -> ()
+        elif ea.Key = Key.Enter then
+            if ((Keyboard.Modifiers &&& ModifierKeys.Control) = ModifierKeys.Control || (Keyboard.Modifiers &&& ModifierKeys.Shift) = ModifierKeys.Shift) then 
+                // make <shift/ctrl>-enter behave like a normal textbox 'return'
+                ea.Handled <- true
+                let caretIndex = tb.CaretIndex
+                tb.Text <- tb.Text.Insert(caretIndex, System.Environment.NewLine)
+                tb.CaretIndex <- caretIndex + 1
+            else
+                // enter behaves like they click save
+                ea.Handled <- true
+                save <- true
+                closeEv.Trigger()
         )
     let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
     let sb = new Button(Content=" Save ", Margin=Thickness(4.))

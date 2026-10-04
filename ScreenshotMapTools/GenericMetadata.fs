@@ -1,6 +1,6 @@
 ﻿module GenericMetadata
 
-let inline IsHashtagChar(c) = System.Char.IsLetterOrDigit(c) || c='~'
+let inline IsHashtagChar(c) = System.Char.IsLetterOrDigit(c)
 
 let AllHashtags(s:string) =
     if s=null then 

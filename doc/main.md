@@ -142,6 +142,16 @@ You can also create clickable **hyperlinks** to jump to other cells by typing e.
 in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
 travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
 
+There is one text macro which you can edit using `(NumPad) Ctrl-3`.  Pressing `NumPad3` will toggle the 
+text macro at the end of the Note in the current cell; that is, append the text to the end of the Note,
+unless that text already exists at the end, in which case, remove it.  Here's an example scenario where 
+this is useful: You just got a powerup in your game that allows you to break blue walls. Now you want to 
+review the map and mark all the places with blue walls you want to return to, to explore for treasure and 
+secrets behind the blue walls.  Edit the text macro (`(NumPad) Ctrl-3`) to be "#blueWall", then cursor 
+around the map to all the screens with blue walls and press `Numpad3` to append #blueWall to the Note for 
+that screen.  Click on #blueWall in the bottom-right pane of the app to highlight all the cells with that
+hashtag, and now you can easily see an overview of all the places you need to revisit with your new powerup.
+
 There is also a 'global note', that is, a note which is not associated with any particular
 map cell.  You can edit the global note with
 

@@ -189,8 +189,8 @@ type ControlsCheatsheetPopoutWindow() as this =
                 "ctrl /",   "edit global note"
                 "1",        "pan/zoom window"
                 "ctrl 1",   "2x map pan/zoom"
-                ".",        "toggle TODO tag"
-                "3",        "edit TODO tag"
+                "3",        "toggle text macro"
+                "ctrl 3",   "edit text macro"
             |]
         let COUNT = data.Length
         for i = 0 to COUNT-1 do
@@ -494,10 +494,10 @@ type GlobalNoteWindow() as this =
     static member Name = "Global Note"
 
 [<AllowNullLiteral>]
-type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
+type LiveNotesWindow(originalX, originalY, updateEv:IEvent<int*int>) as this =
     inherit IndependentWindow()
     static let mutable singleton : LiveNotesWindow = null
-    let mutable curX, curY, curZm = x, y, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
+    let mutable curX, curY, curZm = originalX, originalY, InMemoryStore.ZoneMemory.Get(BackingStoreData.theGame.CurZone)
     let helper = new NoteHelper((fun() -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesFontSize)), 
                                 (fun(x) -> MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.LiveNotesFontSize <- x; AppSettings.theAppSettingsJson.Save())),  
                                 System.Windows.Threading.Dispatcher.CurrentDispatcher)
@@ -506,7 +506,7 @@ type LiveNotesWindow(x, y, updateEv:IEvent<int*int>) as this =
         let note = MainUIInvoke(fun() -> curZm.MapTiles.[curX,curY].Note)
         helper.TextBlock.Text <- 
             if System.String.IsNullOrEmpty(note) then 
-                helper.TextBlock.Foreground <- Brushes.Gray
+                //helper.TextBlock.Foreground <- Brushes.Gray
                 "" //"<no note>" // for dwarf
             else 
                 helper.TextBlock.Foreground <- Brushes.White
