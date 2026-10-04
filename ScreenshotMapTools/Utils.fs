@@ -112,6 +112,15 @@ let deparent(e:FrameworkElement) =
     | null -> ()
     | :? Panel as p -> p.Children.Remove(e)
     | _ -> ()
+let StarStarBold(txt:string, tb:TextBlock) = 
+    tb.Inlines.Clear()
+    let parts = txt.Split([|"**"|], System.StringSplitOptions.None)
+    for i = 0 to parts.Length-1 do
+        let isBold = (i%2 = 1)
+        let run = new System.Windows.Documents.Run(parts.[i])
+        run.FontWeight <- if isBold then FontWeights.Bold else FontWeights.Normal
+        tb.Inlines.Add(run)
+///////////////////////////////////////////////////////////////
 let mutable nestedModalDialogCount = 0      // when >0, app disables own hotkey logic and instead broadcasts events for hotkeys
 let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) =
     let w = new Window()
@@ -126,14 +135,12 @@ let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) 
     w.Loaded.Add(fun _ -> onLoad())
     w.ShowDialog() |> ignore
 let DoModalDialog(parentWindow, element, title, close:IEvent<unit>) = DoModalDialogCore(parentWindow, element, title, close, (fun() -> ()))
-let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight, isMultiLine, textChangedCallback) =
+let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight, isMultiLine) =
     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if origText=null then "" else origText), BorderThickness=Thickness(1.), 
                             Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
                             Width=winWidth, Height=(if isMultiLine then winHeight else 20.), 
                             TextWrapping=(if isMultiLine then TextWrapping.Wrap else TextWrapping.NoWrap), AcceptsReturn=isMultiLine, 
                             VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
-    tb.TextChanged.Add(fun _ -> textChangedCallback(tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength))
-    tb.SelectionChanged.Add(fun _ -> textChangedCallback(tb.Text, tb.CaretIndex, tb.SelectionStart, tb.SelectionLength))
     let closeEv = new Event<unit>()
     let mutable save = false
     let cb = new Button(Content=" Cancel ", Margin=Thickness(4.))
@@ -159,10 +166,10 @@ let DoBasicModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHei
                 closeEv.Trigger()
         )
     let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
-    let explainerText = "Press <Escape> to Cancel\nPress <Enter> to Save" + if isMultiLine then "\nPress <Ctrl+Enter> for newline" else ""
-    let explainerTb = new TextBox(IsReadOnly=true, FontSize=12.,Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
-                                    Width=winWidth,TextWrapping=TextWrapping.NoWrap, Margin=Thickness(5.),BorderThickness=Thickness(0.), 
-                                    Text=explainerText)
+    let explainerText = "Press **Escape** to Cancel\nPress **Enter** to Save" + if isMultiLine then "\nPress **Ctrl+Enter** for newline" else ""
+    let explainerTb = new TextBlock(FontSize=12.,Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                                    Width=winWidth,TextWrapping=TextWrapping.NoWrap, Margin=Thickness(5.))
+    StarStarBold(explainerText, explainerTb)
     let sp = new StackPanel(Orientation=Orientation.Vertical)
     sp.Children.Add(explainerTb) |> ignore
     sp.Children.Add(tb) |> ignore

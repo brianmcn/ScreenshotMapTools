@@ -83,7 +83,7 @@ Which do you want to do?"""
         | Some(r) ->
             // load into temporaries to work with
             let projs = if theGame.CustomProjections = null then ResizeArray() else ResizeArray(theGame.CustomProjections)
-            let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Name this Custom Trim", "", appWidth/2., 50., false, fun _ -> ())
+            let save,label = Utils.DoBasicModalTextDialog(parentWindow, "Name this Custom Trim", "", appWidth/2., 50., false)
             if save then
                 let! area = AreaSelection.DoAreaSelection(parentWindow, (r.left, r.top, r.right-r.left, r.bottom-r.top), TheChosenGame.MapArea,  "select area for this custom trim") 
                 match area with

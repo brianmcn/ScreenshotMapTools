@@ -603,7 +603,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         renameZoneButton.Click.Add(fun _ ->
             let orig = GetZoneName(theGame.CurZone)
-            let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false, fun _ -> ())
+            let save,result = Utils.DoBasicModalTextDialog(this, "Edit zone name", (if orig=null then "" else orig), float(MAPX/2), float(MAPX/2), false)
             if save then
                 theGame.ZoneNames.[theGame.CurZone] <- result
                 theGame.Save()
@@ -1083,7 +1083,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     do! Async.Sleep(50)
                 GameSpecific.ActivateMainAppWindow()
                 let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
-                let save, result = Utils.DoBasicModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), true, Popouts.GlobalNoteWindow.Singleton.NoteEdit)
+                let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), Popouts.GlobalNoteWindow.Singleton.NoteEdit)
                 if save then
                     Popouts.GlobalNoteWindow.Singleton.Save(result)
                 Popouts.GlobalNoteWindow.Singleton.FinishEdit()
@@ -1097,7 +1097,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             GameSpecific.ActivateMainAppWindow()
             let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
-            let save, result = Utils.DoBasicModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2), true, 
+            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2),
                                     (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
             if save then
                 UpdateCurrentNote(orig, result, zm)
@@ -1109,7 +1109,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             setCursor()
             GameSpecific.ActivateMainAppWindow()
-            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false, fun _ -> ())
+            let save, result = Utils.DoBasicModalTextDialog(this, "Change '.' text", specialText, float(MAPX/2), float(MAPX/2), false)
             if save then
                 specialText <- result
         else

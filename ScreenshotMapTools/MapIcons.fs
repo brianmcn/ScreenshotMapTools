@@ -367,7 +367,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                             b.BorderBrush <- Brushes.Cyan
                             Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
                             let save, result = 
-                                Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2), false, fun _ -> ())
+                                Utils.DoBasicModalTextDialog(parentWindow, "Single alphanumeric character label", curGlyph.ToString(), float(appMAPX/2), float(appMAPX/2), false)
                             let r = 
                                 if save && result.Length = 1 && System.Char.IsLetterOrDigit(result.Chars(0)) then
                                     result.Chars(0)
@@ -411,7 +411,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                 let total = new DockPanel(LastChildFill=true, Margin=Thickness(4.))
                 let addColorButton = new Button(Content="Add color", MaxWidth=150., Margin=Thickness(4.))
                 addColorButton.Click.Add(fun _ ->
-                    let save, result = Utils.DoBasicModalTextDialog(parentWindow, "New hex color RRGGBB", "00FF00", float(appMAPX/2), float(appMAPX/2), false, fun _ -> ())
+                    let save, result = Utils.DoBasicModalTextDialog(parentWindow, "New hex color RRGGBB", "00FF00", float(appMAPX/2), float(appMAPX/2), false)
                     if save then
                         if Icon.IsValidRGBString(result) then
                             hexColorUniverse.Add(result, NextColorJitter()) |> ignore

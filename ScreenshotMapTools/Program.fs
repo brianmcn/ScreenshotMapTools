@@ -118,3 +118,5 @@ let main _argv =
         let r = app.Run(new DummyWindow())
         //let r = app.Run(new Glass.DrawingGlassWindow())
         r
+
+        

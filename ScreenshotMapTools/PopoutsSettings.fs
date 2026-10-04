@@ -14,13 +14,7 @@ let mkTxt(txt) = new TextBlock(FontSize=16., Text=txt, Foreground=Brushes.Black,
                                     Margin=Thickness(3., 0., 3., 0.), VerticalAlignment=VerticalAlignment.Center)
 let mkTxtWithStarStarBold(txt:string) = 
     let tb = mkTxt("")
-    tb.Inlines.Clear()
-    let parts = txt.Split([|"**"|], System.StringSplitOptions.None)
-    for i = 0 to parts.Length-1 do
-        let isBold = (i%2 = 1)
-        let run = new System.Windows.Documents.Run(parts.[i])
-        run.FontWeight <- if isBold then FontWeights.Bold else FontWeights.Normal
-        tb.Inlines.Add(run)
+    Utils.StarStarBold(txt, tb)
     tb
 let Bold(tb:TextBlock) = tb.FontWeight <- FontWeights.Bold; tb
 

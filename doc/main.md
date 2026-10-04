@@ -129,10 +129,10 @@ screenshot of that cell, along with your text notes	for that call.
 Your text can contain **#hashtags**, alphanumeric labels prefixed by an #octothorpe, which 
 enable some more advanced features of tool, like, for example, displaying all the #save checkpoint 
 locations you have found and marked up, or all the #shop or #dungeon locations you find, or 
-whatever is suitable to the game you are playing. 
+whatever is suitable to the game you are playing. Hashtags have autocompletion suggestions during editing.
 
 Here's an example from Minit where I marked up the different places the player could #spawn, as 
-well as left myself some #hmm notes on places I wanted to return to investigate further.  
+well as left myself some #hmm notes on places I wanted to return to investigate further. 
 Left-clicking a #hashtag in the tool's bottom-right-pane list will highlight the #hashtag's 
 locations on the map, and right-clicking lets you change the color and shape of the highlight markings.
 

@@ -1,5 +1,7 @@
 ﻿module GenericMetadata
 
+let inline IsHashtagChar(c) = System.Char.IsLetterOrDigit(c) || c='~'
+
 let AllHashtags(s:string) =
     if s=null then 
         []
@@ -8,7 +10,7 @@ let AllHashtags(s:string) =
         for i = 0 to s.Length-2 do
             if s.Chars(i)='#' then
                 let mutable j = i+1
-                while j < s.Length && (System.Char.IsLetterOrDigit(s.Chars(j)) || s.Chars(j)='~')  do
+                while j < s.Length && IsHashtagChar(s.Chars(j)) do
                     j <- j + 1
                 if j>i+1 then
                     let key = s.Substring(i+1, j-i-1)

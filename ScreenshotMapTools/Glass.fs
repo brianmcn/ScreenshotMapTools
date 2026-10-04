@@ -530,6 +530,7 @@ type DrawingGlassWindow() as this =
         let mutable tempRect = null
         catchAll.MouseLeftButtonDown.Add(fun ea -> 
             ea.Handled <- true
+            Winterop.Win32.SetForegroundWindow(thisHwnd) |> ignore  // so that e.g. clicking controls and clicking back will reactivate window so it sees keyboard for e.g. ctrl-z
             if not(myControlsWindow.IsFirstClickFocusSwitch) then
                 startPoint <- Some(ea.GetPosition(catchAll))
                 if drawingMode=1 then
