@@ -55,7 +55,7 @@ QuickNav Mode is a mode that enables faster keyboard navigation across many grid
 
 QuickNav Mode is enabled by pressing `NumPad .`  The appearance of the app window changes:
 
-![QuickNav Mode](img/QuickNav.png)
+![QuickNav Mode](img/QuickNavMode.png)
 
 and a number of NumPad key behaviors change in this mode.
 
@@ -65,7 +65,7 @@ centered in the grid.
 `NumPad 5` exits QuickNav Mode.
 
 Keys `NumPad 7` and `NumPad 9` no longer zoom in QuickNav Mode, instead they cycle to the prior and next zones.
-(`NumPad \*` preserves its behavior of cycling to the next zone.)
+(`NumPad *` preserves its behavior of cycling to the next zone.)
 
 `NumPad .` will follow the first hyperlink in the current cell's note, as though you clicked on it.  In the screenshot 
 above, it would change to the zone containing the dungeon 1 map.  If a hyperlink was followed, QuickNav Mode exits.
@@ -75,7 +75,7 @@ in the desired direction, where a 'target' cell is a cell whose Note contains a 
 target list.  You can set the contents of this list by clicking the large button in the bottom right of the app.  In the
 prior screenshot, I had set the list to "dungeon,spawn" so that cells with #dungeon (marked by red rectangles) and cells
 with #spawn (marked by a blue oval) would be valid targets.  As a result, pressing `NumPad 6` ('right arrow') would
-move the cursor 5 cells to the right, to the next target.
+move the cursor _five_ cells to the right, to the next target.
 
 Scenarios where QuickNav is useful:
 
@@ -91,7 +91,8 @@ Press `Numpad .` _twice_ to follow the hyperlink.  (Or you could click on it wit
 Some games have fast travel systems, which allow the player to move to a fixed set of faraway locations. \
 Some games will respawn the player after death at a fixed location, or a recent save point. \
 For these scenarios, it is often the case that these jumped-to locations are already the same types of
-locations you would already be marking up with #hashtags.  For example, in Zelda, I was marking up dungeon
-entrances with '#dungeon', and in Zelda, the warp whistle allows the player to fast-travel to entrances of dungeons
-that have been beaten.  On large maps, specifying the QuickNav hashtag targets makes it possible to update the cursor 
-to the new location using fewer keystrokes. (Or you could click on the new location with the mouse.)
+locations you would already be marking up with #hashtags (#fastTravel, #save, #spawn, ...).  For example, 
+in Zelda, I was marking up dungeon entrances with '#dungeon', and in Zelda, the warp whistle allows the 
+player to fast-travel to entrances of dungeons that have been beaten.  On large maps, specifying the 
+QuickNav hashtag targets makes it possible to update the cursor to the new location using fewer 
+keystrokes. (Or you could click on the new location with the mouse.)
