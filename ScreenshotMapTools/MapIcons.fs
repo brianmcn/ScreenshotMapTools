@@ -103,6 +103,7 @@ type Icon() =
         && IconShape.FromString(this.Shape)<>None
     member this.GetColor() = Icon.GetColor(this.HexColorRGB)
     static member GetColor(hexColorRGB) = System.Windows.Media.ColorConverter.ConvertFromString("#FF" + hexColorRGB) :?> System.Windows.Media.Color
+    static member Default(k) = new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
 
 // a (dx,dy) direction to offset icons, so e.g. a red X and a green X won't draw right on top of each other
 let ColorJitters = [| 0,0; 0,-1; -1,0; 1,0; 0,1; -1,-1; 1,-1; -1,1; 1,1 |]
@@ -212,6 +213,10 @@ let updateMMC(k,icon:Icon) =
         shape.AddToCanvas(oc, brush, float w, float h)
         Utils.canvasAdd(c, oc, float w * JITTERSCALE * float jitterDx, float h * JITTERSCALE * float jitterDy)
     mapMarkerCaches.[k] <- new SingleMapMarkerCache(draw)
+let GetOrCreateMapMarkerCaches(k) =
+    if not(mapMarkerCaches.ContainsKey(k)) then
+        updateMMC(k, Icon.Default(k))
+    mapMarkerCaches.[k]
 let drawHoverIcon(c,w,h) =
     let s = new System.Windows.Shapes.Ellipse(Width=float w*0.4, Height=float h*0.8, Stroke=Brushes.Cyan, StrokeThickness=IST(float w,float h))
     Utils.canvasAdd(c, s, float w*0.3, float h*0.1)
@@ -438,7 +443,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                 // just toggle enable on left click (and initialize if no default yet)
                 match mapIconData.TryGetValue(k) with
                 | false, _ ->
-                    let icon = new Icon(Hashtag=k, HexColorRGB="00FF00", Shape="LargeOval", IsEnabled=true)
+                    let icon = Icon.Default(k)
                     mapIconData.[k] <- icon
                     updateMMC(k,icon)
                 | true, icon ->

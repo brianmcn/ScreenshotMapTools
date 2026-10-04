@@ -151,15 +151,23 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
     let mapMarkersImage = new Image(Width=float(MAPX), Height=float(MAPY), IsHitTestVisible=false)
     let mapMarkersHoverImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
+    let mapMarkersHoverImageStoryboard = new System.Windows.Media.Animation.Storyboard()                                                            // used with QuickNav
+    let mapMarkersHoverImageOverlay = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false, Visibility=Visibility.Hidden)    // used with QuickNav
+    let mouseCursorCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
         Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
         r.Children.Add(mapCanvas) |> ignore
         Utils.canvasAdd(r, mapMarkersImage, 0, 0)
+        Utils.canvasAdd(r, mapMarkersHoverImageOverlay, float(-MAPX), float(-MAPY))
         Utils.canvasAdd(r, mapMarkersHoverImage, float(-MAPX), float(-MAPY))
+        r.Children.Add(mouseCursorCanvas) |> ignore
         r
     let RT = 4.
-    let mouseCursor = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
+    let mouseCursor = 
+        let mc = new Shapes.Rectangle(StrokeThickness=RT/2., Stroke=Brushes.Yellow)
+        mouseCursorCanvas.Children.Add(mc) |> ignore
+        mc
     let mutable mapCanvasMouseMoveFunc = fun _ -> ()
     let mutable mapCanvasMouseLeaveFunc = fun _ -> ()
     let mutable mapCanvasMouseDownFunc = fun (_:Input.MouseEventArgs,_x,_y) -> ()
@@ -182,6 +190,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         kbdX.Value <- theGame.CurX
         kbdY.Value <- theGame.CurY
     let warp() = if this.IsMouseOver then warpMouseTo(theGame.CurX, theGame.CurY)
+    let mutable quickNavModeSavedSettings = None    // None: not in QuickNav mode       Some(...): in QuickNav mode, settings before changing modes, to restore later
     // current zone combobox
     let CONTROL_MARGIN = Thickness(3.)  // margin for buttons in top bar and such
     let addNewZoneButton = new Button(Content="Add zone", Margin=CONTROL_MARGIN)
@@ -201,6 +210,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let x = s.Substring(4,2) |> int
         let y = s.Substring(7,2) |> int
         NavigateTo(GenericMetadata.Location(zone,x,y))
+    let mutable updateQuickNavView = fun() -> ()
     // clipboard display
     let clipTB = new TextBox(IsReadOnly=true, FontSize=12., Text="", BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.White, Margin=Thickness(2.))
     let clipView = new Border(Width=float(MAPX/5), Height=float(MAPX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
@@ -215,7 +225,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             metadataKeys.Add(s)
     let previewPane = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
     let mutable doZoom = fun () -> ()
-    let mutable cycleZone = fun () -> ()
+    let mutable cycleZone = fun (_delta) -> ()
     let mfsRefresh() =
         //printfn "previewPane Actual W,H=%d,%d expect %d,%d" (int previewPane.ActualWidth) (int previewPane.ActualHeight) 
         //                                                    (MAPX - MapIcons.KEYS_LIST_BOX_WIDTH) (int BOTTOM_HEIGHT - MinimapWindow.RICH_TEXT_HEIGHT)
@@ -245,7 +255,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         )
     let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorX, priorY, priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999,-999,-999
-    let mutable specialText = "#TODO"   // currently uses numpad-3 to edit this
+    let mutable specialText = "#TODO"   // currently uses ctrl-numpad-3 to edit this
     let GetProjectionDetails(zm:ZoneMemory) =
         let _,_,w,h = TheChosenGame.MapArea 
         let aspect,ia,pw,ph = float w / float h, zm.MapImgArray, w, h
@@ -321,7 +331,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 mouseCursor.Height <- H + RT
                 Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.) // + if howMany=1 then W/10. else 0.)   // offset kludge for
                 Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.) // + if howMany=1 then H/10. else 0.)    // level 1 mouse cursor
-                mapCanvas.Children.Add(mouseCursor) |> ignore
                 do
                     // map icons
                     redrawMapIconsFunc <- (fun _ ->
@@ -342,13 +351,34 @@ type MyWindow(mkGlassF : unit->unit) as this =
                         )
                     redrawMapIconsHoverOnlyFunc <- (fun _ ->
                         let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
-                        if MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
+                        if quickNavModeSavedSettings.IsSome then
+                            // overlay will gray out the map...
+                            let obackBuffer, obackBufferStride = Array.init (3*MAPX*3*MAPY*4) (fun z -> if z%4=3 then 128uy else 0uy), 3*MAPX*4
+                            for i = ci-level to ci+level do
+                                for j = cj-level to cj+level do
+                                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                                        for ht in theGame.HashtagTargetsForQuickNav do
+                                            let keyedLocations = metadataStore.LocationsForKey(ht)
+                                            if keyedLocations.Contains(loc) then
+                                                let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                                let W,H = int(W),int(H)
+                                                let bytes = MapIcons.GetOrCreateMapMarkerCaches(ht).Get(W,H)
+                                                let stride = W*4
+                                                Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                                                // ... except where we are highlighting 
+                                                let zerobytes = Array.zeroCreate bytes.Length
+                                                Utils.CopyBGRARegion(obackBuffer, obackBufferStride, MAPX+int(xoff), MAPY+int(yoff), zerobytes, stride, 0, 0, W, H)
+                            let obitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, obackBuffer, obackBufferStride)
+                            mapMarkersHoverImageOverlay.Source <- obitmapSource
+                        elif MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
+                            let keyedLocations = metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey)
                             // TODO consider hover for userRegex
                             for i = ci-level to ci+level do
                                 for j = cj-level to cj+level do
                                     if i>=0 && i<MAX && j>=0 && j<MAX then
                                         let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                        if metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey).Contains(loc) then
+                                        if keyedLocations.Contains(loc) then
                                             let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
                                             let W,H = int(W),int(H)
                                             let bytes = MapIcons.mapMarkerCaches.[MapIcons.HOVER_DUMMY].Get(W,H)
@@ -574,9 +604,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 zoom()
                 warp()
             )
-        cycleZone <- (fun() ->
+        cycleZone <- (fun(delta) ->
                 if theGame.ZoneNames.Length > 1 then
-                    let newZone = (theGame.CurZone + 1) % theGame.ZoneNames.Length
+                    let newZone = (theGame.CurZone + delta + theGame.ZoneNames.Length) % theGame.ZoneNames.Length
                     let newLoc = GenericMetadata.Location(newZone, theGame.CurX, theGame.CurY)
                     NavigateTo(newLoc)
             )
@@ -700,8 +730,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
+        let TOP_BAR_HEIGHT = 30.
+        let quickNavModeBar = new TextBlock(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT, Background=Brushes.Red, Foreground=Brushes.White, Visibility=Visibility.Hidden, FontSize=16.,
+                                    Text="QuickNav Mode - press NumPad5 to end - see bottom right panel for controls", TextAlignment=TextAlignment.Center)
         let topBar =
-            let sp = new StackPanel(Orientation=Orientation.Horizontal)
+            let sp = new StackPanel(Orientation=Orientation.Horizontal, Height=TOP_BAR_HEIGHT)
             sp.Children.Add(addNewZoneButton) |> ignore
             sp.Children.Add(zoneComboBox) |> ignore
             sp.Children.Add(renameZoneButton) |> ignore
@@ -812,10 +845,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
             glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
-            sp
+            let c = new Canvas(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT)
+            c.Children.Add(sp) |> ignore
+            c.Children.Add(quickNavModeBar) |> ignore
+            c
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
         all.Children.Add(mapPortion) |> ignore
+        let RIGHT_COL_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH + 8
+        let quickNavInstructionsPane = QuickNav.MakeInstructionsPane(this, APP_WIDTH, RIGHT_COL_WIDTH, BOTTOM_HEIGHT)
         let bottom =
             refreshMetadataKeys()
             let rightColumn =
@@ -827,7 +865,10 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     iconKeys <- MapIcons.MakeIconUI(this, MAPX)
                     rc.Children.Add(iconKeys) |> ignore
                     )
-                rc
+                let c = new Canvas(Width=RIGHT_COL_WIDTH, Height=BOTTOM_HEIGHT)
+                c.Children.Add(rc) |> ignore
+                c.Children.Add(quickNavInstructionsPane) |> ignore
+                c
             let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddTop(summaryTB).Add(previewPane)
             let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
             let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
@@ -835,6 +876,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
             r
         all.Children.Add(bottom) |> ignore
         all.UseLayoutRounding <- true
+        updateQuickNavView <- (fun() ->
+            match quickNavModeSavedSettings with
+            | Some(_) ->
+                quickNavModeBar.Visibility <- Visibility.Visible
+                quickNavInstructionsPane.Visibility <- Visibility.Visible
+            | None ->
+                quickNavModeBar.Visibility <- Visibility.Hidden
+                quickNavInstructionsPane.Visibility <- Visibility.Hidden
+            )
         this.Content <- all
         this.Loaded.Add(fun _ ->
             GameSpecific.ActivateMainAppWindow <- (fun() -> Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore)
@@ -910,21 +960,39 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
-                if key = VK_SUBTRACT then           this.DoCut()
-                if key = VK_ADD then                this.DoPaste()
-                if key = VK_MULTIPLY then           this.CycleZone()
-                if key = VK_NUMPAD4 then            this.MoveLeft((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD6 then            this.MoveRight((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD8 then            this.MoveUp((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD2 then            this.MoveDown((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD0 then            this.DoScreenshot()
-                if key = VK_NUMPAD7 then            this.ZoomOut()
-                if key = VK_NUMPAD9 then            this.ZoomIn()
-                if key = VK_NUMPAD5 then            this.DoCentering()
-                if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
-                if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
-                if key = VK_DECIMAL then            () // TODO
+                match quickNavModeSavedSettings with
+                | None ->
+                    if key = VK_SUBTRACT then           this.DoCut()
+                    if key = VK_ADD then                this.DoPaste()
+                    if key = VK_MULTIPLY then           this.CycleZone(false,1)
+                    if key = VK_NUMPAD4 then            this.MoveLeft((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD6 then            this.MoveRight((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD8 then            this.MoveUp((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD2 then            this.MoveDown((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD0 then            this.DoScreenshot()
+                    if key = VK_NUMPAD7 then            this.ZoomOut()
+                    if key = VK_NUMPAD9 then            this.ZoomIn()
+                    if key = VK_NUMPAD5 then            this.DoCentering()
+                    if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_DECIMAL then            this.ToggleQuickNav(false)
+                | Some(_) ->    // we're in QuickNav mode
+                    //if key = VK_SUBTRACT then           this.DoCut()
+                    //if key = VK_ADD then                this.DoPaste()
+                    if key = VK_MULTIPLY then           this.CycleZone(true,1)
+                    if key = VK_NUMPAD4 then            this.MoveCoda(QuickNav.MoveLeftRight(-1))
+                    if key = VK_NUMPAD6 then            this.MoveCoda(QuickNav.MoveLeftRight(1))
+                    if key = VK_NUMPAD8 then            this.MoveCoda(QuickNav.MoveUpDown(-1))
+                    if key = VK_NUMPAD2 then            this.MoveCoda(QuickNav.MoveUpDown(1))
+                    //if key = VK_NUMPAD0 then            this.DoScreenshot()
+                    if key = VK_NUMPAD7 then            this.CycleZone(true,-1)
+                    if key = VK_NUMPAD9 then            this.CycleZone(true,1)
+                    if key = VK_NUMPAD5 then            this.ToggleQuickNav(false)
+                    //if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
+                    //if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
+                    //if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_DECIMAL then            this.ToggleQuickNav(true)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
     member this.DoCut() =
@@ -955,60 +1023,60 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 SerializeMapTile(theGame.CurX,theGame.CurY,zm)
                 RecomputeImage(theGame.CurX,theGame.CurY,zm)
                 zoom()
-    member this.CycleZone() =
-        cycleZone()
+    member this.CycleZone(encompassAll, delta) =
+        cycleZone(delta)
+        if encompassAll then
+            QuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
+            zoom()
+    member this.MoveCoda(doAnything) = 
+        if doAnything then 
+            this.MoveCoda()
+        else
+            System.Console.Beep()
+    member this.MoveCoda() =
+        zoom()
+        setCursor()
+        warp()
     member this.MoveLeft(ctrl) =
         if ctrl then
             if theGame.CenterX > 0 then
                 theGame.CenterX <- theGame.CenterX - 1
                 theGame.Save()
-                zoom()
         else
             if theGame.CurX > 0 then
                 theGame.CurX <- theGame.CurX - 1
                 theGame.Save()
-                zoom()
-        setCursor()
-        warp()
+        this.MoveCoda()
     member this.MoveRight(ctrl) =
         if ctrl then
             if theGame.CenterX < 99 then
                 theGame.CenterX <- theGame.CenterX + 1
                 theGame.Save()
-                zoom()
         else
             if theGame.CurX < 99 then
                 theGame.CurX <- theGame.CurX + 1
                 theGame.Save()
-                zoom()
-        setCursor()
-        warp()
+        this.MoveCoda()
     member this.MoveUp(ctrl) =
         if ctrl then
             if theGame.CenterY > 0 then
                 theGame.CenterY <- theGame.CenterY - 1
                 theGame.Save()
-                zoom()
         else
             if theGame.CurY > 0 then
                 theGame.CurY <- theGame.CurY - 1
                 theGame.Save()
-                zoom()
-        setCursor()
-        warp()
+        this.MoveCoda()
     member this.MoveDown(ctrl) =
         if ctrl then
             if theGame.CenterY < 99 then
                 theGame.CenterY <- theGame.CenterY + 1
                 theGame.Save()
-                zoom()
         else
             if theGame.CurY < 99 then
                 theGame.CurY <- theGame.CurY + 1
                 theGame.Save()
-                zoom()
-        setCursor()
-        warp()
+        this.MoveCoda()
     member this.DoScreenshot() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         setCursor()
@@ -1200,3 +1268,42 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, int usedW, int usedH)
                 Utils.canvasAdd(c, mapMarkersImage, 0, 0)
             FeatureWindow.EnsureFeature(this.Owner, c, null)
+    member this.ToggleQuickNav(tryToFollowHyperlink) =
+        let hyperlinkLocOpt = 
+            if tryToFollowHyperlink then
+                // get the first hyperlink in this cell's note...
+                let zm = ZoneMemory.Get(theGame.CurZone)
+                let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
+                let struct(i,j,z,mt) = struct(theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
+                if mt.Note <> null then
+                    let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
+                    if linkages.Count > 0 then
+                        let _si,loc = linkages |> Seq.map (fun (loc,substr) -> mt.Note.IndexOf(substr), loc) |> Seq.sortBy (fun (a,_)->a) |> Seq.head
+                        Some(loc)
+                    else None
+                else None
+            else None
+        if tryToFollowHyperlink && hyperlinkLocOpt.IsNone then
+            System.Console.Beep()
+        else
+            match quickNavModeSavedSettings with
+            | None ->
+                quickNavModeSavedSettings <- Some(QuickNav.SavedViewportSettings(theGame), MapIcons.allIconsDisabledCheckbox.IsChecked)
+                QuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
+                MapIcons.allIconsDisabledCheckbox.IsChecked <- true
+                mapMarkersHoverImageOverlay.Visibility <- Visibility.Visible
+                QuickNav.StartHashtagTargetsAnimation(this, mapMarkersHoverImage, mapMarkersHoverImageStoryboard)
+            | Some(s,aidc) ->
+                s.Restore()
+                MapIcons.allIconsDisabledCheckbox.IsChecked <- aidc
+                mapMarkersHoverImageOverlay.Visibility <- Visibility.Hidden
+                QuickNav.StopHashtagTargetsAnimation(this, mapMarkersHoverImage, mapMarkersHoverImageStoryboard)
+                quickNavModeSavedSettings <- None
+            match hyperlinkLocOpt with
+            | Some(loc) -> NavigateTo(loc)  // ... navigate to it
+            | None -> ()
+            zoom()
+            //MapIcons.redrawMapIconsEv.Trigger()   // called by .IsChecked update
+            MapIcons.redrawMapIconHoverOnly.Trigger()
+            updateQuickNavView()
+

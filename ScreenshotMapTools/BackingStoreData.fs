@@ -39,7 +39,6 @@ type CustomProjection(label,xywh) =
 type Game() =   // e.g. Zelda
     static let theGame = Game()
     member val ZoneNames : string[] = null with get,set           // e.g. Overworld,Dungeon1,...
-    member val MetadataNames : string[] = null with get,set       // e.g. TakeAny,BurnBush,Shop,FairyFountain
     member val CurZone : int = 0 with get,set
     // cursor
     member val CurX : int = 50 with get,set
@@ -49,9 +48,12 @@ type Game() =   // e.g. Zelda
     member val CenterY : int = 50 with get,set
     // preferred view
     member val CurZoom : int = 4 with get,set
+    // preview pane customizations
     member val CustomProjections : CustomProjection[] = null with get,set
     member val PreviewPaneLayoutPerZone : BasicLayout.JsonableTree<PreviewPaneSource>[] = null with get,set     // PPLPZ.[zoneNum] = null means default (FULL), else what to show
+    // other data
     member val GlobalNote : string = "" with get,set
+    member val HashtagTargetsForQuickNav : string[] = null with get,set
     static member TheGame = theGame
     member this.Save() = // assumes just one global instance
         let gameFile = System.IO.Path.Combine(GetRootFolder(), "game.json")
@@ -70,7 +72,6 @@ let LoadRootGameData() =
         let json = System.IO.File.ReadAllText(gameFile)
         let data = System.Text.Json.JsonSerializer.Deserialize<Game>(json)
         theGame.ZoneNames <- data.ZoneNames
-        theGame.MetadataNames <- data.MetadataNames
         theGame.CurZone <- data.CurZone
         theGame.CurX <- data.CurX
         theGame.CurY <- data.CurY
@@ -80,6 +81,10 @@ let LoadRootGameData() =
         theGame.CustomProjections <- data.CustomProjections
         theGame.PreviewPaneLayoutPerZone <- data.PreviewPaneLayoutPerZone
         theGame.GlobalNote <- data.GlobalNote
+        theGame.HashtagTargetsForQuickNav <- data.HashtagTargetsForQuickNav
+    // normalize
+    if theGame.HashtagTargetsForQuickNav = null then
+        theGame.HashtagTargetsForQuickNav <- [||]
 
 // screenshots folder of yyyy-MM-dd-HH-mm-ss
 let DATE_TIME_FORMAT = "yyyy-MM-dd-HH-mm-ss"
