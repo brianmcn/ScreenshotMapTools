@@ -115,6 +115,8 @@ of the tool.
 
 ## <a id="textnotes"></a>Text notes and #hashtag labels
 
+### Notes
+
 You can make text notes for each cell on the grid.  
 
 * `(NumPad) /`: pressing slash gives the tool focus and opens a textbox dialog to edit the text
@@ -125,6 +127,8 @@ you are all done.
 
 When the cursor is on a cell with notes, the bottom left pane of the tool shows a larger
 screenshot of that cell, along with your text notes	for that call.
+
+### Hashtags
 
 Your text can contain **#hashtags**, alphanumeric labels prefixed by an #octothorpe, which 
 enable some more advanced features of tool, like, for example, displaying all the #save checkpoint 
@@ -138,9 +142,20 @@ locations on the map, and right-clicking lets you change the color and shape of 
 
 ![hashtags example](img/HashtagsExample.png)
 
+(In addition to marking up cells containing #hashtags, you can also mark up cells containing any text
+that matches a regular expression, by clicking the little button next to "RE:" at the top of the tag
+list in the lower-right pans of the app.)
+
+(You can click the '(disable all)' to temporarily disable all the hashtag markup, if you just want to
+look at the unobscured map.)
+
+### Hyperlinks
+
 You can also create clickable **hyperlinks** to jump to other cells by typing e.g. coordinates 
 in formats like "(45,55)" or "(zone02,51,52)" which can be useful for marking up fast
 travel systems in a game, or doors that lead to different dungeon maps, or whatnot.
+
+### Text macro
 
 There is one text macro which you can edit using `(NumPad) Ctrl-3`.  Pressing `NumPad3` will toggle the 
 text macro at the end of the Note in the current cell; that is, append the text to the end of the Note,
@@ -151,6 +166,8 @@ secrets behind the blue walls.  Edit the text macro (`(NumPad) Ctrl-3`) to be "#
 around the map to all the screens with blue walls and press `Numpad3` to append #blueWall to the Note for 
 that screen.  Click on #blueWall in the bottom-right pane of the app to highlight all the cells with that
 hashtag, and now you can easily see an overview of all the places you need to revisit with your new powerup.
+
+### Global Note
 
 There is also a 'global note', that is, a note which is not associated with any particular
 map cell.  You can edit the global note with

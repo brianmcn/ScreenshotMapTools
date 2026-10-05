@@ -271,21 +271,16 @@ let MakeIconUI(parentWindow, appMAPX) =
                 regexButton.Content <- (let tb = mkTxt(if userRegex="" then "(click here)" else userRegex) in tb.FontSize<-8. ; tb)
             refreshButton()
             regexButton.Click.Add(fun _ ->
-                let label = mkTxt("Type a regex")
-                label.Margin <- Thickness(2.)
-                let edit = new TextBox(IsReadOnly=false, FontSize=12., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=BG, Text=userRegex, Margin=Thickness(2.))
-                let closeEv = new Event<unit>()
-                let closeButton = new Button(Content="Done", Margin=Thickness(2.))
-                closeButton.Click.Add(fun _ -> closeEv.Trigger())
-                let dp = new DockPanel(LastChildFill=true)
-                DockPanel.SetDock(label, Dock.Top)
-                DockPanel.SetDock(closeButton, Dock.Bottom)
-                dp.Children.Add(label) |> ignore
-                dp.Children.Add(closeButton) |> ignore
-                dp.Children.Add(edit) |> ignore
-                Utils.DoModalDialogCore(parentWindow, dp, "Change user regex", closeEv.Publish, (fun() -> edit.Focus() |> ignore))
-                userRegex <- edit.Text
-                refreshButton()
+                let save, result = Utils.DoBasicModalTextDialogCore(parentWindow, "Change regex", "Type in a regular expression to match in Notes", userRegex, 300., 60., false)
+                if save then
+                    userRegex <- result
+                    refreshButton()
+                    // ensure enabled after editing
+                    match mapIconData.TryGetValue(REGEX_DUMMY) with
+                    | false, _ -> mapIconData.Add(REGEX_DUMMY, Icon.Default(REGEX_DUMMY))
+                    | true, icon -> icon.IsEnabled <- true
+                    eval()
+                    redrawMapIconsEv.Trigger()
                 )
             let but = new DockPanel(LastChildFill=false)
             let desc = mkTxt("RE: ")
