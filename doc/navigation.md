@@ -62,12 +62,12 @@ and a number of NumPad key behaviors change in this mode.
 Upon activating QuickNav Mode, the app immediately zooms out far enough to see all the screenshots in the current zone, 
 centered in the grid.
 
-`NumPad 5` exits QuickNav Mode.
+`NumPad .` exits QuickNav Mode, that is, `NumPad .` toggles the mode.
 
 Keys `NumPad 7` and `NumPad 9` no longer zoom in QuickNav Mode, instead they cycle to the prior and next zones.
 (`NumPad *` preserves its behavior of cycling to the next zone.)
 
-`NumPad .` will follow the first hyperlink in the current cell's note, as though you clicked on it.  In the screenshot 
+`NumPad 5` will follow the first hyperlink in the current cell's note, as though you clicked on it.  In the screenshot 
 above, it would change to the zone containing the dungeon 1 map.  If a hyperlink was followed, QuickNav Mode exits.
 
 The 'arrow' keys `NumPad 2468` change functionality in QuickNav Mode.  They move the cursor to the next 'target' cell
@@ -81,11 +81,12 @@ Scenarios where QuickNav is useful:
 
 **Context peek**: \
 You're currently zoomed deep into the map, and want to peek at the zoomed-out map for context. \
-Press `NumPad .` to get the peek, and then press `NumPad 5` to return to the original view.
+Press `NumPad .` to get the peek, and then press `NumPad .` again to return to the original view.
 
 **Follow hyperlink**: \
 You're currently on a cell with a hyperlink (to elsewhere in the map, or another zone, or whatever). \
-Press `NumPad .` _twice_ to follow the hyperlink.  (Or you could click on it with the mouse.)
+Press `NumPad .5` to follow the hyperlink (chooses the first hyperlink in the Note, if there are multiple). 
+(Or you could click on it with the mouse.)
 
 **Fast travel or respawn**: \
 Some games have fast travel systems, which allow the player to move to a fixed set of faraway locations. \
@@ -99,4 +100,4 @@ keystrokes. (Or you could click on the new location with the mouse.)
 
 **Cycling backwards through many zones**: \
 If you have ten zones, and want to navigate from zone06 to zone05, it is quicker to press \
-`NumPad .75` than to press `Numpad *********`.  (Or you could mouse-navigate the zone dropdown menu.)
+`NumPad .7.` than to press `Numpad *********`.  (Or you could mouse-navigate the zone dropdown menu.)

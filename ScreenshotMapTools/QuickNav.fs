@@ -115,22 +115,23 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
     g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
     g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
     let data = [|
-            2, "5",            "end Quick\nNav Mode"
+            2, ".",            "end Quick\nNav Mode"
             1, "9 *",          "cycle zone +1"
             1, "7",            "cycle zone -1"
-            2, ".",            "follow first\nhyperlink"
+            2, "5",            "follow first\nhyperlink"
             3, "8 \n4 6\n2 ",  "move to\nnext hashtag\ntarget"
         |]
     let COUNT = data.Length
     for i = 0 to COUNT-1 do
         let n,a,b = data.[i]
-        g.RowDefinitions.Add(new RowDefinition(Height=GridLength((float n) * 24.)))
+        let h = (float n) * 24.
+        g.RowDefinitions.Add(new RowDefinition(Height=GridLength(h)))
         let at = mkTxt(a,1)
+        at.Height <- h
         at.TextAlignment <- TextAlignment.Right
         at.Padding <- Thickness(0.,0.,8.,0.)
         if at.Text="." then
-            at.FontSize <- at.FontSize + 4.0
-            at.Margin <- Thickness(0., -2., 0., 0.)
+            at.FontSize <- at.FontSize + 8.0
         Utils.gridAdd(g, at, 0, i)
         Utils.gridAdd(g, mkTxt(b,1), 1, i)
     let sp = new StackPanel(Orientation=Orientation.Vertical, Background=Brushes.LightSteelBlue, Visibility=Visibility.Hidden, Width=w, Height=h)

@@ -731,8 +731,15 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
         let TOP_BAR_HEIGHT = 30.
-        let quickNavModeBar = new TextBlock(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT, Background=Brushes.Red, Foreground=Brushes.White, Visibility=Visibility.Hidden, FontSize=16.,
-                                    Text="QuickNav Mode - press NumPad5 to end - see bottom right panel for controls", TextAlignment=TextAlignment.Center)
+        let quickNavModeBar = 
+            let tb = new TextBlock(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT, Background=Brushes.Red, Foreground=Brushes.White, Visibility=Visibility.Hidden, FontSize=16.,
+                                    TextAlignment=TextAlignment.Center)
+            Utils.StarStarInlinesMod("QuickNav Mode - press NumPad**.** to end - see bottom right panel for controls", tb.Inlines, fun(b,run) ->
+                if b then   // make the period larger and more obvious
+                    run.FontWeight <- FontWeights.Bold
+                    run.FontSize <- run.FontSize + 4.
+                )
+            tb
         let topBar =
             let sp = new StackPanel(Orientation=Orientation.Horizontal, Height=TOP_BAR_HEIGHT)
             sp.Children.Add(addNewZoneButton) |> ignore
@@ -988,11 +995,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     //if key = VK_NUMPAD0 then            this.DoScreenshot()
                     if key = VK_NUMPAD7 then            this.CycleZone(true,-1)
                     if key = VK_NUMPAD9 then            this.CycleZone(true,1)
-                    if key = VK_NUMPAD5 then            this.ToggleQuickNav(false)
+                    if key = VK_NUMPAD5 then            this.ToggleQuickNav(true)
                     //if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
                     //if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
                     //if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_DECIMAL then            this.ToggleQuickNav(true)
+                    if key = VK_DECIMAL then            this.ToggleQuickNav(false)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
     member this.DoCut() =
@@ -1303,6 +1310,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             | Some(loc) -> NavigateTo(loc)  // ... navigate to it
             | None -> ()
             zoom()
+            warp()
             //MapIcons.redrawMapIconsEv.Trigger()   // called by .IsChecked update
             MapIcons.redrawMapIconHoverOnly.Trigger()
             updateQuickNavView()

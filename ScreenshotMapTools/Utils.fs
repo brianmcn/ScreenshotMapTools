@@ -112,14 +112,15 @@ let deparent(e:FrameworkElement) =
     | null -> ()
     | :? Panel as p -> p.Children.Remove(e)
     | _ -> ()
-let StarStarBold(txt:string, tb:TextBlock) = 
-    tb.Inlines.Clear()
+let StarStarInlinesMod(txt:string, inlines:System.Windows.Documents.InlineCollection, runF) = 
+    inlines.Clear()
     let parts = txt.Split([|"**"|], System.StringSplitOptions.None)
     for i = 0 to parts.Length-1 do
-        let isBold = (i%2 = 1)
+        let isBetweenStarStars = (i%2 = 1)
         let run = new System.Windows.Documents.Run(parts.[i])
-        run.FontWeight <- if isBold then FontWeights.Bold else FontWeights.Normal
-        tb.Inlines.Add(run)
+        runF(isBetweenStarStars,run)
+        inlines.Add(run)
+let StarStarBold(txt:string, tb:TextBlock) = StarStarInlinesMod(txt, tb.Inlines, fun (isBold, run) -> run.FontWeight <- if isBold then FontWeights.Bold else FontWeights.Normal)
 ///////////////////////////////////////////////////////////////
 let mutable nestedModalDialogCount = 0      // when >0, app disables own hotkey logic and instead broadcasts events for hotkeys
 let DoModalDialogCore(parentWindow, element, title, close:IEvent<unit>, onLoad) =
