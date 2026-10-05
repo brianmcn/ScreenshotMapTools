@@ -384,7 +384,7 @@ let DrawMapIconsToBitmapSource(gr : GridRange, totalW, totalH) =
                     for j = gr.MinY to gr.MaxY do
                         let note = zm.MapTiles.[i,j].Note
                         if note <> null && re.IsMatch(note) then
-                            draw(i,j,MapIcons.REGEX_DUMMY)
+                            draw(i-gr.MinX,j-gr.MinY,MapIcons.REGEX_DUMMY)
         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
         for k in keys do
             let locs = metadataStore.LocationsForKey(k)
