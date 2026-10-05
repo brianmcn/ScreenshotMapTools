@@ -153,7 +153,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mapMarkersHoverImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
     let mapMarkersHoverImageStoryboard = new System.Windows.Media.Animation.Storyboard()                                                            // used with QuickNav
     let mapMarkersHoverImageOverlay = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false, Visibility=Visibility.Hidden)    // used with QuickNav
-    let mouseCursorCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)
+    let mouseCursorCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
         Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
