@@ -85,7 +85,7 @@ Press `NumPad .` to get the peek, and then press `NumPad 5` to return to the ori
 
 **Follow hyperlink**: \
 You're currently on a cell with a hyperlink (to elsewhere in the map, or another zone, or whatever). \
-Press `Numpad .` _twice_ to follow the hyperlink.  (Or you could click on it with the mouse.)
+Press `NumPad .` _twice_ to follow the hyperlink.  (Or you could click on it with the mouse.)
 
 **Fast travel or respawn**: \
 Some games have fast travel systems, which allow the player to move to a fixed set of faraway locations. \
@@ -96,3 +96,7 @@ in Zelda, I was marking up dungeon entrances with '#dungeon', and in Zelda, the 
 player to fast-travel to entrances of dungeons that have been beaten.  On large maps, specifying the 
 QuickNav hashtag targets makes it possible to update the cursor to the new location using fewer 
 keystrokes. (Or you could click on the new location with the mouse.)
+
+**Cycling backwards through many zones**: \
+If you have ten zones, and want to navigate from zone06 to zone05, it is quicker to press \
+`NumPad .75` than to press `Numpad *********`.  (Or you could mouse-navigate the zone dropdown menu.)

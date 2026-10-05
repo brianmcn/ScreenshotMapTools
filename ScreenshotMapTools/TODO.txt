@@ -1,28 +1,5 @@
 ﻿be own user tester - for zelda, what feature what i want most? did hashtag completion, maybe cursor-reset-to-spawn thingy?
 
-
-hmm, hyperlinks are not usable in global note, but what if they were?
-or alternatively, a separate quick-nav thingy where you can type hyperlinks and use some kind of hotkeys?
- - like imagine a big list of hyperlinks, and '.' moves cursor to next one in the current zone
- - or imagine being able to say '#save' in the quicknav, and all save points become quicknavable, hm
-speaking of quicknav, if the cursor is at Z,X,Y, and that cell contains a single hyperlink, it would be nice
-    if a hotkey could traverse that nav as well
-(. and ctrl + - still free keys at moment)
-so i could imagine '.' as traverse first hyperlink in current cell note
-and i could imagine mapping Alt+2468 as 'quicknav' where... NOPE alt doesnt work on numpad for reasons
-what is '.' puts you in quicknav mode, and then a whole new set of controls takes over? hmmmmmm
-quicknav mode
-. traverse first hyperlink in cell
-2468 move to next quicknav target
-5 exit quicknav mode
-* probably still cycle zone? could imagine next/prev zone
-79 probably still zoom?  or i might want a full-zoom-out to automagically happen in quicknav mode actually, yeah that is value-add
-/ edit quicknav targets (set of hahtags)
-other keys beep error? turn off mode?
-what does mode look like?  all the targets light up animated (in their hashtag colors?), control cheats appear?
-use cases: respawn after die, fast travel systems, big-picture-peek, faster mouseless nav
-
-
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 
 put like some demo/doc stuff in a demo folder
