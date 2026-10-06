@@ -64,7 +64,7 @@ centered in the grid.
 
 `NumPad .` exits QuickNav Mode, that is, `NumPad .` toggles the mode.
 
-Keys `NumPad 7` and `NumPad 9` no longer zoom in QuickNav Mode, instead they cycle to the prior and next zones.
+Keys `NumPad 7` and `NumPad 9` no longer zoom in QuickNav Mode, instead they cycle to the prior and next zones. \
 (`NumPad *` preserves its behavior of cycling to the next zone.)
 
 `NumPad 5` will follow the first hyperlink in the current cell's note, as though you clicked on it.  In the screenshot 
