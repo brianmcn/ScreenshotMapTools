@@ -3,7 +3,7 @@
 ## On this page
 
 SETUP
-* [Downloading and running the tool](#downloading)
+* [Pre-requisites; Downloading and running the tool](#downloading)
 * [Setting up a new game for the tool](#newgamesetup)
 
 TAKING SCREENSHOTS AND NOTES
@@ -27,7 +27,7 @@ Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
 ![horizontal rule](img/HR2.png)
 
-## <a id="downloading"></a>Downloading and running the tool
+## <a id="downloading"></a>Pre-requisites; Downloading and running the tool
 
 See the [download page](download.md) for information.
 
