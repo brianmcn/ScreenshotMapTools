@@ -22,29 +22,34 @@ in that cell.  Right click an individual screenshot from that dialog to 'Feature
 (When featuring a single screenshot, right clicking the picture in the Feature window itself will populate the clipboard with the filename
 on disk where that particular screenshot lives.)
 
+The other Feature Windows are invoked by clicking the 'Feature' button at the top of the app, which allows you to choose among these choices,
+each explained further below:
+
+![feature choices](img/FeatureWindowSelection.png)
+
 ### Pan and Zoom the whole zone Map
 
-Pressing `NumPad 1` will 'Feature' the entire map grid where you can 'pan' the map by (left-click) dragging, and zoom in and out using 
+The first of these 'Feature' choices shows the entire map grid where you can 'pan' the map by (left-click) dragging, and zoom in and out using 
 the mouse scroll-wheel.  This can be useful to show the 'big picture' of an area or to get a close look at the boundary between two screens,
 for example.  A couple of example screenshots are suggestive:
 
 ![feature zoom out](img/FeatureZoomOut.png)
 ![feature zoom in](img/FeatureZoomIn.png)
 
-Note that pressing `Ctrl+NumPad1` does something similar, but with the full map image repeated four times in a 2x2 grid.  This can be useful 
+The second 'Feature' choice does something similar, but with the full map image repeated four times in a 2x2 grid.  This can be useful 
 for games where the game map is topologically a torus with wraparound, and the left edge is adjacent to the right edge, or the top edge is 
 adjacent to the bottom edge. The 2x2 version lets you inspect those edges side-by-side by panning and zooming within the Feature Window.
 
 ### Full zone with notes and links
 
-The 'Feature' button at the top of the app will 'Feature' a window showing the full map of the zone, where hovering each individual cell
-shows its notes on the left, and any hyperlinked cells on the bottom.  
+The third 'Feature' choice shows the full map of the zone, where hovering each individual cell shows an enlarged screenshot and its notes 
+on the left, and any hyperlinked cells on the bottom.  
 
 ![feature one zone with extras](img/FeatureZone.png)
 
 ### <a id="dual"></a>Comparing two zone side by side
 
-The 'Dual' button at the top of the app will ask you for two zones, and a range of cells, and show both zones' overview map. Mouse hovering 
+The final 'Feature' choice will ask you for two zones, and a range of cells, and show both zones' overview map. Mouse hovering 
 any cell will show a larger preview of the corresponding cell in both zones.
 
 ![two zones at once](img/FeatureDual.png)
@@ -59,5 +64,4 @@ The Feature Window always has the title 'FEATURE', making it easy to target with
 You might, for instance, capture the Feature Window in the layer just above the game window, with the same size as the game, in your OBS 
 layout, so that the Feature Window takes precedence.  Then any time you use the Feature Window, your audience will see what you are doing, 
 and whenever you are done you can close the Feature Window and go back to the game.
-
 

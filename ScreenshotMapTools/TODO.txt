@@ -2,9 +2,6 @@
 can i test on surface? without fullsize keyboard?
 
 
-1 and ctrl-1 dont really belong clogging up hotkeys, a button in the app is fine, since it's FEATURE stuff
-yeah, make Feature Window a button, with pan/zoom, feature, and dual options in a dialog
-
 
 
 quick start

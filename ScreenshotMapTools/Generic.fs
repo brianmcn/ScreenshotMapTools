@@ -766,77 +766,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
             featureButton.Click.Add(fun _ -> 
-                FeatureWindow.MakeFeatureMap(this.Owner, Array2D.init 1 1 (fun _ _ -> Some(ZoneMemory.Get(theGame.CurZone))))
-(*
-                // This is code to feature multiple zones at once, which doesn't seem too useful
-                let W = 220
-                let diag = Utils.makeGrid(2,3,W,20)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
-                let wInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-                Utils.gridAdd(diag, wInput, 1, 0)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Height"), 0, 1)
-                let hInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-                Utils.gridAdd(diag, hInput, 1, 1)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Comma-separated zones"), 0, 2)
-                let zs = theGame.CurZone.ToString()
-                let zInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text=zs, CaretIndex=zs.Length)
-                Utils.gridAdd(diag, zInput, 1, 2)
-                let closeEv = new Event<unit>()
-                wInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then hInput.Focus() |> ignore)
-                hInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then zInput.Focus() |> ignore)
-                zInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
-                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> wInput.Focus() |> ignore))
-                try
-                    let w = wInput.Text |> int
-                    let h = hInput.Text |> int
-                    let zs = zInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> if s="" then None else Some(ZoneMemory.Get(int s)))
-                    if zs.Length <> w*h then failwith "wrong number of comma-separated entries"
-                    let a = Array2D.init w h (fun x y -> zs.[y*h+x])
-                    FeatureWindow.MakeFeatureMap(this.Owner,a)
-                with e ->
-                    System.Console.Beep()
-                    printfn "FEATURE error: %s" (e.ToString())
-*)
+                this.DoFeatureButton()
                 )
             sp.Children.Add(featureButton) |> ignore
-            let dualFeatureButton = new Button(Content="Dual", Margin=CONTROL_MARGIN)
-            dualFeatureButton.Click.Add(fun _ -> 
-                let W = 220
-                let diag = Utils.makeGrid(2,3,W,20)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Left Zone"), 0, 0)
-                let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="0", CaretIndex=1)
-                Utils.gridAdd(diag, lInput, 1, 0)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Right Zone"), 0, 1)
-                let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-                Utils.gridAdd(diag, rInput, 1, 1)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="minx,miny,maxx,maxy"), 0, 2)
-                let boundsInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="", CaretIndex=0)
-                Utils.gridAdd(diag, boundsInput, 1, 2)
-                let closeEv = new Event<unit>()
-                lInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then rInput.Focus() |> ignore)
-                rInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then 
-                                                boundsInput.Focus() |> ignore
-                                                try
-                                                    let gr1 = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
-                                                    let gr2 = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
-                                                    boundsInput.Text <- sprintf "%d,%d,%d,%d" (min gr1.MinX gr2.MinX) (min gr1.MinY gr2.MinY) (max gr1.MaxX gr2.MaxX) (max gr1.MaxY gr2.MaxY)
-                                                    boundsInput.CaretIndex <- boundsInput.Text.Length
-                                                with _ -> ()
-                                                )
-                boundsInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
-                Utils.DoModalDialogCore(this, diag, "Select two zones to feature side-by-side", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
-                // TODO better validate
-                try
-                    let l = lInput.Text |> int
-                    let r = rInput.Text |> int
-                    let [|a;b;c;d|] = boundsInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> int s)
-                    FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), FeatureWindow.GridRange(a,b,c,d))
-                with e ->
-                    System.Console.Beep()
-                    printfn "FEATURE error: %s" (e.ToString())
-
-                )
-            sp.Children.Add(dualFeatureButton) |> ignore
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
@@ -975,7 +907,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     if key = VK_NUMPAD9 then            this.ZoomIn()
                     if key = VK_NUMPAD5 then            this.DoCentering()
                     if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
                     if key = VK_NUMPAD3 then            this.DoTextMacro((ctrl_bits = int MOD_CONTROL))
                     if key = VK_DECIMAL then            this.ToggleQuickNav(false)
                 | Some(_) ->    // we're in QuickNav mode
@@ -1299,4 +1230,112 @@ type MyWindow(mkGlassF : unit->unit) as this =
             //MapIcons.redrawMapIconsEv.Trigger()   // called by .IsChecked update
             MapIcons.redrawMapIconHoverOnly.Trigger()
             updateQuickNavView()
+    member this.DoFeatureButton() =
+        let featureZoneButton = new Button(Content="This Zone\nw/ Details")
+        let featureZone() = FeatureWindow.MakeFeatureMap(this.Owner, Array2D.init 1 1 (fun _ _ -> Some(ZoneMemory.Get(theGame.CurZone))))
+(*
+                // This is code to feature multiple zones at once, which doesn't seem too useful
+                let W = 220
+                let diag = Utils.makeGrid(2,3,W,20)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
+                let wInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                Utils.gridAdd(diag, wInput, 1, 0)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Height"), 0, 1)
+                let hInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+                Utils.gridAdd(diag, hInput, 1, 1)
+                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Comma-separated zones"), 0, 2)
+                let zs = theGame.CurZone.ToString()
+                let zInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text=zs, CaretIndex=zs.Length)
+                Utils.gridAdd(diag, zInput, 1, 2)
+                let closeEv = new Event<unit>()
+                wInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then hInput.Focus() |> ignore)
+                hInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then zInput.Focus() |> ignore)
+                zInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
+                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> wInput.Focus() |> ignore))
+                try
+                    let w = wInput.Text |> int
+                    let h = hInput.Text |> int
+                    let zs = zInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> if s="" then None else Some(ZoneMemory.Get(int s)))
+                    if zs.Length <> w*h then failwith "wrong number of comma-separated entries"
+                    let a = Array2D.init w h (fun x y -> zs.[y*h+x])
+                    FeatureWindow.MakeFeatureMap(this.Owner,a)
+                with e ->
+                    System.Console.Beep()
+                    printfn "FEATURE error: %s" (e.ToString())
+*)
+        let dualFeatureButton = new Button(Content="Two Zones\nat once")
+        let dualFeature() = 
+            let W = 220
+            let diag = Utils.makeGrid(2,3,W,20)
+            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Left Zone"), 0, 0)
+            let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="0", CaretIndex=1)
+            Utils.gridAdd(diag, lInput, 1, 0)
+            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Right Zone"), 0, 1)
+            let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
+            Utils.gridAdd(diag, rInput, 1, 1)
+            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="minx,miny,maxx,maxy"), 0, 2)
+            let boundsInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="", CaretIndex=0)
+            Utils.gridAdd(diag, boundsInput, 1, 2)
+            let closeEv = new Event<unit>()
+            lInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then rInput.Focus() |> ignore)
+            rInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then 
+                                            boundsInput.Focus() |> ignore
+                                            try
+                                                let gr1 = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
+                                                let gr2 = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
+                                                boundsInput.Text <- sprintf "%d,%d,%d,%d" (min gr1.MinX gr2.MinX) (min gr1.MinY gr2.MinY) (max gr1.MaxX gr2.MaxX) (max gr1.MaxY gr2.MaxY)
+                                                boundsInput.CaretIndex <- boundsInput.Text.Length
+                                            with _ -> ()
+                                            )
+            boundsInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
+            Utils.DoModalDialogCore(this, diag, "Select two zones to feature side-by-side", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
+            // TODO better validate
+            try
+                let l = lInput.Text |> int
+                let r = rInput.Text |> int
+                let [|a;b;c;d|] = boundsInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> int s)
+                FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), FeatureWindow.GridRange(a,b,c,d))
+            with e ->
+                System.Console.Beep()
+                printfn "FEATURE error: %s" (e.ToString())
+        let zoomable1x1Button = new Button(Content="Zoom & Pan\nZone Map")
+        let zoomable1x1() = this.DoFullMapPanZoomFeatureWindow(false)
+        let zoomable2x2Button = new Button(Content="Zoom & Pan\nZone Map(2x2)")
+        let zoomable2x2() = this.DoFullMapPanZoomFeatureWindow(true)
+        let mkTxt(txt) = new TextBlock(FontSize=16., Text=txt, Foreground=Brushes.Black, TextWrapping=TextWrapping.Wrap, 
+                                            Margin=Thickness(3., 0., 3., 0.), VerticalAlignment=VerticalAlignment.Center)
+        let sp = new StackPanel(Orientation=Orientation.Vertical, Width=float(APP_WIDTH-16), Background=Brushes.White)
+        sp.Children.Add(mkTxt("""The Feature Window is a large window that presents one of a few different useful projections of your screenshots and Notes.
 
+Choose one of these options:""")) |> ignore
+        let desc1 = """This one shows the current zone's map grid, where mousing each cell shows a large screenshot, the Notes, and any hyperlinked cells."""
+        let desc2 = """This one shows two zones side by side; mousing either cell grid shows large screenshots from both zones at the same coordinates at once."""
+        let desc3 = """This one displays a fullsize map of the current zone, which you can pan and zoom (using left-click-drag and mouse-scroll-wheel)."""
+        let desc4 = """This one is like the previous one, only the map is replicated four times in a 2x2 grid (so you can see across world-wrap-edges, for games whose maps wrap around on a topological torus)."""
+        let border(e) = new Border(BorderBrush=Brushes.Black, BorderThickness=Thickness(1.0), Child=e)
+        let g = new Grid()
+        g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(104.)))
+        g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(float(APP_WIDTH-120))))
+        for _i = 1 to 4 do g.RowDefinitions.Add(new RowDefinition())
+        let mutable row = 0
+        let closeEv = new Event<_>()
+        let data = [|
+            zoomable1x1Button, desc3, zoomable1x1
+            zoomable2x2Button, desc4, zoomable2x2
+            featureZoneButton, desc1, featureZone
+            dualFeatureButton, desc2, dualFeature
+            |]
+        for b,desc,f in data do
+            b.Margin <- Thickness(6.)
+            b.Click.Add(fun _ -> closeEv.Trigger(); f())
+            Utils.gridAdd(g, border(b), 0, row)
+            Utils.gridAdd(g, border(mkTxt(desc)), 1, row)
+            row <- row + 1
+        sp.Children.Add(Utils.centerWithGrid(g)) |> ignore
+        sp.Children.Add(mkTxt("""Try them out!
+
+You can also Feature a single cell of the map grid by right-clicking on its cell in the main app window.
+
+(Note: The Feature Window always has the window title "FEATURE", making it easy to target with OBS.)""")) |> ignore
+        let border = new Border(Child=sp, Padding=Thickness(4.), BorderThickness=Thickness(1.), BorderBrush=Brushes.Black)
+        Utils.DoModalDialog(this, border, "Choose a Feature Window", closeEv.Publish)
