@@ -1,13 +1,9 @@
-﻿
-when mousing, preview pane goes with mouse, but curnote does not, how should it work, hmm - what does minimap do? mouse or keyboard?
- - either all should be mouse, or some set should be keyboard only, hmmm, leaning toward everyone mouse, that is, on-visual-cursor-moved()...
-
-
-what is fallback if RegisterHotKey fails?
+﻿what is fallback if RegisterHotKey fails? none, program fails to start
 can i test on surface? without fullsize keyboard?
 
 
 1 and ctrl-1 dont really belong clogging up hotkeys, a button in the app is fine, since it's FEATURE stuff
+yeah, make Feature Window a button, with pan/zoom, feature, and dual options in a dialog
 
 
 

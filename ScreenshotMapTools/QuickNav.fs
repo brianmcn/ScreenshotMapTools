@@ -169,6 +169,7 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
         let orig = System.String.Join(",", theGame.HashtagTargetsForQuickNav)
         let extra = "Type in a comma-separated list of hashtags, without octothorpes (no '#')" 
                         + "\nCells whose Notes contain those hashtags will be legal targets for QuickNav"
+                        + "\nCycle through them using NumPad1 and NumPad3 in QuickNav Mode"
                         + "\nExample:"
                         + "\nrespawn,fastTravel,save"
         let save, r = Utils.DoBasicModalTextDialogCore(parentWindow, "Hashtags for QuickNav", extra, orig, appWidth, 500., false)

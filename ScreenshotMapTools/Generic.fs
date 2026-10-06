@@ -178,13 +178,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let previewPaneChanged = new Event<unit>()
-    let uise = new Utils.UISettlingEvent(100, [| kbdX.Changed; kbdY.Changed; curZoneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |], false)
-    let settledUIPopoutInfoEvent = 
-        let r = new Event<_>()
-        uise.ChangedAndSettled.Add(fun _ ->
-            r.Trigger(kbdX.Value, kbdY.Value)
-            )
-        r
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
         kbdX.Value <- theGame.CurX
@@ -488,10 +481,10 @@ type MyWindow(mkGlassF : unit->unit) as this =
             ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
             )
         ev.Publish
-    let curNoteUISE = 
+    let popoutUISE = // used by LivesNotes and ZoomableLiveMinimap... note that pictureChanged only applies to the latter, but we just use the same event for convenience
         let ev = new Event<int*int>()
-        let uise = new Utils.UISettlingEvent(100, [|kbdX.Changed; kbdY.Changed; previewPaneChanged.Publish|], true)
-        uise.ChangedAndSettled.Add(fun _ -> ev.Trigger(kbdX.Value, kbdY.Value))
+        let uise = new Utils.UISettlingEvent(100, [|kbdX.Changed; kbdY.Changed; previewPaneChanged.Publish; (pictureChanged.Changed |> Event.filter (fun () -> pictureChanged.Value)) |], true)
+        uise.ChangedAndSettled.Add(fun _ -> ev.Trigger(theGame.CurX, theGame.CurY))
         ev.Publish
     let popout_agp = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
@@ -524,7 +517,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let popout_ln = { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.LiveNotesWindow.Singleton = null then
-                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.LiveNotesWindow(kbdX.Value, kbdY.Value, curNoteUISE))
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.LiveNotesWindow(theGame.CurX, theGame.CurY, popoutUISE))
                         member _.Close() = 
                             if Popouts.LiveNotesWindow.Singleton<>null then
                                 Popouts.LiveNotesWindow.Singleton.ThreadSafeClose()
@@ -536,7 +529,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             { new PopoutsSettings.IPopoutWindowBehavior with
                         member _.Activate() = 
                             if Popouts.ZoomableLiveMinimapWindow.Singleton = null then
-                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.ZoomableLiveMinimapWindow(aspect, kbdX.Value, kbdY.Value, settledUIPopoutInfoEvent.Publish))
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun() ->new Popouts.ZoomableLiveMinimapWindow(aspect, theGame.CurX, theGame.CurY, popoutUISE))
                         member _.Close() = 
                             if Popouts.ZoomableLiveMinimapWindow.Singleton<>null then
                                 Popouts.ZoomableLiveMinimapWindow.Singleton.ThreadSafeClose()
@@ -948,7 +941,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 failwithf "could not register hotkey %A" k
         for k in KEYS_WITH_CTRL do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1, MOD_CONTROL, uint32 k))) then
-                failwithf "could not register hotkey %A" k
+                failwithf "could not register hotkey ctrl+%A" k
     member this.UnregisterHotKey() =
         let helper = new System.Windows.Interop.WindowInteropHelper(this)
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore
@@ -983,7 +976,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     if key = VK_NUMPAD5 then            this.DoCentering()
                     if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
                     if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
+                    if key = VK_NUMPAD3 then            this.DoTextMacro((ctrl_bits = int MOD_CONTROL))
                     if key = VK_DECIMAL then            this.ToggleQuickNav(false)
                 | Some(_) ->    // we're in QuickNav mode
                     if key = VK_MULTIPLY then           this.CycleZone(true,1)
@@ -1173,7 +1166,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 mfsRefresh()
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.FinishEditing)
             GameSpecific.ActivateGameWindow()
-    member this.DoSpecialText(ctrl) =
+    member this.DoTextMacro(ctrl) =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if ctrl then
             setCursor()
