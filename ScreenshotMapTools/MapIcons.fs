@@ -154,7 +154,7 @@ let KEYS_LIST_BOX_WIDTH = 150
 
 let redrawPanelEv = new Event<unit>()          // when to redraw the keys panel
 let redrawMapIconsEv = new Event<unit>()       // when to just redraw map icons (e.g. changed display for #foo)
-let redrawMapIconHoverOnly = new Event<unit>() // when to just redraw the map icon hover layer (e.g. due to mouse rolling over different keys)
+let redrawMapIconHoverOnly = new Event<unit>() // when to just redraw the map icon hover layer (e.g. due to mouse rolling over different keys)  // also hijacked by QuickNav
 let allIconsDisabledCheckbox = new CheckBox(IsChecked=false, Margin=Thickness(0.,0.,6.,0.)) // IsChecked is the readable global for whether to draw any icons or not
 do
     allIconsDisabledCheckbox.Checked.Add(fun _ -> redrawMapIconsEv.Trigger())

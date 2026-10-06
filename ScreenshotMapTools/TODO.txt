@@ -1,4 +1,27 @@
-﻿be own user tester - for zelda, what feature what i want most? did hashtag completion, maybe cursor-reset-to-spawn thingy?
+﻿
+when mousing, preview pane goes with mouse, but curnote does not, how should it work, hmm - what does minimap do? mouse or keyboard?
+ - either all should be mouse, or some set should be keyboard only, hmmm, leaning toward everyone mouse, that is, on-visual-cursor-moved()...
+
+
+what is fallback if RegisterHotKey fails?
+can i test on surface? without fullsize keyboard?
+
+
+1 and ctrl-1 dont really belong clogging up hotkeys, a button in the app is fine, since it's FEATURE stuff
+
+
+
+quick start
+correct; 0 takes screenshot and dumps it in grid, 2468 move cursor on grid
+- cuts, + pastes for when you mess up and put a screenshot in the wrong place 
+(all on NumPad)
+(and you can take multiple screenshots in the same grid cell, which will be useful in this game, as there are 'dark' places where you might e.g. want to stand on the left side of the screen to light up the left side, and stand on the right side of the screen to light up the right side, and both overlayed screenshots will let you see the whole screen, but that's kinda optional)
+and when you encounter some weird thing that you don't know what it is but surely it is important and you want to come back to it later, you can leave yourself a note by typing '/' to edit the note in the current grid cell
+and those are all the essential controls
+
+
+
+
 
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 
@@ -6,7 +29,7 @@ put like some demo/doc stuff in a demo folder
 
 should 'trim' be able to work on screenshots, as well as game?
 
-ctrl-* cycle thru 'favorite' zones?
+for something like deeprune or lm2, where backside is flipped, something something reversing each image versus reversing the whole map
 
 
 --------below this line is still i'm willing to put off--------------

@@ -24,129 +24,153 @@ type SavedViewportSettings(theGame:Game) =
     member private this.RestoreZoom() =
         theGame.CurZoom <- curZoom
 
-let mutable recentEncompassingGridRange = null
-let MakeTheGameViewportEncompassAll(kbdX, kbdY) =
-    let zm = ZoneMemory.Get(theGame.CurZone)
-    let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
-    gr.Extend(kbdX,kbdY)
-    for i = 0 to MAX-1 do
-        for j = 0 to MAX-1 do
-            let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
-            if bmp <> null then
-                gr.Extend(i,j)
-    let zoomLevel = 1 + ((max gr.Width gr.Height)+1)/2      // TODO does not take into account aspect ratio, height might not fit onscreen in rare cases
-    let centerX = gr.MinX + gr.Width/2
-    let centerY = gr.MinY + gr.Height/2
-    theGame.CurZoom <- zoomLevel
-    theGame.CenterX <- centerX
-    theGame.CenterY <- centerY
-    recentEncompassingGridRange <- gr
-
-let MoveLeftRight(dx) =
-    if dx <> 1 && dx <> -1 then failwith "bad MoveLeftRight call"
-    let mutable targetCol = theGame.CurX + dx
-    let mutable found = false
-    while not(found) && targetCol <> theGame.CurX do
-        // wrap
-        if targetCol > recentEncompassingGridRange.MaxX then
-            targetCol <- recentEncompassingGridRange.MinX
-        elif targetCol < recentEncompassingGridRange.MinX then
-            targetCol <- recentEncompassingGridRange.MaxX
+type QuickNav() =
+    let mutable recentEncompassingGridRange = null
+    let mutable updateInstructionPane = fun() -> ()
+    let mutable whichHashtagTarget = 0        // index into theGame.HashtagTargetsForQuickNav that is currently active, where theGame.HashtagTargetsForQuickNav.Length is valid meaning 'any cell'
+    let mutable currentTargets = ResizeArray()      // is empty if 'any cell' or if no targets for the current hashtag
+    let mutable hChain = null
+    let mutable vChain = null
+    let MoveCore(d, cursor, chain:_[]) =
+        if d <> 1 && d <> -1 then failwith "bad MoveCore call"
+        let mutable i = 0
+        while i < chain.Length && chain.[i] < cursor do
+            i <- i + 1
+        let r = 
+            if d = 1 then  // Right/Down
+                if i = chain.Length || ((i = chain.Length-1) && (chain.[i] = cursor)) then
+                    chain.[0]
+                elif chain.[i] = cursor then
+                    chain.[i+1]
+                else
+                    chain.[i]
+            else    // Left/Up
+                if i = 0 then
+                    chain.[chain.Length-1]
+                elif chain.[i] = cursor then
+                    chain.[i-1]
+                else
+                    chain.[i]
+        r
+    member this.IsValidByVirtueOfEmptyTargetList() = currentTargets.Count=0
+    member this.IsValidByVirtueOfMatchingHashtagTarget(i,j) = currentTargets.Contains(struct(i,j))
+    member this.CurrentlyTargetedHashtag() = if whichHashtagTarget = theGame.HashtagTargetsForQuickNav.Length then null else theGame.HashtagTargetsForQuickNav.[whichHashtagTarget]
+    member this.SetUpdateInstructionPaneFunc(f) = updateInstructionPane <- f
+    member this.MakeTheGameViewportEncompassAll(kbdX, kbdY) =
+        whichHashtagTarget <- 0
+        let zm = ZoneMemory.Get(theGame.CurZone)
+        let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
+        gr.Extend(kbdX,kbdY)
+        for i = 0 to MAX-1 do
+            for j = 0 to MAX-1 do
+                let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
+                if bmp <> null then
+                    gr.Extend(i,j)
+        let zoomLevel = 1 + ((max gr.Width gr.Height)+1)/2      // TODO does not take into account aspect ratio, height might not fit onscreen in rare cases
+        let centerX = gr.MinX + gr.Width/2
+        let centerY = gr.MinY + gr.Height/2
+        theGame.CurZoom <- zoomLevel
+        theGame.CenterX <- centerX
+        theGame.CenterY <- centerY
+        recentEncompassingGridRange <- gr
+        this.CycleWhichHashtagTarget(0)
+    member this.CycleWhichHashtagTarget(delta) =
+        let len = theGame.HashtagTargetsForQuickNav.Length
+        whichHashtagTarget <- (whichHashtagTarget + len+1 + delta) % (len+1)
+        currentTargets.Clear()
+        if whichHashtagTarget = theGame.HashtagTargetsForQuickNav.Length then
+            () // currentTargets empty means arrow to any cell
         else
-            // look for a target in this column
-            let i = targetCol
-            let founds = ResizeArray()
-            for j = recentEncompassingGridRange.MinY to recentEncompassingGridRange.MaxY do
-                let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                for ht in theGame.HashtagTargetsForQuickNav do
-                    let keyedLocations = metadataStore.LocationsForKey(ht)
-                    if keyedLocations.Contains(loc) then
-                        founds.Add(struct(i,j))
-            if founds.Count = 0 then
-                targetCol <- targetCol + dx     // keep looking farther out
-            else
-                // 1 or more in this column, find closest dy, they can arrow up/down for others
-                let founds = founds.ToArray()
-                founds |> Array.sortInPlaceBy(fun (struct(_i,j)) -> abs(j-theGame.CurY))
-                let struct(i,j) = founds.[0]
-                theGame.CurX <- i
-                theGame.CurY <- j
-                found <- true
-    // either found is true, or we cycled around all other columns without finding one
-    found
-
-let MoveUpDown(dy) =
-    if dy <> 1 && dy <> -1 then failwith "bad MoveUpDown call"
-    let mutable targetRow = theGame.CurY + dy
-    let mutable found = false
-    while not(found) && targetRow <> theGame.CurY do
-        // wrap
-        if targetRow > recentEncompassingGridRange.MaxY then
-            targetRow <- recentEncompassingGridRange.MinY
-        elif targetRow < recentEncompassingGridRange.MinY then
-            targetRow <- recentEncompassingGridRange.MaxY
-        else
-            // look for a target in this row
-            let j = targetRow
-            let founds = ResizeArray()
             for i = recentEncompassingGridRange.MinX to recentEncompassingGridRange.MaxX do
-                let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                for ht in theGame.HashtagTargetsForQuickNav do
-                    let keyedLocations = metadataStore.LocationsForKey(ht)
-                    if keyedLocations.Contains(loc) then
-                        founds.Add(struct(i,j))
-            if founds.Count = 0 then
-                targetRow <- targetRow + dy     // keep looking farther out
-            else
-                // 1 or more in this column, find closest dx, they can arrow left/right for others
-                let founds = founds.ToArray()
-                founds |> Array.sortInPlaceBy(fun (struct(i,_j)) -> abs(i-theGame.CurX))
-                let struct(i,j) = founds.[0]
-                theGame.CurX <- i
-                theGame.CurY <- j
-                found <- true
-    // either found is true, or we cycled around all other rows without finding one
-    found
+                for j = recentEncompassingGridRange.MinY to recentEncompassingGridRange.MaxY do
+                    let loc = GenericMetadata.Location(theGame.CurZone,i,j)
+                    if metadataStore.LocationsForKey(theGame.HashtagTargetsForQuickNav.[whichHashtagTarget]).Contains(loc) then
+                        currentTargets.Add(struct(i,j))
+        hChain <- currentTargets.ToArray() |> Array.sort
+        vChain <- currentTargets.ToArray() |> Array.map (fun (struct(x,y)) -> struct(y,x)) |> Array.sort
+        updateInstructionPane()
+        MapIcons.redrawMapIconHoverOnly.Trigger()
+    member this.MoveLeftRight(dx) =
+        if currentTargets.Count=0 then
+            theGame.CurX <- theGame.CurX + dx
+        else
+            let cursor = struct(theGame.CurX, theGame.CurY)
+            let r = MoveCore(dx, cursor, hChain)
+            let struct(x,y) = r
+            theGame.CurX <- x
+            theGame.CurY <- y
+    member this.MoveUpDown(dy) =
+        if currentTargets.Count=0 then
+            theGame.CurY <- theGame.CurY + dy
+        else
+            let cursor = struct(theGame.CurY, theGame.CurX)
+            let r = MoveCore(dy, cursor, vChain)
+            let struct(y,x) = r
+            theGame.CurX <- x
+            theGame.CurY <- y
+
+let theQuickNav = new QuickNav()
 
 let MakeInstructionsPane(parentWindow,appWidth,w,h) =
-    let mkTxt(txt,bt) = new TextBox(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent, 
-                                    BorderBrush=Brushes.Black, BorderThickness=Thickness(float bt))
+    let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent) 
+    let border(e) = new Border(BorderBrush=Brushes.Black, BorderThickness=Thickness(1.0), Child=e)
     let g = new Grid()
-    g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(50.)))
+    g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(32.)))
     g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
     let data = [|
             2, ".",            "end Quick\nNav Mode"
-            1, "9 *",          "cycle zone +1"
-            1, "7",            "cycle zone -1"
+            1, "9 *",          "next zone"
+            1, "7",            "prior zone"
             2, "5",            "follow first\nhyperlink"
-            3, "8 \n4 6\n2 ",  "move to\nnext hashtag\ntarget"
+            1, "1",            "next hashtag"
+            1, "3",            "prior hashtag"
+            3, "8 \n4 6\n2 ",  ""
         |]
     let COUNT = data.Length
     for i = 0 to COUNT-1 do
         let n,a,b = data.[i]
         let h = (float n) * 24.
         g.RowDefinitions.Add(new RowDefinition(Height=GridLength(h)))
-        let at = mkTxt(a,1)
+        let at = mkTxt(a)
         at.Height <- h
         at.TextAlignment <- TextAlignment.Right
-        at.Padding <- Thickness(0.,0.,8.,0.)
+        at.Padding <- Thickness(6.,0.,6.,0.)
         if at.Text="." then
             at.FontSize <- at.FontSize + 8.0
-        Utils.gridAdd(g, at, 0, i)
-        Utils.gridAdd(g, mkTxt(b,1), 1, i)
+        Utils.gridAdd(g, border(at), 0, i)
+        let bt = mkTxt(b)
+        bt.Padding <- Thickness(6.,0.,6.,0.)
+        Utils.gridAdd(g, border(bt), 1, i)
+    let navInstructionTextBox = (g.Children.[g.Children.Count-1] :?> Border).Child :?> TextBlock
     let sp = new StackPanel(Orientation=Orientation.Vertical, Background=Brushes.LightSteelBlue, Visibility=Visibility.Hidden, Width=w, Height=h)
-    sp.Children.Add(mkTxt("--QuickNav Mode--",1)) |> ignore
-    sp.Children.Add(mkTxt("QuickNav Mode\nchanges NumPad\nhotkeys:",0)) |> ignore
-    g.Margin <- Thickness(0.,10.,0.,10.)
+    sp.Children.Add(border(mkTxt("--QuickNav Mode--"))) |> ignore
+    sp.Children.Add(mkTxt("NumPad hotkeys:")) |> ignore
+    g.Margin <- Thickness(0.,4.,0.,4.)
     sp.Children.Add(g) |> ignore
-    sp.Children.Add(mkTxt("Arrows 2468 go\nto cells with\nhashtag targets:",0)) |> ignore
-    let b = new Button(Content="change\nhashtag\ntargets", Margin=Thickness(6.))
+    sp.Children.Add(mkTxt("Current target:")) |> ignore
+    let curTargetTb = mkTxt("")
+    curTargetTb.Margin <- Thickness(0.,0.,0.,4.)
+    sp.Children.Add(curTargetTb) |> ignore
+    let update() = 
+        let curHashtagTarget = theQuickNav.CurrentlyTargetedHashtag()
+        if curHashtagTarget=null then 
+            navInstructionTextBox.Text <- "move to\nnext grid\ncell" 
+            curTargetTb.Foreground <- Brushes.Black
+            curTargetTb.Text <- "(any cell)"
+        else 
+            navInstructionTextBox.Text <- "move to\nnext hashtag\ntarget"
+            curTargetTb.Foreground <- Brushes.Red
+            curTargetTb.Text <- "#" + curHashtagTarget
+    update()
+    theQuickNav.SetUpdateInstructionPaneFunc(update)
+    sp.Children.Add(mkTxt("Click below to\nchange which\nhashtags are targets")) |> ignore
+    let b = new Button(Content="change\nhashtag targets", Margin=Thickness(6.))
     b.Click.Add(fun _ ->
         let orig = System.String.Join(",", theGame.HashtagTargetsForQuickNav)
         let extra = "Type in a comma-separated list of hashtags, without octothorpes (no '#')" 
                         + "\nCells whose Notes contain those hashtags will be legal targets for QuickNav"
                         + "\nExample:"
-                        + "\nsave,fastTravel"
+                        + "\nrespawn,fastTravel,save"
         let save, r = Utils.DoBasicModalTextDialogCore(parentWindow, "Hashtags for QuickNav", extra, orig, appWidth, 500., false)
         if save then
             let a = r.Split([|','|], System.StringSplitOptions.RemoveEmptyEntries)
@@ -176,3 +200,4 @@ let StartHashtagTargetsAnimation(window:Window, elementToAnimate:Image, storyboa
 let StopHashtagTargetsAnimation(window:Window, elementToAnimate:Image, storyboard:Storyboard) =
     storyboard.Stop(window)
     elementToAnimate.Opacity <- 1.0
+

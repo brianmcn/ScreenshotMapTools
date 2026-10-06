@@ -269,7 +269,7 @@ type AppGridPanePopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.Bitmap
     static member Name = "AppGridPane"
 
 type AppPreviewPanePopoutWindow(updateEv:IEvent<System.Windows.Media.Imaging.BitmapSource>, w, h) as this =
-    inherit IndependentVisualPopoutWindow(updateEv, w, h, AppGridPanePopoutWindow.Name, fun() -> AppSettings.theAppSettingsJson.AppPreviewPanePopout)
+    inherit IndependentVisualPopoutWindow(updateEv, w, h, AppPreviewPanePopoutWindow.Name, fun() -> AppSettings.theAppSettingsJson.AppPreviewPanePopout)
     static let mutable singleton = null
     do
         singleton <- this

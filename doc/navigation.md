@@ -71,11 +71,14 @@ Keys `NumPad 7` and `NumPad 9` no longer zoom in QuickNav Mode, instead they cyc
 above, it would change to the zone containing the dungeon 1 map.  If a hyperlink was followed, QuickNav Mode exits.
 
 The 'arrow' keys `NumPad 2468` change functionality in QuickNav Mode.  They move the cursor to the next 'target' cell
-in the desired direction, where a 'target' cell is a cell whose Note contains a #hashtag listed in the QuickNav hashtag
+in the desired direction, where a 'target' cell is a cell whose Note contains the selected #hashtag in the QuickNav hashtag
 target list.  You can set the contents of this list by clicking the large button in the bottom right of the app.  In the
-prior screenshot, I had set the list to "dungeon,spawn" so that cells with #dungeon (marked by red rectangles) and cells
-with #spawn (marked by a blue oval) would be valid targets.  As a result, pressing `NumPad 6` ('right arrow') would
-move the cursor _five_ cells to the right, to the next target.
+prior screenshot, I had set the list to "dungeon" so that cells with #dungeon (marked by red rectangles) would be valid 
+targets.  As a result, pressing `NumPad 6` ('right arrow') would move the cursor _five_ cells to the right, to the next 
+target.  
+
+You can put more than one hashtag in the QuickNav hashtag targets list, and use `NumPad 1` and `NumPad 3` to cycle
+through them.  See the scenarios below for examples of how this is useful.
 
 Scenarios where QuickNav is useful:
 
@@ -85,19 +88,22 @@ Press `NumPad .` to get the peek, and then press `NumPad .` again to return to t
 
 **Follow hyperlink**: \
 You're currently on a cell with a hyperlink (to elsewhere in the map, or another zone, or whatever). \
-Press `NumPad .5` to follow the hyperlink (chooses the first hyperlink in the Note, if there are multiple). 
-(Or you could click on it with the mouse.)
+Press `NumPad .5` to follow the hyperlink (the first hyperlink in the Note is chosen, if there are multiple). \
+(Or you could click on the hyperlink with the mouse, though this causes the game window to lose focus.)
 
 **Fast travel or respawn**: \
 Some games have fast travel systems, which allow the player to move to a fixed set of faraway locations. \
 Some games will respawn the player after death at a fixed location, or a recent save point. \
-For these scenarios, it is often the case that these jumped-to locations are already the same types of
-locations you would already be marking up with #hashtags (#fastTravel, #save, #spawn, ...).  For example, 
-in Zelda, I was marking up dungeon entrances with '#dungeon', and in Zelda, the warp whistle allows the 
-player to fast-travel to entrances of dungeons that have been beaten.  On large maps, specifying the 
-QuickNav hashtag targets makes it possible to update the cursor to the new location using fewer 
-keystrokes. (Or you could click on the new location with the mouse.)
+For example in Zelda, the player's location might 'jump around on the overworld map' in three different ways.
+First, if the player dies, they respawn at the world spawn point.  Second, if the player has the Warp Whistle, they can
+use it to be transported to any dungeon the player has defeated.  Third, there are four fast-travel locations throughout the
+world that are unlocked via the Power Bracelet item.  By marking the world spawn point with the Note #spawn, and marking each
+dungeon with the Note #dungeon, and marking each fast-travel screen with the Note #fastTravel, you could set the QuickNav
+targets list to "respawn,dungeon,fastTravel".  Then, after dying, or using the warp whistle, or using the fast travel, 
+QuickNav makes it possible to update the cursor to the new location using fewer keystrokes. \
+(Or you could just click on the new location with the mouse, though this causes the game window to lose focus.)
 
 **Cycling backwards through many zones**: \
 If you have ten zones, and want to navigate from zone06 to zone05, it is quicker to press \
-`NumPad .7.` than to press `Numpad *********`.  (Or you could mouse-navigate the zone dropdown menu.)
+`NumPad .7.` than to press `NumPad *********`. \
+(Or you could mouse-navigate the zone dropdown menu at the top of the app, though this causes the game window to lose focus.)

@@ -248,7 +248,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
         let g = new Grid()
         if i%5=0 && j%5=0 then
-            g.Children.Add(new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=12., Text=sprintf"%02d,%02d"i j, 
+            g.Children.Add(new TextBox(IsReadOnly=true, IsHitTestVisible=false, FontSize=14., FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, Text=sprintf"%02d,%02d"i j, 
                                         Foreground=Brushes.Black, Background=Brushes.Transparent, BorderThickness=Thickness(0.),
                                         HorizontalAlignment=HorizontalAlignment.Center, VerticalAlignment=VerticalAlignment.Center)) |> ignore
         g
@@ -357,18 +357,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
                             for i = ci-level to ci+level do
                                 for j = cj-level to cj+level do
                                     if i>=0 && i<MAX && j>=0 && j<MAX then
-                                        let loc = GenericMetadata.Location(theGame.CurZone,i,j)
-                                        for ht in theGame.HashtagTargetsForQuickNav do
-                                            let keyedLocations = metadataStore.LocationsForKey(ht)
-                                            if keyedLocations.Contains(loc) then
-                                                let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                                let W,H = int(W),int(H)
-                                                let bytes = MapIcons.GetOrCreateMapMarkerCaches(ht).Get(W,H)
-                                                let stride = W*4
-                                                Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                                                // ... except where we are highlighting 
-                                                let zerobytes = Array.zeroCreate bytes.Length
-                                                Utils.CopyBGRARegion(obackBuffer, obackBufferStride, MAPX+int(xoff), MAPY+int(yoff), zerobytes, stride, 0, 0, W, H)
+                                        let validByEmpty = QuickNav.theQuickNav.IsValidByVirtueOfEmptyTargetList()
+                                        if validByEmpty || QuickNav.theQuickNav.IsValidByVirtueOfMatchingHashtagTarget(i,j) then
+                                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
+                                            let W,H = int(W),int(H)
+                                            let stride = W*4
+                                            if not(validByEmpty) then
+                                                let ht = QuickNav.theQuickNav.CurrentlyTargetedHashtag()
+                                                if ht <> null then
+                                                    let bytes = MapIcons.GetOrCreateMapMarkerCaches(ht).Get(W,H)
+                                                    Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
+                                            // ... except where we are highlighting 
+                                            let zerobytes = Array.zeroCreate (W*H*4)
+                                            Utils.CopyBGRARegion(obackBuffer, obackBufferStride, MAPX+int(xoff), MAPY+int(yoff), zerobytes, stride, 0, 0, W, H)
                             let obitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, obackBuffer, obackBufferStride)
                             mapMarkersHoverImageOverlay.Source <- obitmapSource
                         elif MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
@@ -985,20 +986,16 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
                     if key = VK_DECIMAL then            this.ToggleQuickNav(false)
                 | Some(_) ->    // we're in QuickNav mode
-                    //if key = VK_SUBTRACT then           this.DoCut()
-                    //if key = VK_ADD then                this.DoPaste()
                     if key = VK_MULTIPLY then           this.CycleZone(true,1)
-                    if key = VK_NUMPAD4 then            this.MoveCoda(QuickNav.MoveLeftRight(-1))
-                    if key = VK_NUMPAD6 then            this.MoveCoda(QuickNav.MoveLeftRight(1))
-                    if key = VK_NUMPAD8 then            this.MoveCoda(QuickNav.MoveUpDown(-1))
-                    if key = VK_NUMPAD2 then            this.MoveCoda(QuickNav.MoveUpDown(1))
-                    //if key = VK_NUMPAD0 then            this.DoScreenshot()
                     if key = VK_NUMPAD7 then            this.CycleZone(true,-1)
                     if key = VK_NUMPAD9 then            this.CycleZone(true,1)
+                    if key = VK_NUMPAD4 then            (QuickNav.theQuickNav.MoveLeftRight(-1); this.MoveCoda())
+                    if key = VK_NUMPAD6 then            (QuickNav.theQuickNav.MoveLeftRight(1); this.MoveCoda())
+                    if key = VK_NUMPAD8 then            (QuickNav.theQuickNav.MoveUpDown(-1); this.MoveCoda())
+                    if key = VK_NUMPAD2 then            (QuickNav.theQuickNav.MoveUpDown(1); this.MoveCoda())
+                    if key = VK_NUMPAD1 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(-1)
+                    if key = VK_NUMPAD3 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(1)
                     if key = VK_NUMPAD5 then            this.ToggleQuickNav(true)
-                    //if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
-                    //if key = VK_NUMPAD1 then            this.DoFullMapPanZoomFeatureWindow((ctrl_bits = int MOD_CONTROL))
-                    //if key = VK_NUMPAD3 then            this.DoSpecialText((ctrl_bits = int MOD_CONTROL))
                     if key = VK_DECIMAL then            this.ToggleQuickNav(false)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
@@ -1033,13 +1030,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
     member this.CycleZone(encompassAll, delta) =
         cycleZone(delta)
         if encompassAll then
-            QuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
+            QuickNav.theQuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
             zoom()
-    member this.MoveCoda(doAnything) = 
-        if doAnything then 
-            this.MoveCoda()
-        else
-            System.Console.Beep()
     member this.MoveCoda() =
         zoom()
         setCursor()
@@ -1296,7 +1288,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             match quickNavModeSavedSettings with
             | None ->
                 quickNavModeSavedSettings <- Some(QuickNav.SavedViewportSettings(theGame), MapIcons.allIconsDisabledCheckbox.IsChecked)
-                QuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
+                QuickNav.theQuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
                 MapIcons.allIconsDisabledCheckbox.IsChecked <- true
                 mapMarkersHoverImageOverlay.Visibility <- Visibility.Visible
                 QuickNav.StartHashtagTargetsAnimation(this, mapMarkersHoverImage, mapMarkersHoverImageStoryboard)
