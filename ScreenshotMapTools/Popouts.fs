@@ -187,8 +187,6 @@ type ControlsCheatsheetPopoutWindow() as this =
                 "*",        "cycle zone"
                 "/",        "edit note@cursor"
                 "ctrl /",   "edit global note"
-                "1",        "pan/zoom window"
-                "ctrl 1",   "2x map pan/zoom"
                 "3",        "toggle text macro"
                 "ctrl 3",   "edit text macro"
             |]

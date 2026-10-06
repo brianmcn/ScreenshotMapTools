@@ -7,7 +7,7 @@ open System.Windows.Input
 open Utils
 open Utils.Extensions
 
-let DoAutocompleteModalTextDialog(parentWindow, windowTitle, origText, winWidth, winHeight, textChangedCallback) =
+let DoAutocompleteModalTextDialog(parentWindow, windowTitle, postExplainerText, origText, winWidth, winHeight, textChangedCallback) =
     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if origText=null then "" else origText), BorderThickness=Thickness(1.), 
                             Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
                             Width=winWidth, Height=winHeight, TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, AcceptsTab=true,
@@ -141,6 +141,10 @@ let DoAutocompleteModalTextDialog(parentWindow, windowTitle, origText, winWidth,
     Utils.StarStarBold(explainerText, explainerTb)
     let sp = new StackPanel(Orientation=Orientation.Vertical)
     sp.Children.Add(explainerTb) |> ignore
+    if postExplainerText <> null then
+        let postExplainerTb = new TextBlock(FontSize=12.,Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                                            Width=winWidth,TextWrapping=TextWrapping.Wrap, Margin=Thickness(5.), Text=postExplainerText)
+        sp.Children.Add(postExplainerTb) |> ignore
     sp.Children.Add(tb) |> ignore
     sp.Children.Add(popup) |> ignore        // popup is own window with own layout/lifetime management, just needs to live somewhere in our tree
     sp.Children.Add(dp) |> ignore

@@ -1076,7 +1076,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     do! Async.Sleep(50)
                 GameSpecific.ActivateMainAppWindow()
                 let orig = Popouts.GlobalNoteWindow.Singleton.StartEdit()
-                let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit global note", orig, float(MAPX/2), float(MAPX/2), Popouts.GlobalNoteWindow.Singleton.NoteEdit)
+                let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit global note", null, orig, float(MAPX/2), float(MAPX/2), Popouts.GlobalNoteWindow.Singleton.NoteEdit)
                 if save then
                     Popouts.GlobalNoteWindow.Singleton.Save(result)
                 Popouts.GlobalNoteWindow.Singleton.FinishEdit()
@@ -1090,7 +1090,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             GameSpecific.ActivateMainAppWindow()
             let orig = zm.MapTiles.[theGame.CurX,theGame.CurY].Note
             Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.StartEditing)
-            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit note", orig, float(MAPX/2), float(MAPX/2),
+            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Edit note", null, orig, float(MAPX/2), float(MAPX/2),
                                     (fun txt -> Popouts.theEditNotesListenerEvent.Trigger(Popouts.EditNotesListenerMessage.Edit txt)))
             if save then
                 UpdateCurrentNote(orig, result, zm)
@@ -1102,7 +1102,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             setCursor()
             GameSpecific.ActivateMainAppWindow()
-            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Change NumPad3 text macro", specialText, float(MAPX/2), float(MAPX/2), fun(_) -> ())
+            let explain = "You can use this NumPad3 text macro as an easy way to add or remove the same text from a number of cells' Notes.\nEach time you press NumPad3, it will toggle this text at the end of a Note (that is, add it if it is absent, or remove it if it is present)."
+            let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Change NumPad3 text macro", explain, specialText, float(MAPX)*0.6, float(MAPX/4), fun(_) -> ())
             if save then
                 specialText <- result
         else
