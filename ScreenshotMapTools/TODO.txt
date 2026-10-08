@@ -1,28 +1,8 @@
-﻿maybe docs for directory structure
-
-glass capture not transparent? win10 v 7 maybe? check obs stuff
-
-what is fallback if RegisterHotKey fails? none, program fails to start
-can i test on surface? without fullsize keyboard?
-
-
-
-
-quick start
-correct; 0 takes screenshot and dumps it in grid, 2468 move cursor on grid
-- cuts, + pastes for when you mess up and put a screenshot in the wrong place 
-(all on NumPad)
-(and you can take multiple screenshots in the same grid cell, which will be useful in this game, as there are 'dark' places where you might e.g. want to stand on the left side of the screen to light up the left side, and stand on the right side of the screen to light up the right side, and both overlayed screenshots will let you see the whole screen, but that's kinda optional)
-and when you encounter some weird thing that you don't know what it is but surely it is important and you want to come back to it later, you can leave yourself a note by typing '/' to edit the note in the current grid cell
-and those are all the essential controls
-
-
+﻿
 
 
 
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
-
-put like some demo/doc stuff in a demo folder
 
 should 'trim' be able to work on screenshots, as well as game?
 
@@ -54,6 +34,8 @@ eventually some kind of key rebinding something (noodle on API)
 consider: dwarf: A future version could just cheekily call a zone "Misc Images" or something to seed that idea to others
     imagine new game has 'zone00: misc images' and 'zone01: map' and starts you in zone01
 
+what is fallback if RegisterHotKey fails? none, program fails to start (can AHK work around it somehow)
+can i test on surface? without fullsize keyboard?
 
 
 

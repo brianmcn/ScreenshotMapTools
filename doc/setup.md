@@ -1,4 +1,4 @@
-## Setting up a new game
+## Quickstart - Setting up a new game
 
 The tool requires that all screenshots of the game window be the same size.  So **before using the tool, be sure to configure the
 game itself to be in your preferred window size**, and that when you start up the game again another day it will still be the same size.
@@ -19,10 +19,17 @@ The app then starts up, and you're ready to take your first screenshot!
 
 Press `NumPad 0` to take a test screenshot.  You can then press `NumPad -` to 'cut' that screenshot out of the grid, if it's not one you intend to keep.
 
+Press `NumPad 2 4 6 8` to see that these 4 keys serve as the 'arrow' keys to move the cursor around the grid.  When you move from screen to screen in 
+your game, move the cursor in the corresponding direction of the grid and press `NumPad 0` to take a screenshot of each new screen to build your map.
+
 Note that the game constantly saves all your updates to screenshots and Notes, so you can safely exit the app at any time.	The next time you run the 
 app, your game will be listed in the console window (e.g. "1: Zelda") at startup, and you can select it to continue where you left off.	
 
-### Setting up a 'MAP Trim'
+This is enough bare essential information to start using the tool, but keep reading (below, and back on the [main page](main.md)) for a lot more details
+about using the tool's features.  The main documentation page is laid out so that reading top-to-bottom will introduce features in order, with the most
+common/useful features first, and more advanced features (tailored to specific scenarios) later.
+
+### Optional: Setting up a 'MAP Trim'
 
 For many games, the 'screenshot map' you want to build will not be comprised of screenshots of the *entire* game window.  
 This section explains how to to go from the map grid on the left to the map grid on the right:
