@@ -166,6 +166,13 @@ let REGEX_DUMMY = "AAAAA"    // TODO a bit of a kludgy way to shoehorn it in
 let mutable userRegex = ""   // use this instead of key for k=REGEX_DUMMY in mapIconData.[k]
 ///////////////////////////
 let mutable mapIconData = LoadMapIconData()
+do
+    match mapIconData.TryGetValue(REGEX_DUMMY) with
+    | false, _ -> 
+        let icon = Icon.Default(REGEX_DUMMY)
+        icon.IsEnabled <- false
+        mapIconData.Add(REGEX_DUMMY, icon)
+    | true, _ -> ()
 let SaveMapIconData() =
     let file = GetIconFilename()
     let icons = [| for k in mapIconData.Keys do yield mapIconData.[k] |] |> Array.sortBy (fun i -> i.Hashtag)
@@ -275,10 +282,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                 if save then
                     userRegex <- result
                     refreshButton()
-                    // ensure enabled after editing
-                    match mapIconData.TryGetValue(REGEX_DUMMY) with
-                    | false, _ -> mapIconData.Add(REGEX_DUMMY, Icon.Default(REGEX_DUMMY))
-                    | true, icon -> icon.IsEnabled <- true
+                    mapIconData.[REGEX_DUMMY].IsEnabled <- true  // ensure enabled after editing
                     eval()
                     redrawMapIconsEv.Trigger()
                 )
