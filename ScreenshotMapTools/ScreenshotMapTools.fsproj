@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net48</TargetFramework> 
-
+    <TargetFramework>net48</TargetFramework>
+	<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+	  
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -44,7 +45,7 @@
   <ItemGroup />
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="9.0.3" />
+    <PackageReference Include="System.Text.Json" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,10 +59,20 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.1.401" />
+  </ItemGroup>
+
 	<Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">
 		<ItemGroup>
 			<!-- Removes all non-English localized folders brought in by NuGet packages or 3rd party DLLs -->
 			<ReferenceCopyLocalPaths Remove="@(ReferenceSatellitePaths)" />
 		</ItemGroup>
 	</Target>
+	<Target Name="DeleteLanguageFolders" AfterTargets="Build">
+		<ItemGroup>
+			<LanguageFolders Include="$(TargetDir)*\" />
+		</ItemGroup>
+	</Target>
+
 </Project>

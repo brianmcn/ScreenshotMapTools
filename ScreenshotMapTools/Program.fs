@@ -78,6 +78,7 @@ do
 [<STAThread>]
 [<EntryPoint>]
 let main _argv =
+    System.Threading.Tasks.Task.Run(fun () -> System.Text.Json.JsonSerializer.Serialize<GameSpecific.ChosenGameJson>(null) |> ignore) |> ignore  // warm up the serializer so it doesn't take a long time on first use
     (*
     let app = new Application()
     app.Run(new HS.QRWindow())
