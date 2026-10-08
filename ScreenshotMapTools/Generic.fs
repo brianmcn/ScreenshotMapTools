@@ -178,6 +178,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let curZoneChanged = new Event<unit>()
     let pictureChanged = new Utils.EventingBool(false)
     let previewPaneChanged = new Event<unit>()
+    let mutable thisWindowHasClosed = false
     let mutable hwndSource = null
     let setCursor() =          // make the current cursor (moused or keyboard) the keyboard return location
         kbdX.Value <- theGame.CurX
@@ -448,17 +449,18 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let drawingVisual = DrawingVisual()
         let rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(int(wholeMapCanvas.Width), int(wholeMapCanvas.Height), 96, 96, PixelFormats.Pbgra32)
         CompositionTarget.Rendering.Add(fun _ea ->
-            let t = sw.ElapsedMilliseconds
-            if t - lastUpdate > 200L then   // every 200ms
-                lastUpdate <- t
-                using (drawingVisual.RenderOpen()) (fun context ->
-                    context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, wholeMapCanvas.Width, wholeMapCanvas.Height))
-                )
-                rtb.Clear()
-                rtb.Render(drawingVisual)   // without the DrawingVisual, rtb renders an element in its layout-in-the-whole-window position; VisualBrush 'deparents' it from layout
-                let clone = System.Windows.Media.Imaging.WriteableBitmap(rtb)
-                clone.Freeze()
-                ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
+            if not(thisWindowHasClosed) then
+                let t = sw.ElapsedMilliseconds
+                if t - lastUpdate > 200L then   // every 200ms
+                    lastUpdate <- t
+                    using (drawingVisual.RenderOpen()) (fun context ->
+                        context.DrawRectangle(visualBrush, null, Rect(0.0, 0.0, wholeMapCanvas.Width, wholeMapCanvas.Height))
+                    )
+                    rtb.Clear()
+                    rtb.Render(drawingVisual)   // without the DrawingVisual, rtb renders an element in its layout-in-the-whole-window position; VisualBrush 'deparents' it from layout
+                    let clone = System.Windows.Media.Imaging.WriteableBitmap(rtb)
+                    clone.Freeze()
+                    ev.Trigger(clone :> System.Windows.Media.Imaging.BitmapSource)
             )
         ev.Publish, wholeMapCanvas.Width, wholeMapCanvas.Height
     let previewPaneW, previewPaneH = 462,268
@@ -831,11 +833,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 let ctxt = System.Threading.SynchronizationContext.Current
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
-                for p in [popout_ccs; popout_lm; popout_ln; popout_agp; popout_app; popout_gn] do
-                    if p.GetJson().IsActive then
-                        p.Activate()
-                do! Async.Sleep(200)                // give popouts a chance to open on their own threads
-                GameSpecific.ActivateGameWindow()   // so that this is likely to be frontmost
+                if not(thisWindowHasClosed) then
+                    for p in [popout_ccs; popout_lm; popout_ln; popout_agp; popout_app; popout_gn] do
+                        if p.GetJson().IsActive then
+                            p.Activate()
+                    do! Async.Sleep(200)                // give popouts a chance to open on their own threads
+                    GameSpecific.ActivateGameWindow()   // so that this is likely to be frontmost
             } |> Async.StartImmediate
 #if OLD_MINIMAP
             if false then   // this was useful for sidescape, which had empty screen area
@@ -865,15 +868,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
             hwndSource.RemoveHook(System.Windows.Interop.HwndSourceHook(fun a b c d e -> this.HwndHook(a,b,c,d,&e)))
         hwndSource <- null
         this.UnregisterHotKey()
+        thisWindowHasClosed <- true
         base.OnClosed(e)
     member this.RegisterHotKey() =
         let helper = new System.Windows.Interop.WindowInteropHelper(this);
+        let s = "This might indicate that another program is also using NumPad hotkeys.\n" +
+                    "If you know which program that is, you could close it and try this tool again.\n" +
+                    "But this tool cannot run without exclusive NumPad hotkey access, and will now close.\n\n"
         for k in KEYS do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID, MOD_NONE, uint32 k))) then
-                failwithf "could not register hotkey %A" k
+                failwithf "\n\ncould not register hotkey %A\n%s" k s
         for k in KEYS_WITH_CTRL do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1, MOD_CONTROL, uint32 k))) then
-                failwithf "could not register hotkey ctrl+%A" k
+                failwithf "\n\ncould not register hotkey ctrl+%A\n%s" k s
     member this.UnregisterHotKey() =
         let helper = new System.Windows.Interop.WindowInteropHelper(this)
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore

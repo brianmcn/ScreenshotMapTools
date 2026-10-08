@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ScreenshotMapTools": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

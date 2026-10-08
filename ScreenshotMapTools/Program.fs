@@ -1,9 +1,21 @@
 ﻿open System
 open System.Windows
 
+let GetConsoleWindowInFrontThen(f) =
+    //async {
+        let handle = Elephantasy.Winterop.GetConsoleWindow()
+        Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_RESTORE) |> ignore
+        Winterop.Win32.SetForegroundWindow(handle) |> ignore
+    //    let ctxt = System.Threading.SynchronizationContext.Current
+    //    do! Async.Sleep(500)
+    //    do! Async.SwitchToContext(ctxt)
+        f()
+    //} |> Async.StartImmediate
+
 // in order for multiple app windows to not have a forced Z-Order from Owner-Child relationship, need a hidden dummy window to own all the visible windows
 type DummyWindow() as this =
     inherit Window()
+    let mutable handledException = false
     do
         this.ShowInTaskbar <- false
         this.Title <- "start-up..."
@@ -12,13 +24,15 @@ type DummyWindow() as this =
         this.WindowState <- WindowState.Minimized
         this.Visibility <- Visibility.Hidden
         let handleException(ex:System.Exception) =
-            match ex with
-            | _ ->
+            if not(handledException) then
                 printfn "%s" (ex.ToString())
                 if not(Generic.appShutItselfDownAfterTrim) then
-                    printfn ""
-                    printfn "closing app, press enter to exit this window"
-                    System.Console.ReadLine() |> ignore
+                    GetConsoleWindowInFrontThen(fun () ->
+                        printfn ""
+                        printfn "closing app, press enter to exit this window"
+                        System.Console.ReadLine() |> ignore
+                        )
+                handledException <- true
         System.Windows.Application.Current.DispatcherUnhandledException.Add(fun e -> 
             if System.Diagnostics.Debugger.IsAttached then
                 System.Diagnostics.Debugger.Break()

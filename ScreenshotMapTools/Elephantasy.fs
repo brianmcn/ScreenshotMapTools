@@ -117,6 +117,7 @@ module Winterop =
     let SW_HIDE = 0
     let SW_SHOW = 5
     let SW_MINIMIZE = 6
+    let SW_RESTORE = 9
     [<DllImport("user32.dll")>]
     extern IntPtr SetActiveWindow(IntPtr hWnd)
 
