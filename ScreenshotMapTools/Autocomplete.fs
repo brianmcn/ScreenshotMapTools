@@ -4,14 +4,15 @@ open System.Windows
 open System.Windows.Controls
 open System.Windows.Controls.Primitives
 open System.Windows.Input
+open System.Windows.Media
 open Utils
 open Utils.Extensions
 
 let DoAutocompleteModalTextDialog(parentWindow, windowTitle, postExplainerText, origText, winWidth, winHeight, textChangedCallback) =
     let tb = new TextBox(IsReadOnly=false, FontSize=12., Text=(if origText=null then "" else origText), BorderThickness=Thickness(1.), 
-                            Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                            Foreground=Brushes.Black, Background=Brushes.White,
                             Width=winWidth, Height=winHeight, TextWrapping=TextWrapping.Wrap, AcceptsReturn=true, AcceptsTab=true,
-                            VerticalScrollBarVisibility=ScrollBarVisibility.Visible, Margin=Thickness(5.))
+                            VerticalScrollBarVisibility=ScrollBarVisibility.Visible)
     let tagUniverse = InMemoryStore.metadataStore.AllKeys() |> Array.sort       // autocompletion source
     let listBox = ListBox(MaxHeight=140.0, BorderThickness=Thickness(1.0))
     do  // style listbox selection
@@ -136,15 +137,27 @@ let DoAutocompleteModalTextDialog(parentWindow, windowTitle, postExplainerText, 
     let dp = (new DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new DockPanel())
     let explainerText = "Press **Enter** to Save\nPress **Ctrl+Enter** for newline\n\nFor #hashtags, suggested completions may appear\nand you can press **Up**/**Down** to choose among them,"
                             + "\n**Tab** to complete the chosen selection,\nor **Esc** to dismiss the completion popup"
-    let explainerTb = new TextBlock(FontSize=12.,Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
-                                    Width=winWidth,TextWrapping=TextWrapping.NoWrap, Margin=Thickness(5.))
+    let explainerTb = new TextBlock(FontSize=12.,Foreground=Brushes.Black, Background=Brushes.White, TextWrapping=TextWrapping.NoWrap, Margin=Thickness(5.))
     Utils.StarStarBold(explainerText, explainerTb)
-    let sp = new StackPanel(Orientation=Orientation.Vertical)
+    let sp = new StackPanel(Orientation=Orientation.Vertical, Margin=Thickness(5.))
+    let explainerTb : UIElement = 
+        if postExplainerText <> null then
+            let sp = new StackPanel(Orientation=Orientation.Vertical)
+            sp.Children.Add(new TextBlock(FontSize=12.,Foreground=Brushes.Black, Background=Brushes.White,Text="General Textbox Instructions:")) |> ignore
+            explainerTb.Margin <- Thickness(20.,0.,0.,0.)
+            sp.Children.Add(explainerTb) |> ignore
+            sp.Children.Add(new DockPanel(Height=2., Background=Brushes.Gray, Margin=Thickness(2.,2.,2.,0.))) |> ignore
+            sp
+        else
+            explainerTb
     sp.Children.Add(explainerTb) |> ignore
     if postExplainerText <> null then
-        let postExplainerTb = new TextBlock(FontSize=12.,Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
-                                            Width=winWidth,TextWrapping=TextWrapping.Wrap, Margin=Thickness(5.), Text=postExplainerText)
+        let postExplainerTb = new TextBlock(FontSize=16.,Foreground=Brushes.Black, Background=Brushes.White,
+                                            Width=winWidth,TextWrapping=TextWrapping.Wrap)
+        Utils.StarStarBold(postExplainerText, postExplainerTb)
+        sp.Children.Add(new DockPanel(Height=2.)) |> ignore
         sp.Children.Add(postExplainerTb) |> ignore
+        sp.Children.Add(new DockPanel(Height=2.)) |> ignore
     sp.Children.Add(tb) |> ignore
     sp.Children.Add(popup) |> ignore        // popup is own window with own layout/lifetime management, just needs to live somewhere in our tree
     sp.Children.Add(dp) |> ignore

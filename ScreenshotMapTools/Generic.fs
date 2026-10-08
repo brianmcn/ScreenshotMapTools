@@ -1109,7 +1109,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if ctrl then
             setCursor()
             GameSpecific.ActivateMainAppWindow()
-            let explain = "You can use this NumPad3 text macro as an easy way to add or remove the same text from a number of cells' Notes.\nEach time you press NumPad3, it will toggle this text at the end of a Note (that is, add it if it is absent, or remove it if it is present)."
+            let explain = "**NumPad3 Text Macro**\n\nUse this NumPad3 text macro to quickly add or remove the same text from a number of cells' Notes.\n\n"+
+                            "Each time you press NumPad3, it will toggle the text specified below at the end of the current cell's Note " +
+                            "(that is, add it if absent, or remove it if present)."
             let save, result = Autocomplete.DoAutocompleteModalTextDialog(this, "Change NumPad3 text macro", explain, specialText, float(MAPX)*0.6, float(MAPX/4), fun(_) -> ())
             if save then
                 specialText <- result
