@@ -5,17 +5,22 @@ game itself to be in your preferred window size**, and that when you start up th
 
 Then **start up the game first**, before starting up the screenshot tool.
 
-When you first start the screenshot tool, the console window lists all the previous games you have used in the tool (if any), but the
-first option in the list is always "**0: New Game**".  So to set up a new game, type `0 Enter`.
+When you first start the screenshot tool (by running `ScreenshotMapTools.exe`), the console window lists all the previous games you have 
+used in the tool (if any), but the first option in the list is always "**0: New Game**".  So to set up a new game, type `0 Enter`.
 
 Then you'll be asked which window process has the game you want to set up, and shown a numbered list of all the windows open on your computer.
 Type in the number that corresponds to the game you want to screenshot.
 
-Then it will ask you for a directory name to save the screenshots; type a valid name (such as the name of the game) and press Enter.
+Then it will ask you for a directory name (folder name) to save the screenshots; type a valid name (such as the name of the game, e.g. 'Zelda';
+alphanumeric characters only) and press `Enter`.  Screenshots and other game info will be saved to that sub-folder, under the folder 
+containing `ScreenshotMapTools.exe`.
 
 The app then starts up, and you're ready to take your first screenshot!
 
 Press `NumPad 0` to take a test screenshot.  You can then press `NumPad -` to 'cut' that screenshot out of the grid, if it's not one you intend to keep.
+
+Note that the game constantly saves all your updates to screenshots and Notes, so you can safely exit the app at any time.	The next time you run the 
+app, your game will be listed in the console window (e.g. "1: Zelda") at startup, and you can select it to continue where you left off.	
 
 ### Setting up a 'MAP Trim'
 

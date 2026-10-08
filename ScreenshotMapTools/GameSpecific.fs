@@ -99,13 +99,16 @@ type ChosenGame() =
                 elif j <= names.Length then
                     let n, exe, w, h = names.[j-1]
                     System.Console.WriteLine(sprintf "You chose window: (%d x %d) %s" w h n)
-                    System.Console.WriteLine("If this is correct, then choose a directory name to start saving screenshots")
+                    System.Console.WriteLine("If this is correct, then choose a sub-folder name to start saving screenshots")
                     System.Console.WriteLine("or else just press enter to abort.")
                     let r = System.Console.ReadLine()
                     if System.String.IsNullOrWhiteSpace(r) then
                         failwith "aborted"
-                    elif System.Text.RegularExpressions.Regex.IsMatch(r, "[a-zA-Z][a-zA-Z0-9 ]*") then
+                    elif System.Text.RegularExpressions.Regex.IsMatch(r, "^[a-zA-Z][a-zA-Z0-9 ]*$") then
                         System.Console.WriteLine(sprintf "You chose '%s'" r)
+                        System.Console.WriteLine(sprintf "Screenshots and game info will be saved under")
+                        System.Console.WriteLine(System.IO.Path.GetFullPath(System.IO.Path.Combine(".",r)))
+                        System.Threading.Thread.Sleep(2000)
                         let cgj = ChosenGameJson()
                         cgj.GameFolder <- r
                         cgj.GameHeight <- h
@@ -127,6 +130,7 @@ type ChosenGame() =
                 failwith "out of range"
         with e ->
             System.Console.WriteLine(sprintf "%s, aborting..." e.Message)
+            System.Threading.Thread.Sleep(2000)
             System.Environment.Exit(1)
     // these are static
     member this.GAME = data.GameFolder

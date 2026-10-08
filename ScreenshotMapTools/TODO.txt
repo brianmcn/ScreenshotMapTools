@@ -1,4 +1,8 @@
-﻿what is fallback if RegisterHotKey fails? none, program fails to start
+﻿maybe docs for directory structure
+
+glass capture not transparent? win10 v 7 maybe? check obs stuff
+
+what is fallback if RegisterHotKey fails? none, program fails to start
 can i test on surface? without fullsize keyboard?
 
 
