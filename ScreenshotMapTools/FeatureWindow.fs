@@ -382,18 +382,20 @@ let DrawMapIconsToBitmapSource(gr : GridRange, totalW, totalH) =
                 let re = new System.Text.RegularExpressions.Regex(MapIcons.userRegex)
                 for i = gr.MinX to gr.MaxX do
                     for j = gr.MinY to gr.MaxY do
-                        let note = zm.MapTiles.[i,j].Note
-                        if note <> null && re.IsMatch(note) then
-                            draw(i-gr.MinX,j-gr.MinY,MapIcons.REGEX_DUMMY)
+                        if i>=0 && i<MAX && j>=0 && j<MAX then
+                            let note = zm.MapTiles.[i,j].Note
+                            if note <> null && re.IsMatch(note) then
+                                draw(i-gr.MinX,j-gr.MinY,MapIcons.REGEX_DUMMY)
         let keys = InMemoryStore.metadataStore.AllKeys() |> Array.sort
         for k in keys do
             let locs = metadataStore.LocationsForKey(k)
             for i = gr.MinX to gr.MaxX do
                 for j = gr.MinY to gr.MaxY do
-                    let loc = GenericMetadata.Location(BackingStoreData.theGame.CurZone,i,j)
-                    if locs.Contains(loc) then
-                        match MapIcons.keyDrawFuncs.[k] with
-                        | Some _ -> draw(i-gr.MinX,j-gr.MinY,k)
-                        | _ -> ()
+                    if i>=0 && i<MAX && j>=0 && j<MAX then
+                        let loc = GenericMetadata.Location(BackingStoreData.theGame.CurZone,i,j)
+                        if locs.Contains(loc) then
+                            match MapIcons.keyDrawFuncs.[k] with
+                            | Some _ -> draw(i-gr.MinX,j-gr.MinY,k)
+                            | _ -> ()
     let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(totalW, totalH, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
     bitmapSource

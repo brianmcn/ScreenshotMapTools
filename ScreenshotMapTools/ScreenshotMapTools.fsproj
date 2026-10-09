@@ -36,6 +36,7 @@
     <Compile Include="PreviewPane.fs" />
     <Compile Include="TrimWorkflow.fs" />
     <Compile Include="QuickNav.fs" />
+    <Compile Include="PixelGridLayout.fs" />
     <Compile Include="Generic.fs" />
     <Content Include="TODO.txt" />
     <Compile Include="Glass.fs" />

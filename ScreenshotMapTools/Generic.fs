@@ -146,22 +146,21 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
     let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
     let MAPX,MAPY = APP_WIDTH,420
-    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
-    let writeableBitmapImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY))
-    let mapCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
-    let mapMarkersImage = new Image(Width=float(MAPX), Height=float(MAPY), IsHitTestVisible=false)
-    let mapMarkersHoverImage = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false)
-    let mapMarkersHoverImageStoryboard = new System.Windows.Media.Animation.Storyboard()                                                            // used with QuickNav
-    let mapMarkersHoverImageOverlay = new Image(Width=float(3*MAPX), Height=float(3*MAPY), IsHitTestVisible=false, Visibility=Visibility.Hidden)    // used with QuickNav
+    // next two lines are temp backing store for mapImage and mapMarkersHoverImage, allocated more than large enough to always hold all the data we need
+    let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
+    let rmihobackBuffer, rmihobackBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
+    let mapImage = new Image()
+    let checkerboardCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Transparent)  // transparent background to see mouse events even where nothing drawn
+    let mapMarkersImage = new Image(IsHitTestVisible=false)
+    let mapMarkersHoverImage = new Image(IsHitTestVisible=false)
     let mouseCursorCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
         let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
-        Utils.canvasAdd(r, writeableBitmapImage, float(-MAPX), float(-MAPY))
-        r.Children.Add(mapCanvas) |> ignore
-        Utils.canvasAdd(r, mapMarkersImage, 0, 0)
-        Utils.canvasAdd(r, mapMarkersHoverImageOverlay, float(-MAPX), float(-MAPY))
-        Utils.canvasAdd(r, mapMarkersHoverImage, float(-MAPX), float(-MAPY))
-        r.Children.Add(mouseCursorCanvas) |> ignore
+        r.Children.Add(mapImage) |> ignore                  // the Map-Trim screenshots, blitted to the pixel grid
+        r.Children.Add(checkerboardCanvas) |> ignore        // the gray checkerboard and coordinate textboxes, as well as mouse event listener
+        r.Children.Add(mapMarkersImage) |> ignore           // the colored icons showing the #hashtags the user has checked 
+        r.Children.Add(mapMarkersHoverImage) |> ignore      // the icons showing the currently hovered #hashtag --OR-- the QuickNav target overlay
+        r.Children.Add(mouseCursorCanvas) |> ignore         // the yellow rectangle showing the current cursor location
         r
     let RT = 4.
     let mouseCursor = 
@@ -187,14 +186,14 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mutable quickNavModeSavedSettings = None    // None: not in QuickNav mode       Some(...): in QuickNav mode, settings before changing modes, to restore later
     // current zone combobox
     let CONTROL_MARGIN = Thickness(3.)  // margin for buttons in top bar and such
-    let addNewZoneButton = new Button(Content="Add zone", Margin=CONTROL_MARGIN)
+    let addNewZoneButton = new Button(Content="Add zone", Margin=CONTROL_MARGIN, Focusable=false)
     let zoneOptions = System.Collections.ObjectModel.ObservableCollection<string>()
     let makeZoneName(z) = sprintf "%02d: %s" z (theGame.ZoneNames.[z])
     let mutable selectionChangeIsDisabled = false
-    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=170., Margin=Thickness(4.))
-    let renameZoneButton = new Button(Content="Rename zone", Margin=CONTROL_MARGIN)
+    let zoneComboBox = new ComboBox(ItemsSource=zoneOptions, IsReadOnly=true, IsEditable=false, SelectedIndex=0, Width=170., Margin=Thickness(4.), Focusable=false)
+    let renameZoneButton = new Button(Content="Rename zone", Margin=CONTROL_MARGIN, Focusable=false)
     let printCurrentZoneButtonDefaultContent = "Print zone"
-    let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=CONTROL_MARGIN)
+    let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=CONTROL_MARGIN, Focusable=false)
     // summary of current selection
     let summaryTB = MinimapWindow.MakeRichTextBox(4.)
     let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
@@ -247,7 +246,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                         HorizontalAlignment=HorizontalAlignment.Center, VerticalAlignment=VerticalAlignment.Center)) |> ignore
         g
         )
-    let allZeroes : byte[] = Array.zeroCreate (GameSpecific.TheChosenGame.GAMESCREENW * GameSpecific.TheChosenGame.GAMESCREENH * 4)
     let mutable priorX, priorY, priorCenterX, priorCenterY, priorZone, priorLevel = -999,-999,-999,-999,-999,-999
     let mutable specialText = "#TODO"   // currently uses ctrl-numpad-3 to edit this
     let GetProjectionDetails(zm:ZoneMemory) =
@@ -258,14 +256,20 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let level = theGame.CurZoom // level = 1->1x1, 2->3x3, 3->5x5, etc    
         let zm = ZoneMemory.Get(theGame.CurZone)
         let aspect,ia,_pw,_ph = GetProjectionDetails(zm)
+        let pgl,W,H = 
+            let howMany = 2*(level-1)+1          // how many we fit across the screen, e.g. 1, 3, 5, ... at the various zoom levels
+            let howMany = float(howMany) + 0.3   // show a little context off the edges
+            let struct(W,H) = PixelGridLayout.DecideWHBasedOnHowManyWeWantToFit(MAPX, MAPY, aspect, howMany)
+            let pgl = PixelGridLayout.PixelGridLayout(MAPX,MAPY,W,H)
+            pgl,W,H
         // ensure cursor is fully on-screen
-        while theGame.CurX <= theGame.CenterX - level do
+        while theGame.CurX <= theGame.CenterX + pgl.MinI do
             theGame.CenterX <- theGame.CenterX - 1
-        while theGame.CurX >= theGame.CenterX + level do
+        while theGame.CurX >= theGame.CenterX + pgl.MaxI do
             theGame.CenterX <- theGame.CenterX + 1
-        while theGame.CurY <= theGame.CenterY - level do
+        while theGame.CurY <= theGame.CenterY + pgl.MinJ do
             theGame.CenterY <- theGame.CenterY - 1
-        while theGame.CurY >= theGame.CenterY + level do
+        while theGame.CurY >= theGame.CenterY + pgl.MaxJ do
             theGame.CenterY <- theGame.CenterY + 1
         // see if we need to redraw anything
         if theGame.CenterX <> priorCenterX || theGame.CenterY <> priorCenterY || theGame.CurZone <> priorZone || level <> priorLevel 
@@ -277,139 +281,109 @@ type MyWindow(mkGlassF : unit->unit) as this =
             priorZone <- theGame.CurZone
             priorLevel <- level
             pictureChanged.Value <- false
-            // MAPX,MAPY are size of the grid display in the app
-            let VIEWX,VIEWY = 
-                let mapAspect = float MAPX / float MAPY
-                if aspect > mapAspect then
-                    MAPX, System.Math.Floor((float(MAPX)/aspect) + 0.83) |> int
-                else
-                    System.Math.Floor((float(MAPY)*aspect) + 0.83) |> int, MAPY
-            let DX,DY = float(MAPX - VIEWX)/2., float(MAPY - VIEWY)/2.
-            let howMany = 2*(level-1)+1          // how many we fit across the screen, e.g. 1, 3, 5, ... at the various zoom levels
-            //let scale = if howMany = 1 then 1.2 else float(howMany)                               // scale kludge for level 1
-            let scale = float(howMany)
-            mapCanvas.Children.Clear()
+            checkerboardCanvas.Children.Clear()
             mapMarkersImage.Source <- null
             mapMarkersHoverImage.Source <- null
-            for i = 0 to backBuffer.Length-1 do
-                backBuffer.[i] <- 0uy
-            let W,H = float(VIEWX)/scale,float(VIEWY)/scale         // W,H are size of each grid element
-            let drawnLocations = ResizeArray()
+            System.Array.Clear(backBuffer, 0, backBuffer.Length)
             let ci, cj = theGame.CenterX, theGame.CenterY
-            for i = ci-level to ci+level do
-                for j = cj-level to cj+level do
+            for i = ci+pgl.MinI to ci+pgl.MaxI do
+                for j = cj+pgl.MinJ to cj+pgl.MaxJ do
                     if i>=0 && i<MAX && j>=0 && j<MAX then
-                        drawnLocations.Add(i,j)
-                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                        //let xoff,yoff = if howMany=1 then xoff+W/10.,yoff+H/10. else xoff,yoff      // offset kludge for level 1
-                        let IW,IH = int(W),(max 1 (int H))
-                        let stride = IW*4
+                        let struct(di,dj) = struct(i-ci-pgl.MinI, j-cj-pgl.MinJ)
+                        let stride = W*4
                         if zm.FullImgArray.[i,j] <> null then
-                            let bytes = ia.GetRaw(i,j,IW,IH)
-                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, IW, IH)
+                            let bytes = ia.GetRaw(i,j,W,H)
+                            Utils.CopyBGRARegion(backBuffer, backBufferStride, di*W, dj*H, bytes, stride, 0, 0, W, H)
                         else
-                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), allZeroes, stride, 0, 0, IW, IH)
                             let tb = zoomTextboxes.[i,j]
                             Utils.deparent(tb)
                             tb.Background <- (if zm.MapTiles.[i,j].IsEmpty then (if (i+j)%2 = 0 then tbLight else tbDark) else Brushes.DarkMagenta)
-                            tb.Width <- W
-                            tb.Height<- H
-                            Utils.canvasAdd(mapCanvas, tb, DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
+                            tb.Width <- float W
+                            tb.Height<- float H
+                            let struct(x,y) = pgl.GetULXYFromIJ(i-ci,j-cj)
+                            Utils.canvasAdd(checkerboardCanvas, tb, x, y)
                     else
-                        Utils.canvasAdd(mapCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H)
-            let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
-            writeableBitmapImage.Source <- bitmapSource
+                        let struct(x,y) = pgl.GetULXYFromIJ(i-ci,j-cj)
+                        Utils.canvasAdd(checkerboardCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), x, y)
+            pgl.Setup(mapImage)
+            let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(pgl.XW, pgl.YH, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+            mapImage.Source <- bitmapSource
             mfsRefresh()
             do
-                mouseCursor.Width <- W + RT
-                mouseCursor.Height <- H + RT
-                Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.) // + if howMany=1 then W/10. else 0.)   // offset kludge for
-                Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.) // + if howMany=1 then H/10. else 0.)    // level 1 mouse cursor
+                mouseCursor.Width <- float W + RT
+                mouseCursor.Height <- float H + RT
+                let updateMouseCursorPos() =
+                    let struct(x,y) = pgl.GetULXYFromIJ(theGame.CurX-ci,theGame.CurY-cj)
+                    Canvas.SetLeft(mouseCursor, float x - RT/2.)
+                    Canvas.SetTop(mouseCursor, float y - RT/2.)
+                updateMouseCursorPos()
                 do
                     // map icons
                     redrawMapIconsFunc <- (fun _ ->
-                        let gr =    // compute 'drawn' range of cells (some are drawn offscreen)
-                            let i,j = drawnLocations.[0]
-                            let gr = FeatureWindow.GridRange(i,j,i,j)
-                            for i,j in drawnLocations do
-                                gr.Extend(i,j)
-                            gr
-                        let i,j = gr.MinX, gr.MinY
-                        let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H     // where the upper left pixel of cell i,j should be drawn
-                        let mmw, mmh = int(float gr.Width * W), int(float gr.Height * H)
-                        mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, mmw, mmh)
-                        mapMarkersImage.Width <- mmw
-                        mapMarkersImage.Height <- mmh
-                        Canvas.SetLeft(mapMarkersImage, xoff)
-                        Canvas.SetTop(mapMarkersImage, yoff)
+                        let gr = FeatureWindow.GridRange(ci+pgl.MinI,cj+pgl.MinJ,ci+pgl.MaxI,cj+pgl.MaxJ)
+                        mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, pgl.XW, pgl.YH)
+                        pgl.Setup(mapMarkersImage)
                         )
                     redrawMapIconsHoverOnlyFunc <- (fun _ ->
-                        let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4   // 3x so I can write 'out of bounds' and clip it later
+                        System.Array.Clear(rmihobackBuffer, 0, rmihobackBuffer.Length)
                         if quickNavModeSavedSettings.IsSome then
-                            // overlay will gray out the map...
-                            let obackBuffer, obackBufferStride = Array.init (3*MAPX*3*MAPY*4) (fun z -> if z%4=3 then 128uy else 0uy), 3*MAPX*4
-                            for i = ci-level to ci+level do
-                                for j = cj-level to cj+level do
+                            for i = ci+pgl.MinI to ci+pgl.MaxI do
+                                for j = cj+pgl.MinJ to cj+pgl.MaxJ do
                                     if i>=0 && i<MAX && j>=0 && j<MAX then
+                                        let struct(di,dj) = struct(i-ci-pgl.MinI, j-cj-pgl.MinJ)
                                         let validByEmpty = QuickNav.theQuickNav.IsValidByVirtueOfEmptyTargetList()
                                         if validByEmpty || QuickNav.theQuickNav.IsValidByVirtueOfMatchingHashtagTarget(i,j) then
-                                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                            let W,H = int(W),int(H)
                                             let stride = W*4
                                             if not(validByEmpty) then
                                                 let ht = QuickNav.theQuickNav.CurrentlyTargetedHashtag()
                                                 if ht <> null then
                                                     let bytes = MapIcons.GetOrCreateMapMarkerCaches(ht).Get(W,H)
-                                                    Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                                            // ... except where we are highlighting 
-                                            let zerobytes = Array.zeroCreate (W*H*4)
-                                            Utils.CopyBGRARegion(obackBuffer, obackBufferStride, MAPX+int(xoff), MAPY+int(yoff), zerobytes, stride, 0, 0, W, H)
-                            let obitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, obackBuffer, obackBufferStride)
-                            mapMarkersHoverImageOverlay.Source <- obitmapSource
+                                                    Utils.CopyBGRARegion(rmihobackBuffer, rmihobackBufferStride, di*W, dj*H, bytes, stride, 0, 0, W, H)
+                                        else
+                                            // gray out the cells that are invalid QuickNav targets
+                                            for dh = 0 to H-1 do
+                                                let destIndex = (dj*H+dh) * rmihobackBufferStride + di*W*4
+                                                for i = 0 to W*4-1 do
+                                                    if i%4=3 then
+                                                        rmihobackBuffer.[destIndex+i] <- 128uy    // set alpha to 50%
                         elif MapIcons.currentlyHoveredHashtagKey<>null then   // even when disabled is checked, hovering should highlight
                             let keyedLocations = metadataStore.LocationsForKey(MapIcons.currentlyHoveredHashtagKey)
                             // TODO consider hover for userRegex
-                            for i = ci-level to ci+level do
-                                for j = cj-level to cj+level do
+                            for i = ci+pgl.MinI to ci+pgl.MaxI do
+                                for j = cj+pgl.MinJ to cj+pgl.MaxJ do
                                     if i>=0 && i<MAX && j>=0 && j<MAX then
                                         let loc = GenericMetadata.Location(theGame.CurZone,i,j)
                                         if keyedLocations.Contains(loc) then
-                                            let xoff,yoff = DX-W+float(i-ci+level)*W, DY-H+float(j-cj+level)*H
-                                            let W,H = int(W),int(H)
+                                            let struct(di,dj) = struct(i-ci-pgl.MinI, j-cj-pgl.MinJ)
                                             let bytes = MapIcons.mapMarkerCaches.[MapIcons.HOVER_DUMMY].Get(W,H)
                                             let stride = W*4
-                                            Utils.CopyBGRARegion(backBuffer, backBufferStride, MAPX+int(xoff), MAPY+int(yoff), bytes, stride, 0, 0, W, H)
-                        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(3*MAPX, 3*MAPY, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
+                                            Utils.CopyBGRARegion(rmihobackBuffer, rmihobackBufferStride, di*W, dj*H, bytes, stride, 0, 0, W, H)
+                        let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(pgl.XW, pgl.YH, 96., 96., PixelFormats.Bgra32, null, rmihobackBuffer, rmihobackBufferStride)
                         mapMarkersHoverImage.Source <- bitmapSource
+                        pgl.Setup(mapMarkersHoverImage)
                         )
                 mapCanvasMouseLeaveFunc <- (fun _ ->
                     theGame.CurX <- kbdX.Value
                     theGame.CurY <- kbdY.Value
-                    // draw mouse cursor
-                    Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
-                    Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
-                    // update bottom panel
+                    updateMouseCursorPos()
                     mfsRefresh()
                     )
                 mapCanvasMouseMoveFunc <- (fun (x,y) ->
                     // compute which index we are over
-                    let i = (ci - level) + int((x - DX + W)/W)
-                    let j = (cj - level) + int((y - DY + H)/H)
+                    let struct(i,j) = pgl.GetIJFromXY(int x,int y)
+                    let struct(i,j) = i+ci, j+cj
                     if i>=0 && i<MAX && j>=0 && j<MAX then
                         theGame.CurX <- i
                         theGame.CurY <- j
-                        // draw mouse cursor
-                        Canvas.SetLeft(mouseCursor, DX-W+float(theGame.CurX-ci+level)*W-RT/2.)
-                        Canvas.SetTop(mouseCursor, DY-H+float(theGame.CurY-cj+level)*H-RT/2.)
-                        // update bottom panel
+                        updateMouseCursorPos()
                         mfsRefresh()
                     else    // e.g. they are mousing on the canvas where -1,50 would be, center is like 0,50, left half of screen is blank and mouse into blank, behave like a Leave()
                         mapCanvasMouseLeaveFunc()
                     )
                 mapCanvasMouseDownFunc <- (fun (me,x,y) ->
                     // compute which index we are over
-                    let i = (ci - level) + int((x - DX + W)/W)
-                    let j = (cj - level) + int((y - DY + H)/H)
+                    let struct(i,j) = pgl.GetIJFromXY(int x,int y)
+                    let struct(i,j) = i+ci, j+cj
                     if i>=0 && i<MAX && j>=0 && j<MAX then
                         theGame.CurX <- i
                         theGame.CurY <- j
@@ -427,7 +401,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 FeatureWindow.EnsureFeature(this.Owner, zm.FullImgArray.GetCopyOfBmp(i,j) |> Utils.BMPtoImageUniformStretch, null)
                     )
                 warpMouseTo <- (fun (i,j) ->
-                    let pos = mapCanvas.TranslatePoint(Point(DX+float(i-ci+level)*W-W/2.,DY+float(j-cj+level)*H-H/2.),this)  // center of i,j   // TODO might be offscreen
+                    let struct(ulx,uly) = pgl.GetULXYFromIJ(i-ci,j-cj)
+                    let pos = checkerboardCanvas.TranslatePoint(Point(float(ulx+W/2),float(uly+H/2)),this)  // center of i,j   // TODO might be offscreen
                     Utils.SilentlyWarpMouseCursorTo(pos)
                     )
             MapIcons.redrawMapIconsEv.Trigger()
@@ -549,9 +524,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
     /////////
     do
         doZoom <- zoom
-        mapCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(mapCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
-        mapCanvas.MouseLeave.Add(fun _ -> mapCanvasMouseLeaveFunc())
-        mapCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(mapCanvas) in (me.Handled <- true; mapCanvasMouseDownFunc(me, p.X, p.Y)))
+        checkerboardCanvas.MouseMove.Add(fun me -> let p = me.GetPosition(checkerboardCanvas) in mapCanvasMouseMoveFunc(p.X, p.Y))
+        checkerboardCanvas.MouseLeave.Add(fun _ -> mapCanvasMouseLeaveFunc())
+        checkerboardCanvas.MouseDown.Add(fun me -> let p = me.GetPosition(checkerboardCanvas) in (me.Handled <- true; mapCanvasMouseDownFunc(me, p.X, p.Y)))
         MapIcons.redrawMapIconsEv.Publish.Add(fun () -> redrawMapIconsFunc())
         MapIcons.redrawMapIconHoverOnly.Publish.Add(fun () -> redrawMapIconsHoverOnlyFunc())
         summaryTB.AddHandler(System.Windows.Documents.Hyperlink.RequestNavigateEvent,new System.Windows.Navigation.RequestNavigateEventHandler(navigationFunc))
@@ -606,7 +581,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     let newLoc = GenericMetadata.Location(newZone, theGame.CurX, theGame.CurY)
                     NavigateTo(newLoc)
             )
-        zoneComboBox.Focusable <- false                // prevent accidents
         zoneComboBox.SelectionChanged.Add(fun _ ->
             if not selectionChangeIsDisabled then
                 theGame.CurZone <- zoneComboBox.SelectedIndex
@@ -616,7 +590,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 refreshMetadataKeys()   // to update counts 
                 zoom()
             )
-        addNewZoneButton.Focusable <- false            // prevent accidents
         addNewZoneButton.Click.Add(fun _ ->
             let n = theGame.ZoneNames.Length
             theGame.ZoneNames <- AAppend(theGame.ZoneNames, GetZoneName(n))
@@ -742,19 +715,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(zoneComboBox) |> ignore
             sp.Children.Add(renameZoneButton) |> ignore
             sp.Children.Add(printCurrentZoneButton) |> ignore
-            (*
-            let toggleLayoutButton = new Button(Content="Toggle layout", Margin=Thickness(4.))
-            toggleLayoutButton.Click.Add(fun _ ->
-                if all.Orientation = Orientation.Vertical then
-                    all.Orientation <- Orientation.Horizontal
-                    this.Left <- this.Left - float APP_WIDTH
-                else
-                    all.Orientation <- Orientation.Vertical
-                    this.Left <- this.Left + float APP_WIDTH
-                )
-            sp.Children.Add(toggleLayoutButton) |> ignore
-            *)
-            let trimButton = new Button(Margin=CONTROL_MARGIN, Content="Trim")
+            let trimButton = new Button(Margin=CONTROL_MARGIN, Content="Trim", Focusable=false)
             trimButton.Click.Add(fun _ -> Async.StartImmediate(async {
                 do! TrimWorkflow.doTheTrimButton(this, (fun () -> 
                     // restart
@@ -766,18 +727,18 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 mfsRefresh()
                 }))
             sp.Children.Add(trimButton) |> ignore
-            let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN)
+            let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN, Focusable=false)
             featureButton.Click.Add(fun _ -> 
                 this.DoFeatureButton()
                 )
             sp.Children.Add(featureButton) |> ignore
-            let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN)
+            let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN, Focusable=false)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
                 Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,float APP_WIDTH), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
-            let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN)
+            let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN, Focusable=false)
             glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
             let c = new Canvas(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT)
@@ -1039,8 +1000,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
         if theGame.CurX=kbdX.Value && theGame.CurY=kbdY.Value then
             // center the current map
             let gr = FeatureWindow.ComputeRange(zm)
-            let x = gr.MinX + (gr.MaxX-gr.MinX)/2 
-            let y = gr.MinY + (gr.MaxY-gr.MinY)/2 
+            let x = gr.MinX + gr.Width/2 
+            let y = gr.MinY + gr.Height/2 
             theGame.CurX <- x
             theGame.CurY <- y
             theGame.CenterX <- x
@@ -1224,13 +1185,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 quickNavModeSavedSettings <- Some(QuickNav.SavedViewportSettings(theGame), MapIcons.allIconsDisabledCheckbox.IsChecked)
                 QuickNav.theQuickNav.MakeTheGameViewportEncompassAll(kbdX.Value, kbdY.Value)
                 MapIcons.allIconsDisabledCheckbox.IsChecked <- true
-                mapMarkersHoverImageOverlay.Visibility <- Visibility.Visible
-                QuickNav.StartHashtagTargetsAnimation(this, mapMarkersHoverImage, mapMarkersHoverImageStoryboard)
             | Some(s,aidc) ->
                 s.Restore()
                 MapIcons.allIconsDisabledCheckbox.IsChecked <- aidc
-                mapMarkersHoverImageOverlay.Visibility <- Visibility.Hidden
-                QuickNav.StopHashtagTargetsAnimation(this, mapMarkersHoverImage, mapMarkersHoverImageStoryboard)
                 quickNavModeSavedSettings <- None
             match hyperlinkLocOpt with
             | Some(loc) -> NavigateTo(loc)  // ... navigate to it

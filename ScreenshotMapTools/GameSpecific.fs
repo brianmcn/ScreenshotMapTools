@@ -45,6 +45,10 @@ type ChosenGame() =
     do
         if CommandLine.glass then data <- ChosenGameJson()  // populate a dummy so further code doesn't crash, data will be ignored by glass
         else
+        System.Console.WriteLine "(documentation for this tool is found at bottom of this web page https://github.com/brianmcn/ScreenshotMapTools )"
+        System.Console.WriteLine ""
+        System.Console.WriteLine "examining folder for prior game data..."
+        System.Console.WriteLine ""
         let subdirs = System.IO.Directory.EnumerateDirectories(".")
         let possibleArray = [|
             for dir in subdirs do
@@ -64,8 +68,6 @@ type ChosenGame() =
                 failwithf "Invalid game folder '%s' specified on command line" CommandLine.initGameFolder
         else
         Winterop.Win32.SetForegroundWindow(Elephantasy.Winterop.GetConsoleWindow()) |> ignore
-        System.Console.WriteLine "(documentation for this tool is found at bottom of this web page https://github.com/brianmcn/ScreenshotMapTools )"
-        System.Console.WriteLine ""
         System.Console.WriteLine "Choose startup option:"
         System.Console.WriteLine "0: New Game"
         let mutable i = 1

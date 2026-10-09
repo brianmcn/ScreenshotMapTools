@@ -191,14 +191,3 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
     sp.Children.Add(b) |> ignore
     sp
     
-open System.Windows.Media.Animation
-let StartHashtagTargetsAnimation(window:Window, elementToAnimate:Image, storyboard:Storyboard) =
-    let pulseAnimation = new DoubleAnimation(From=1.0, To=0.2, Duration=System.TimeSpan.FromSeconds(0.3), AutoReverse=true, RepeatBehavior=RepeatBehavior.Forever)
-    Storyboard.SetTarget(pulseAnimation, elementToAnimate)
-    Storyboard.SetTargetProperty(pulseAnimation, new PropertyPath(UIElement.OpacityProperty))
-    storyboard.Children.Add(pulseAnimation) |> ignore
-    storyboard.Begin(window, true)
-let StopHashtagTargetsAnimation(window:Window, elementToAnimate:Image, storyboard:Storyboard) =
-    storyboard.Stop(window)
-    elementToAnimate.Opacity <- 1.0
-
