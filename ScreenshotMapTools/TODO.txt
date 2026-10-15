@@ -1,8 +1,8 @@
 ﻿
 
 dwarf:
-he kinda wanted to eliminate a middle zone, imagines he can move folders and rename etc might be worth docing the file format just to see if power users can do
 dwarf would like to use numpad for numbers as well, can you toggle it stealing everything, hm
+    - could have button to toggle numpad hotkeys, could imagine pairing with a popout that simulated numpad to allow testing on non-numpad devices
 dwarf was using the toggled layout, in general app is too tall.large, really need some scaling.resizing
 dwarf wants unicode not alphanum for icon markers... dunno how system fonts work for that, but probably doable? and also json can save it i think
 

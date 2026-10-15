@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		doc\customtrim.md = doc\customtrim.md
 		doc\download.md = doc\download.md
 		doc\feature.md = doc\feature.md
+		doc\fileformat.md = doc\fileformat.md
 		doc\glass.md = doc\glass.md
 		doc\main.md = doc\main.md
 		doc\navigation.md = doc\navigation.md
