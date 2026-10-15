@@ -1,4 +1,23 @@
-﻿
+﻿GameFolder ought not exist, just confuses issue
+
+also, screenshots v screenshotswithkinds
+think about design, understand feature, and rip out one of the two
+sswk - the top two big chunks of code in generic deal with kinds, namely the screenshot display window, and the assemble map grid, which are probably 
+    all the places that use it? so maybe factor those into another file, and keep sswk and remove s from the json struct
+
+printcurrentzone button uses assmblebmdgrid, probably also can be factored
+
+dofeaturebutton can probably be factored out into featurewindow.fs
+
+remove minimapwindow.fs and move the text box to whatever other file makes sense in
+
+
+
+dwarf:
+he kinda wanted to eliminate a middle zone, imagines he can move folders and rename etc might be worth docing the file format just to see if power users can do
+dwarf would like to use numpad for numbers as well, can you toggle it stealing everything, hm
+dwarf was using the toggled layout, in general app is too tall.large, really need some scaling.resizing
+dwarf wants unicode not alphanum for icon markers... dunno how system fonts work for that, but probably doable? and also json can save it i think
 
 
 
