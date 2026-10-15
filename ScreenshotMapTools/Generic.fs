@@ -789,22 +789,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     do! Async.Sleep(200)                // give popouts a chance to open on their own threads
                     GameSpecific.ActivateGameWindow()   // so that this is likely to be frontmost
             } |> Async.StartImmediate
-#if OLD_MINIMAP
-            if false then   // this was useful for sidescape, which had empty screen area
-                // minimap
-                let uev = new Event<_>()
-                uise.ChangedAndSettled.Add(fun _ ->
-                    uev.Trigger(kbdX.Value, kbdY.Value, zm)
-                    )
-                let mini = new MinimapWindow.MinimapWindow(this.Owner, 2, uev.Publish)
-                mini.Show()
-                // abstract minimap
-                let amini = new MinimapWindow.AbstractFixedMinimapWindow(this.Owner, uev.Publish)
-                amini.Show()
-                // notes
-                let notes = new MinimapWindow.NotesWindow(this.Owner, uev.Publish)
-                notes.Show()
-#endif
             )
     override this.OnSourceInitialized(e) =
         base.OnSourceInitialized(e)

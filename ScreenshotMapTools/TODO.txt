@@ -1,12 +1,4 @@
-﻿also, screenshots v screenshotswithkinds
-think about design, understand feature, and rip out one of the two
-sswk - the top two big chunks of code in generic deal with kinds, namely the screenshot display window, and the assemble map grid, which are probably 
-    all the places that use it? so maybe factor those into another file, and keep sswk and remove s from the json struct
-
-printcurrentzone button uses assmblebmdgrid, probably also can be factored
-
-
-
+﻿
 
 dwarf:
 he kinda wanted to eliminate a middle zone, imagines he can move folders and rename etc might be worth docing the file format just to see if power users can do

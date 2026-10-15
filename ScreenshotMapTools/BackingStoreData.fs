@@ -152,55 +152,29 @@ type ScreenshotWithKinds() =
 
 [<AllowNullLiteral>]
 type MapTile() =   // e.g. 50,50
-    [<System.ObsoleteAttribute("Use ScreenshotsWithKinds instead", false)>]
-    member val Screenshots : string[] = null with get,set         // e.g. [ 2024-05-12-09-45-43, 2024-05-12-09-46-16 ]  // used for backward compat, before kinds; all assumed "main"
     member val ScreenshotsWithKinds : ScreenshotWithKinds[] = [||] with get,set         // new version of data
     member val Note : string = null with get,set                  // e.g. "I spawned here at start"
     member this.Canonicalize() =
-        if this.Screenshots = null && this.ScreenshotsWithKinds <> null then
+        if this.ScreenshotsWithKinds <> null then
             for swk in this.ScreenshotsWithKinds do
                 for k in swk.Kinds do
                     if not(screenshotKindUniverse.Contains(k)) then
                         screenshotKindUniverse.Add(k)
+            // sanitize (remove any duplicate ssids, which fouls up a number of things)
+            this.ScreenshotsWithKinds <- this.ScreenshotsWithKinds |> Array.distinctBy (fun swk -> swk.Id)
         else
-            // preserve new data
-            let swks = ResizeArray()
-            if this.ScreenshotsWithKinds <> null then
-                for swk in this.ScreenshotsWithKinds do
-                    swks.Add(swk)
-                    for k in swk.Kinds do
-                        if not(screenshotKindUniverse.Contains(k)) then
-                            screenshotKindUniverse.Add(k)
-            // translate old disk data format into new disk and runtime format
-            if this.Screenshots <> null then
-                for ssid in this.Screenshots do
-                    let swk = new ScreenshotWithKinds()
-                    swk.Id <- ssid
-                    swk.Kinds <- [| MAIN_KIND |]
-                    swks.Add(swk)
-            // new format uses only ScreenshotsWithKinds
-            this.Screenshots <- null
-            this.ScreenshotsWithKinds <- swks |> Seq.toArray
-        // sanitize (remove any duplicate ssids, which fouls up a number of things)
-        this.ScreenshotsWithKinds <- this.ScreenshotsWithKinds |> Array.distinctBy (fun swk -> swk.Id)
-    member this.Assert() =
-        if this.Screenshots <> null || this.ScreenshotsWithKinds = null then
-            failwith "noncanonical MapTile"
+            this.ScreenshotsWithKinds <- [||]
     member this.IsEmpty = not(this.ThereAreScreenshots()) && (this.Note = null || this.Note="")
     member this.ThereAreScreenshots() = 
-        this.Assert()
         this.ScreenshotsWithKinds.Length > 0
     member this.CutScreenshot(ssid) = 
-        this.Assert()
         this.ScreenshotsWithKinds <- this.ScreenshotsWithKinds |> Array.filter (fun s -> s.Id <> ssid)
     member this.AddScreenshot(ssid) =
-        this.Assert()
         let swk = new ScreenshotWithKinds()
         swk.Id <- ssid
         swk.Kinds <- [| MAIN_KIND |]
         this.ScreenshotsWithKinds <- AAppend(this.ScreenshotsWithKinds, swk)
     member this.NumScreenshots() = 
-        this.Assert()
         this.ScreenshotsWithKinds.Length
 let inline AppendPercentZeroTwoDTo(sb:System.Text.StringBuilder, numberZeroToNinetyNine) =  // sb.Append(sprintf "%02d" numberZeroToNinetyNine)
     let tens = char (int '0' + (numberZeroToNinetyNine / 10))

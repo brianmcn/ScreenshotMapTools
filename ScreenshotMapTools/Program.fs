@@ -79,47 +79,6 @@ do
 [<EntryPoint>]
 let main _argv =
     System.Threading.Tasks.Task.Run(fun () -> System.Text.Json.JsonSerializer.Serialize<GameSpecific.ChosenGameJson>(null) |> ignore) |> ignore  // warm up the serializer so it doesn't take a long time on first use
-    (*
-    let app = new Application()
-    app.Run(new HS.QRWindow())
-    *)
-    // DeepRune.drMain()
-    //StitchView.svMain()
-
-    if false then    
-        //let fcPath = """C:\Users\Brian\Desktop\EMUUROM\AfterE37\ForestCover2x2.png"""
-        //let homePath = """C:\Users\Brian\Desktop\EMUUROM\AfterE37\Home2x2.png"""
-        let fcPath = """C:\Users\Brian\Desktop\EMUUROM\MazeTheory\foo1.png"""
-        let homePath = """C:\Users\Brian\Desktop\EMUUROM\MazeTheory\foo2.png"""
-        
-        let fcBmp = new System.Drawing.Bitmap(fcPath)
-        let homeBmp = new System.Drawing.Bitmap(homePath)
-        // make home partly transparent
-        let homeData = homeBmp.LockBits(System.Drawing.Rectangle(0,0,homeBmp.Width,homeBmp.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-        let tf = (fun (_a,r,g,b) -> (64uy,r,g,b))  // 64 is 25%
-        for x = 0 to homeBmp.Width-1 do
-            for y = 0 to homeBmp.Height-1 do
-                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(x, y, homeData, x, y, homeData, tf)
-        homeBmp.UnlockBits(homeData)
-        // draw it atop forest
-        let g = System.Drawing.Graphics.FromImage(fcBmp)
-        g.CompositingMode <- System.Drawing.Drawing2D.CompositingMode.SourceOver
-        homeBmp.MakeTransparent();
-        g.DrawImage(homeBmp, new System.Drawing.Point(0, 0))
-        //fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\AfterE37\Both2x2.png""")
-        fcBmp.Save("""C:\Users\Brian\Desktop\EMUUROM\MazeTheory\fooBoth.png""")
-        0
-    elif false then
-        let file = """C:\Users\Brian\Desktop\EmuGuide\Lying4"""
-        let bmp = new System.Drawing.Bitmap(file + ".png")
-        let doubleBitmap = new System.Drawing.Bitmap(2*bmp.Width, 2*bmp.Height)
-        use g = System.Drawing.Graphics.FromImage(doubleBitmap)
-        g.InterpolationMode <- System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor
-        g.PixelOffsetMode <- System.Drawing.Drawing2D.PixelOffsetMode.Half
-        g.DrawImage(bmp, System.Drawing.Rectangle(0, 0, 2*bmp.Width, 2*bmp.Height))
-        doubleBitmap.Save(file + "Doubled.png")
-        0
-    else
 
     if GameSpecific.CommandLine.glass then
         if false then
