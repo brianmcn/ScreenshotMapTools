@@ -30,7 +30,6 @@ module CommandLine =
 
 [<AllowNullLiteral>]
 type ChosenGameJson() =
-    member val GameFolder : string = null with get,set              // name of save folder for this program's assets (screenshots etc)
     member val WindowTitle : string = null with get,set             // of the process to find
     member val ProcessExe : string = null with get,set              // of the process to find
     member val GameWidth : int = 0 with get,set     
@@ -41,6 +40,7 @@ let WriteAllText = AppSettings.WriteAllText
 
 type ChosenGame() =
     let mutable data = null
+    let mutable gameFolder = null
     let gameFile = "CurrentGame.json"
     do
         if CommandLine.glass then data <- ChosenGameJson()  // populate a dummy so further code doesn't crash, data will be ignored by glass
@@ -52,18 +52,20 @@ type ChosenGame() =
         let subdirs = System.IO.Directory.EnumerateDirectories(".")
         let possibleArray = [|
             for dir in subdirs do
+                let dir = System.IO.Path.GetFileName(dir)           // convert from .\Zelda to just Zelda
                 let file = System.IO.Path.Combine(dir, gameFile)
                 if System.IO.File.Exists(file) then
                     try
                         let json = System.IO.File.ReadAllText(file)
-                        yield System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
+                        yield dir, System.Text.Json.JsonSerializer.Deserialize<ChosenGameJson>(json)
                     with _ -> ()
             |]
         // auto-choose from command-line arg is specified
         if CommandLine.initGameFolder <> null then
-            for x in possibleArray do
-                if x.GameFolder = CommandLine.initGameFolder then
+            for dir,x in possibleArray do
+                if dir = CommandLine.initGameFolder then
                     data <- x
+                    gameFolder <- dir
             if data = null then
                 failwithf "Invalid game folder '%s' specified on command line" CommandLine.initGameFolder
         else
@@ -71,8 +73,8 @@ type ChosenGame() =
         System.Console.WriteLine "Choose startup option:"
         System.Console.WriteLine "0: New Game"
         let mutable i = 1
-        for p in possibleArray do
-            System.Console.WriteLine(sprintf "%d: %s (%s)" i p.GameFolder p.WindowTitle)
+        for dir,p in possibleArray do
+            System.Console.WriteLine(sprintf "%d: %s (%s)" i dir p.WindowTitle)
             i <- i + 1
         let r = System.Console.ReadLine()
         try 
@@ -112,7 +114,6 @@ type ChosenGame() =
                         System.Console.WriteLine(System.IO.Path.GetFullPath(System.IO.Path.Combine(".",r)))
                         System.Threading.Thread.Sleep(2000)
                         let cgj = ChosenGameJson()
-                        cgj.GameFolder <- r
                         cgj.GameHeight <- h
                         cgj.GameWidth <- w
                         cgj.MapArea <- 0,0,w,h
@@ -122,12 +123,14 @@ type ChosenGame() =
                         let json = System.Text.Json.JsonSerializer.Serialize<ChosenGameJson>(cgj)
                         WriteAllText(file, json)
                         data <- cgj
+                        gameFolder <- r
                     else
                         failwith "Directory name must be alphanumeric and start with a letter"
                 else
                     failwith "invalid selection"
             elif j<=possibleArray.Length then
-                data <- possibleArray.[j-1]
+                data <- snd(possibleArray.[j-1])
+                gameFolder <- fst(possibleArray.[j-1])
             else
                 failwith "out of range"
         with e ->
@@ -135,7 +138,7 @@ type ChosenGame() =
             System.Threading.Thread.Sleep(2000)
             System.Environment.Exit(1)
     // these are static
-    member this.GAME = data.GameFolder
+    member this.GAME = gameFolder
     member this.WINDOW_TITLE = data.WindowTitle
     member this.PROCESS_EXE = data.ProcessExe
     member this.GAMESCREENW = data.GameWidth

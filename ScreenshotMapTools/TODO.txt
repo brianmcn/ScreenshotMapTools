@@ -1,6 +1,4 @@
-﻿GameFolder ought not exist, just confuses issue
-
-also, screenshots v screenshotswithkinds
+﻿also, screenshots v screenshotswithkinds
 think about design, understand feature, and rip out one of the two
 sswk - the top two big chunks of code in generic deal with kinds, namely the screenshot display window, and the assemble map grid, which are probably 
     all the places that use it? so maybe factor those into another file, and keep sswk and remove s from the json struct
