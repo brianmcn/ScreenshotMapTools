@@ -7,9 +7,6 @@ sswk - the top two big chunks of code in generic deal with kinds, namely the scr
 
 printcurrentzone button uses assmblebmdgrid, probably also can be factored
 
-dofeaturebutton can probably be factored out into featurewindow.fs
-
-remove minimapwindow.fs and move the text box to whatever other file makes sense in
 
 
 

@@ -22,6 +22,33 @@ open Utils.Extensions
 let mutable clipboardSSID = ""
 let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugly tangle
 
+///////////////////////////////////////////////////////
+
+let RICH_TEXT_HEIGHT = 200
+let MakeRichTextBox(margin) = 
+    new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
+                                FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
+                                HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
+                                Height=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
+let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
+    let fd = new System.Windows.Documents.FlowDocument()
+    let p = new System.Windows.Documents.Paragraph()
+    p.Inlines.Add(sprintf "(%02d,%02d) %d screenshots\n" i j (mt.NumScreenshots()))
+    let mutable note = mt.Note
+    if note <> null then
+        let linkages = GenericMetadata.FindAllLinkages(mt.Note, z, i, j)
+        while linkages.Count > 0 do
+            let si,substr,loc,li = linkages |> Seq.mapi (fun i (loc,substr) -> note.IndexOf(substr), substr, loc, i) |> Seq.sortBy (fun (a,_,_,_)->a) |> Seq.head
+            linkages.RemoveAt(li)
+            p.Inlines.Add(note.Substring(0,si))
+            p.Inlines.Add(new System.Windows.Documents.Hyperlink(System.Windows.Documents.Run(substr), NavigateUri=new System.Uri(sprintf "http://foo.bar/%02d/%02d/%02d" loc.Zone loc.X loc.Y)))
+            note <- note.Substring(si+substr.Length)
+        p.Inlines.Add(note)
+    fd.Blocks.Add(p)
+    tb.Document <- fd
+
+///////////////////////////////////////////////////////
+
 let SerializeMapTile(x,y,zm:ZoneMemory) = 
     let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(zm.MapTiles.[x,y])
     WriteAllText(MapTileFilename(x,y,zm.Zone), json)
@@ -98,45 +125,6 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
     Utils.DoModalDialog(parent, all, sprintf "All Screenshots for (%d,%d)" x y, closeEv.Publish)
     theCurrentLocalBHKE <- fun _ -> ()
 
-////////////////////////////////////////////////////
-
-let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
-    let mx,my,mw,mh = gameProjection
-    let r = new System.Drawing.Bitmap(mw*bmpcis.GetLength(0), mh*bmpcis.GetLength(1))
-    let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-    for i = 0 to bmpcis.GetLength(0)-1 do
-        for j = 0 to bmpcis.GetLength(1)-1 do
-            let bmp,ci = bmpcis.[i,j]
-            if bmp <> null then
-                let bmp = bmp.Clone(System.Drawing.Rectangle(mx,my,mw,mh), System.Drawing.Imaging.PixelFormat.Format32bppArgb)  // project out the map area
-                if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
-                    // no color change, just Blit the data copy efficiently...
-                    Utils.Blit(bmp, rData, mw*i, mh*j)
-                    // ... and then add the grid lines 
-                    for x = 0 to mw-1 do
-                        Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + (mh-1), rData, System.Drawing.Color.Gray)
-                    for y = 0 to mh-1 do
-                        Utils.SetColorFromLockedFormat32BppArgb(mw*i + (mw-1), mh*j + y, rData, System.Drawing.Color.Gray)
-                else
-                    // go pixel by pixel to do the color change
-                    let tf = 
-                        (fun (a,r,g,b) ->
-                            let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
-                            let P = 0.8
-                            let f(x,y) = float x * P + float y * (1.0-P) |> byte
-                            f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
-                        )
-                    let data = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
-                    for x = 0 to mw-1 do
-                        for y = 0 to mh-1 do
-                            if x=mw-1 || y=mh-1 then        // grid lines
-                                Utils.SetColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y,rData, System.Drawing.Color.Gray)
-                            else
-                                Utils.SetAndGetAndTransformColorFromLockedFormat32BppArgb(mw*i + x, mh*j + y, rData, mx+x, my+y, data, tf)
-                    bmp.UnlockBits(data)
-    r.UnlockBits(rData)
-    r
-
 ///////////////////////////////////////////////////
 
 type MyWindow(mkGlassF : unit->unit) as this = 
@@ -195,7 +183,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let printCurrentZoneButtonDefaultContent = "Print zone"
     let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=CONTROL_MARGIN, Focusable=false)
     // summary of current selection
-    let summaryTB = MinimapWindow.MakeRichTextBox(4.)
+    let summaryTB = MakeRichTextBox(4.)
     let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
     let navigationFunc (_o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
         let s = ea.Uri.AbsolutePath
@@ -235,7 +223,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         let zm = ZoneMemory.Get(theGame.CurZone)
         let cmt = zm.MapTiles.[theGame.CurX,theGame.CurY]
-        MinimapWindow.UpdateRichTextBox(summaryTB, theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
+        UpdateRichTextBox(summaryTB, theGame.CurX, theGame.CurY, theGame.CurZone, cmt)
 //    let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0xE8uy,0xD3uy,0xD3uy)), new SolidColorBrush(Color.FromRgb(0xC0uy,0xA9uy,0xA9uy))
     let tbLight, tbDark = new SolidColorBrush(Color.FromRgb(0x88uy,0x78uy,0x88uy)), new SolidColorBrush(Color.FromRgb(0x70uy,0x60uy,0x70uy))
     let zoomTextboxes = Array2D.init MAX MAX (fun i j ->
@@ -617,7 +605,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         printCurrentZoneButton.Click.Add(fun _ ->
             let PrintRegion(bmpcis:(System.Drawing.Bitmap*int)[,], filename:string) =
                 //for ma,fn in [MetaArea,"printed_meta.png";    MapArea,"printed_map.png"] do
-                let r = AssembleBmpGrid(bmpcis, TheChosenGame.MapArea)
+                let r = FeatureWindow.AssembleBmpGrid(bmpcis, TheChosenGame.MapArea)
                 r.Save(filename, System.Drawing.Imaging.ImageFormat.Png)
             async {
                 printCurrentZoneButton.IsEnabled <- false
@@ -1085,83 +1073,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
             else
                 UpdateCurrentNote(orig, (if orig.EndsWith("\n") then orig+specialText else orig+"\n"+specialText), zm)
             mfsRefresh()
-    member this.DoFullMapPanZoomFeatureWindow(ctrl) =
-        let zm = ZoneMemory.Get(theGame.CurZone)
-        let bmps = Array2D.create MAX MAX (null, -1)
-        let gr = FeatureWindow.GridRange(MAX,MAX,0,0)
-        for i = 0 to MAX-1 do
-            for j = 0 to MAX-1 do
-                let bmp = zm.FullImgArray.GetCopyOfBmp(i,j)
-                if bmp <> null then
-                    bmps.[i,j] <- bmp, -1
-                    gr.Extend(i,j)
-        if gr.MaxX >= gr.MinX then // there was at least one screenshot
-            let bmp = AssembleBmpGrid(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], TheChosenGame.MapArea)
-            let bmp =
-                if ctrl then
-                    let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width/2, bmp.Height/2))
-                    Utils.TileReplicateBitmapEfficiently(bmp, 2)
-                else
-                    bmp
-            let img = Utils.BMPtoImage(bmp)
-            let scale = new ScaleTransform()
-            let trans = new TranslateTransform()
-            let tg = new TransformGroup()
-            tg.Children <- new TransformCollection([|scale :> Transform; trans :> Transform|])
-            img.RenderTransform <- tg
-            // fit to screen to start
-            let usedW, usedH = 
-                if float bmp.Width / float bmp.Height > float FeatureWindow.FEATUREW / float FeatureWindow.FEATUREH then
-                    img.Width <- float FeatureWindow.FEATUREW
-                    img.Height <- System.Double.NaN
-                    img.Width, float bmp.Height * img.Width / float bmp.Width
-                else
-                    img.Width <- System.Double.NaN
-                    img.Height <- float FeatureWindow.FEATUREH
-                    float bmp.Width * img.Height / float bmp.Height, img.Height
-            let b = new Border(ClipToBounds=true, Background=Brushes.DarkMagenta, Width=float FeatureWindow.FEATUREW, Height=float FeatureWindow.FEATUREH, Child=img)
-            // mouse controls to zoom and pan
-            let mutable startPanPoint, originPanOffset = Point(),Point()
-            b.MouseWheel.Add(fun ea ->
-                let mousePos = ea.GetPosition(img)
-                let FACTOR = 1.15
-                let zoomFactor = if ea.Delta > 0 then FACTOR else 1. / FACTOR
-                let newScaleX = scale.ScaleX * zoomFactor
-                if false then // (newScaleX < 0.05 || newScaleX > 20.) then
-                    () // do nothing (clamp to these limits)
-                else
-                    // Calculate new translation adjustments to anchor zoom on the mouse cursor
-                    let newScaleY = scale.ScaleY * zoomFactor
-                    trans.X <- trans.X - (mousePos.X * (zoomFactor - 1.) * scale.ScaleX)
-                    trans.Y <- trans.Y - (mousePos.Y * (zoomFactor - 1.) * scale.ScaleY)
-                    scale.ScaleX <- newScaleX
-                    scale.ScaleY <- newScaleY
-                )
-            b.MouseLeftButtonDown.Add(fun ea ->
-                // Track start coordinates of the cursor and current transform offsets
-                startPanPoint <- ea.GetPosition(b)
-                originPanOffset <- new Point(trans.X, trans.Y)
-                // Capture the mouse to continue tracking movement even outside the window
-                b.CaptureMouse() |> ignore
-                )
-            b.MouseMove.Add(fun ea ->
-                // Only pan if the mouse capture is locked to our element
-                if b.IsMouseCaptured then
-                    let delta = ea.GetPosition(b) - startPanPoint
-                    trans.X <- originPanOffset.X + delta.X
-                    trans.Y <- originPanOffset.Y + delta.Y
-                )
-            b.MouseLeftButtonUp.Add(fun _ea ->
-                b.ReleaseMouseCapture()
-                )
-            let c = new Canvas(Width=b.Width, Height=b.Height)
-            Utils.canvasAdd(c, b, 0, 0)
-            if not ctrl then
-                let mapMarkersImage = new Image(Width=b.Width, Height=b.Height, IsHitTestVisible=false)
-                mapMarkersImage.RenderTransform <- tg
-                mapMarkersImage.Source <- FeatureWindow.DrawMapIconsToBitmapSource(gr, int usedW, int usedH)
-                Utils.canvasAdd(c, mapMarkersImage, 0, 0)
-            FeatureWindow.EnsureFeature(this.Owner, c, null)
     member this.ToggleQuickNav(tryToFollowHyperlink) =
         let hyperlinkLocOpt = 
             if tryToFollowHyperlink then
@@ -1198,111 +1109,4 @@ type MyWindow(mkGlassF : unit->unit) as this =
             MapIcons.redrawMapIconHoverOnly.Trigger()
             updateQuickNavView()
     member this.DoFeatureButton() =
-        let featureZoneButton = new Button(Content="This Zone\nw/ Details")
-        let featureZone() = FeatureWindow.MakeFeatureMap(this.Owner, Array2D.init 1 1 (fun _ _ -> Some(ZoneMemory.Get(theGame.CurZone))))
-(*
-                // This is code to feature multiple zones at once, which doesn't seem too useful
-                let W = 220
-                let diag = Utils.makeGrid(2,3,W,20)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Width"), 0, 0)
-                let wInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-                Utils.gridAdd(diag, wInput, 1, 0)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Height"), 0, 1)
-                let hInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-                Utils.gridAdd(diag, hInput, 1, 1)
-                Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Comma-separated zones"), 0, 2)
-                let zs = theGame.CurZone.ToString()
-                let zInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text=zs, CaretIndex=zs.Length)
-                Utils.gridAdd(diag, zInput, 1, 2)
-                let closeEv = new Event<unit>()
-                wInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then hInput.Focus() |> ignore)
-                hInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then zInput.Focus() |> ignore)
-                zInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
-                Utils.DoModalDialogCore(this, diag, "Select zones to feature", closeEv.Publish, (fun () -> wInput.Focus() |> ignore))
-                try
-                    let w = wInput.Text |> int
-                    let h = hInput.Text |> int
-                    let zs = zInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> if s="" then None else Some(ZoneMemory.Get(int s)))
-                    if zs.Length <> w*h then failwith "wrong number of comma-separated entries"
-                    let a = Array2D.init w h (fun x y -> zs.[y*h+x])
-                    FeatureWindow.MakeFeatureMap(this.Owner,a)
-                with e ->
-                    System.Console.Beep()
-                    printfn "FEATURE error: %s" (e.ToString())
-*)
-        let dualFeatureButton = new Button(Content="Two Zones\nat once")
-        let dualFeature() = 
-            let W = 220
-            let diag = Utils.makeGrid(2,3,W,20)
-            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Left Zone"), 0, 0)
-            let lInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="0", CaretIndex=1)
-            Utils.gridAdd(diag, lInput, 1, 0)
-            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="Right Zone"), 0, 1)
-            let rInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="1", CaretIndex=1)
-            Utils.gridAdd(diag, rInput, 1, 1)
-            Utils.gridAdd(diag, new TextBlock(FontSize=12., Text="minx,miny,maxx,maxy"), 0, 2)
-            let boundsInput = new TextBox(FontSize=12., Width=float W, IsReadOnly=false, Text="", CaretIndex=0)
-            Utils.gridAdd(diag, boundsInput, 1, 2)
-            let closeEv = new Event<unit>()
-            lInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then rInput.Focus() |> ignore)
-            rInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then 
-                                            boundsInput.Focus() |> ignore
-                                            try
-                                                let gr1 = FeatureWindow.ComputeRange(ZoneMemory.Get(int lInput.Text))
-                                                let gr2 = FeatureWindow.ComputeRange(ZoneMemory.Get(int rInput.Text))
-                                                boundsInput.Text <- sprintf "%d,%d,%d,%d" (min gr1.MinX gr2.MinX) (min gr1.MinY gr2.MinY) (max gr1.MaxX gr2.MaxX) (max gr1.MaxY gr2.MaxY)
-                                                boundsInput.CaretIndex <- boundsInput.Text.Length
-                                            with _ -> ()
-                                            )
-            boundsInput.KeyUp.Add(fun ke -> if ke.Key = Input.Key.Enter then closeEv.Trigger())
-            Utils.DoModalDialogCore(this, diag, "Select two zones to feature side-by-side", closeEv.Publish, (fun () -> lInput.Focus() |> ignore))
-            // TODO better validate
-            try
-                let l = lInput.Text |> int
-                let r = rInput.Text |> int
-                let [|a;b;c;d|] = boundsInput.Text.Split([|','|], System.StringSplitOptions.None) |> Array.map (fun s -> int s)
-                FeatureWindow.MakeDualFeatureMap(this, ZoneMemory.Get(l), ZoneMemory.Get(r), FeatureWindow.GridRange(a,b,c,d))
-            with e ->
-                System.Console.Beep()
-                printfn "FEATURE error: %s" (e.ToString())
-        let zoomable1x1Button = new Button(Content="Zoom & Pan\nZone Map")
-        let zoomable1x1() = this.DoFullMapPanZoomFeatureWindow(false)
-        let zoomable2x2Button = new Button(Content="Zoom & Pan\nZone Map(2x2)")
-        let zoomable2x2() = this.DoFullMapPanZoomFeatureWindow(true)
-        let mkTxt(txt) = new TextBlock(FontSize=16., Text=txt, Foreground=Brushes.Black, TextWrapping=TextWrapping.Wrap, 
-                                            Margin=Thickness(3., 0., 3., 0.), VerticalAlignment=VerticalAlignment.Center)
-        let sp = new StackPanel(Orientation=Orientation.Vertical, Width=float(APP_WIDTH-16), Background=Brushes.White)
-        sp.Children.Add(mkTxt("""The Feature Window is a large window that presents one of a few different useful projections of your screenshots and Notes.
-
-Choose one of these options:""")) |> ignore
-        let desc1 = """This one shows the current zone's map grid, where mousing each cell shows a large screenshot, the Notes, and any hyperlinked cells."""
-        let desc2 = """This one shows two zones side by side; mousing either cell grid shows large screenshots from both zones at the same coordinates at once."""
-        let desc3 = """This one displays a fullsize map of the current zone, which you can pan and zoom (using left-click-drag and mouse-scroll-wheel)."""
-        let desc4 = """This one is like the previous one, only the map is replicated four times in a 2x2 grid (so you can see across world-wrap-edges, for games whose maps wrap around on a topological torus)."""
-        let border(e) = new Border(BorderBrush=Brushes.Black, BorderThickness=Thickness(1.0), Child=e)
-        let g = new Grid()
-        g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(104.)))
-        g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(float(APP_WIDTH-120))))
-        for _i = 1 to 4 do g.RowDefinitions.Add(new RowDefinition())
-        let mutable row = 0
-        let closeEv = new Event<_>()
-        let data = [|
-            zoomable1x1Button, desc3, zoomable1x1
-            zoomable2x2Button, desc4, zoomable2x2
-            featureZoneButton, desc1, featureZone
-            dualFeatureButton, desc2, dualFeature
-            |]
-        for b,desc,f in data do
-            b.Margin <- Thickness(6.)
-            b.Click.Add(fun _ -> closeEv.Trigger(); f())
-            Utils.gridAdd(g, border(b), 0, row)
-            Utils.gridAdd(g, border(mkTxt(desc)), 1, row)
-            row <- row + 1
-        sp.Children.Add(Utils.centerWithGrid(g)) |> ignore
-        sp.Children.Add(mkTxt("""Try them out!
-
-You can also Feature a single cell of the map grid by right-clicking on its cell in the main app window.
-
-(Note: The Feature Window always has the window title "FEATURE", making it easy to target with OBS.)""")) |> ignore
-        let border = new Border(Child=sp, Padding=Thickness(4.), BorderThickness=Thickness(1.), BorderBrush=Brushes.Black)
-        Utils.DoModalDialog(this, border, "Choose a Feature Window", closeEv.Publish)
+        FeatureWindow.DoFeatureButton(this, APP_WIDTH)

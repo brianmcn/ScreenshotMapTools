@@ -29,7 +29,6 @@
     <Compile Include="Autocomplete.fs" />
     <Compile Include="MapIcons.fs" />
     <Compile Include="FeatureWindow.fs" />
-    <Compile Include="MinimapWindow.fs" />
     <Compile Include="Popouts.fs" />
     <Compile Include="PopoutsSettings.fs" />
     <Compile Include="PreviewPane.fs" />
