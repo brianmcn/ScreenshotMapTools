@@ -58,7 +58,7 @@ let mutable theCurrentLocalBHKE = fun _ -> ()
 do
     broadcastHotKeyEv.Publish.Add(fun x -> theCurrentLocalBHKE x)
 
-let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) = 
+let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory,pictureChanged:Utils.EventingBool) = 
     let closeEv = new Event<unit>()
     // layout
     let sp = new StackPanel(Orientation=Orientation.Vertical)
@@ -113,6 +113,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                 zm.MapTiles.[x,y].CutScreenshot(ssid)
                 // update current tile view
                 RecomputeImage(x,y,zm)
+                pictureChanged.Value <- true
                 //zoom(...) will be called when the window closes
                 // update disk
                 SerializeMapTile(x,y,zm)
@@ -218,7 +219,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             ea.Handled <- true
             let cmt = zm.MapTiles.[theGame.CurX, theGame.CurY]
             if cmt.NumScreenshots() > 0 then
-                DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm)
+                DoScreenshotDisplayWindow(theGame.CurX, theGame.CurY, this, zm, pictureChanged)
                 doZoom()
             )
         let zm = ZoneMemory.Get(theGame.CurZone)

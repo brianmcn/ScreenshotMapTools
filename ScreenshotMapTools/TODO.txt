@@ -5,8 +5,6 @@ dwarf wants unicode not alphanum for icon markers... dunno how system fonts work
 
 
 
-if delete screenshot from ssdw using -, does not redraw when window closes
-
 
 
 
