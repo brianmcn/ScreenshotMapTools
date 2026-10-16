@@ -555,3 +555,83 @@ do
             | EditNotesListenerMessage.Edit(t,ci,ss,sl) -> LiveNotesWindow.Singleton.NoteEdit(t,ci,ss,sl)
             | EditNotesListenerMessage.FinishEditing -> LiveNotesWindow.Singleton.FinishEdit()
         )
+
+/////////////////////////////////////////////////////////////////////////////////
+
+[<AllowNullLiteral>]
+type ClickableNumPadPopout(numPadInputF, toggleHkF) as this =
+    inherit IndependentWindow()
+    static let mutable singleton : ClickableNumPadPopout = null
+    do
+        singleton <- this
+        this.Width <- 280.
+        this.Height <- 250.
+        this.MinWidth <- 180.
+        this.MinHeight <- 240.
+        MakeWindowSmartByRememberingPositionAndSize(this, MainUIInvoke(fun() -> AppSettings.theAppSettingsJson.ClickableNumPadPopout))
+        // note: this window is not chromeless
+        this.Title <- ClickableNumPadPopout.Name
+        this.UseLayoutRounding <- true
+        this.Loaded.Add(fun _ ->
+            ()
+            )
+        this.Closed.Add(fun _ ->
+            singleton <- null
+            )
+        let g = Utils.makeGrid(4, 5, 40, 40)
+        let mkBasicButton(txt:string,c,r) =
+            let b = new Button(Content=txt)
+            Utils.gridAdd(g, b, c, r)
+            b
+        let mkButton(txt:string,c,r,key) =
+            let b = new Button(Content=new TextBlock(Text=txt,FontWeight=FontWeights.Bold,FontSize=24.))
+            Utils.gridAdd(g, b, c, r)
+            b.Click.Add(fun _ ->
+                let ctrlHeld = System.Windows.Input.Keyboard.Modifiers = System.Windows.Input.ModifierKeys.Control
+                MainUIInvoke(fun () -> numPadInputF(key,ctrlHeld))
+                )
+            b
+        let bInfo = mkBasicButton("INFO", 0, 0)
+        bInfo.Click.Add(fun _ ->
+            MessageBox.Show("""By default, the app uses NumPad hotkeys to control the app when it is running in the background (because e.g. the game window is in the foreground).
+
+If those hotkeys cannot be registered (e.g. because some other application is already using the same NumPad hotkey), then you can click the buttons in this window with the mouse as fallback controls.
+
+You can also toggle this app's use of NumPad hotkeys using the TOGGLE NUMPAD button (to turn off NumPad hotkeys while this app is running, if you need that for some reason).""") |> ignore
+            )
+        let bSlash = mkButton("/", 1, 0, Elephantasy.Winterop.VK_DIVIDE)
+        let bMult = mkButton("*", 2, 0, Elephantasy.Winterop.VK_MULTIPLY)
+        let bMinus = mkButton("-", 3, 0, Elephantasy.Winterop.VK_SUBTRACT)
+        let b7 = mkButton("7", 0, 1, Elephantasy.Winterop.VK_NUMPAD7)
+        let b8 = mkButton("8", 1, 1, Elephantasy.Winterop.VK_NUMPAD8)
+        let b9 = mkButton("9", 2, 1, Elephantasy.Winterop.VK_NUMPAD9)
+        ignore(bSlash, bMult, bMinus, b7, b8, b9)
+        let bPlus = mkButton("+", 3, 1, Elephantasy.Winterop.VK_ADD)
+        Grid.SetRowSpan(bPlus, 2)
+        let b4 = mkButton("4", 0, 2, Elephantasy.Winterop.VK_NUMPAD4)
+        let b5 = mkButton("5", 1, 2, Elephantasy.Winterop.VK_NUMPAD5)
+        let b6 = mkButton("6", 2, 2, Elephantasy.Winterop.VK_NUMPAD6)
+        let b1 = mkButton("1", 0, 3, Elephantasy.Winterop.VK_NUMPAD1)
+        let b2 = mkButton("2", 1, 3, Elephantasy.Winterop.VK_NUMPAD2)
+        let b3 = mkButton("3", 2, 3, Elephantasy.Winterop.VK_NUMPAD3)
+        ignore(b4,b5,b6,b1,b2,b3)
+        let b0 = mkButton("0", 0, 4, Elephantasy.Winterop.VK_NUMPAD0)
+        Grid.SetColumnSpan(b0, 2)
+        let bDot = mkButton(".", 2, 4, Elephantasy.Winterop.VK_DECIMAL)
+        ignore(bDot)
+        let bToggle = mkBasicButton("TOG\nGLE\nNUM\nPAD", 3, 3)
+        Grid.SetRowSpan(bToggle, 2)
+        bToggle.Click.Add(fun _ ->
+            if MainUIInvoke(toggleHkF) then
+                MessageBox.Show("NumPad hotkeys are now enabled:\nwhen NumLock is on, the NumPad controls the app") |> ignore
+            else
+                MessageBox.Show("NumPad hotkeys are now disabled:\nthe NumPad does not control the app,\nand you must use the ClickableNumPad window instead") |> ignore
+            )
+        g.HorizontalAlignment <- HorizontalAlignment.Center
+        g.VerticalAlignment <- VerticalAlignment.Center
+        this.Content <- g
+        this.Background <- Brushes.DarkSlateBlue
+    static member Singleton = singleton
+    static member Name = "ClickableNumPad"
+    
+

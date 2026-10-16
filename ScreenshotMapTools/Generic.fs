@@ -53,7 +53,7 @@ let SerializeMapTile(x,y,zm:ZoneMemory) =
     let json = System.Text.Json.JsonSerializer.Serialize<MapTile>(zm.MapTiles.[x,y])
     WriteAllText(MapTileFilename(x,y,zm.Zone), json)
 
-let broadcastHotKeyEv = new Event<int*IntPtr*IntPtr>()
+let broadcastHotKeyEv = new Event<int*bool>()
 let mutable theCurrentLocalBHKE = fun _ -> ()
 do
     broadcastHotKeyEv.Publish.Add(fun x -> theCurrentLocalBHKE x)
@@ -103,24 +103,20 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
                     b.BorderBrush <- Brushes.Transparent
                 border.BorderBrush <- Brushes.Orange
             )
-    theCurrentLocalBHKE <- (fun (msg, wParam, lParam) ->
-        let WM_HOTKEY = 0x0312
-        if msg = WM_HOTKEY then
-            if wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID then
-                let key = lParam.ToInt32() >>> 16
-                if key = VK_SUBTRACT then
-                    match whichSSIDisHighlighted with
-                    | None -> ()
-                    | Some(ssid) ->
-                        clipboardSSID <- ssid
-                        updateClipboardView()
-                        zm.MapTiles.[x,y].CutScreenshot(ssid)
-                        // update current tile view
-                        RecomputeImage(x,y,zm)
-                        //zoom(...) will be called when the window closes
-                        // update disk
-                        SerializeMapTile(x,y,zm)
-                        closeEv.Trigger()
+    theCurrentLocalBHKE <- (fun (key, _ctrlHeld) ->
+        if key = VK_SUBTRACT then
+            match whichSSIDisHighlighted with
+            | None -> ()
+            | Some(ssid) ->
+                clipboardSSID <- ssid
+                updateClipboardView()
+                zm.MapTiles.[x,y].CutScreenshot(ssid)
+                // update current tile view
+                RecomputeImage(x,y,zm)
+                //zoom(...) will be called when the window closes
+                // update disk
+                SerializeMapTile(x,y,zm)
+                closeEv.Trigger()
         )
     Utils.DoModalDialog(parent, all, sprintf "All Screenshots for (%d,%d)" x y, closeEv.Publish)
     theCurrentLocalBHKE <- fun _ -> ()
@@ -130,9 +126,13 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory) =
 type MyWindow(mkGlassF : unit->unit) as this = 
     inherit Window()
     let mutable currentlyRunningAHotkeyCommand = false
-    let KEYS = [| VK_NUMPAD0; VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD5; VK_NUMPAD6; VK_NUMPAD7; VK_NUMPAD8; VK_NUMPAD9;
-                    VK_MULTIPLY; VK_ADD; VK_SUBTRACT; VK_DECIMAL; VK_DIVIDE (*; VK_RETURN *) |]
+    let KEYS_AND_NAMES = [| VK_NUMPAD0, "NUMPAD0"; VK_NUMPAD1, "NUMPAD1"; VK_NUMPAD2, "NUMPAD2"; VK_NUMPAD3, "NUMPAD3"; VK_NUMPAD4, "NUMPAD4"; 
+                            VK_NUMPAD5, "NUMPAD5"; VK_NUMPAD6, "NUMPAD6"; VK_NUMPAD7, "NUMPAD7"; VK_NUMPAD8, "NUMPAD8"; VK_NUMPAD9, "NUMPAD9"; 
+                            VK_MULTIPLY, "NUMPAD*"; VK_ADD, "NUMPAD+"; VK_SUBTRACT, "NUMPAD-"; VK_DECIMAL, "NUMPAD."; VK_DIVIDE, "NUMPAD/" |]
+    let KEYS = KEYS_AND_NAMES |> Array.map fst
+    let KEY_TO_NAME(key) = KEYS_AND_NAMES |> Array.find (fun (k,_n) -> k=key) |> snd
     let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
+    let mutable areHotKeysRegistered = false
     let MAPX,MAPY = APP_WIDTH,420
     // next two lines are temp backing store for mapImage and mapMarkersHoverImage, allocated more than large enough to always hold all the data we need
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
@@ -509,6 +509,16 @@ type MyWindow(mkGlassF : unit->unit) as this =
                                 Popouts.GlobalNoteWindow.Singleton.ThreadSafeClose()
                         member _.GetJson() = AppSettings.theAppSettingsJson.GlobalNotePopout
                         }
+    let popout_cnp = { new PopoutsSettings.IPopoutWindowBehavior with
+                        member _.Activate() = 
+                            if Popouts.ClickableNumPadPopout.Singleton=null then
+                                Popouts.CreateAndShowWindowOnItsOwnUIDispatcherThread(fun () -> new Popouts.ClickableNumPadPopout((fun(k,ctrl)->this.ProcessNumPadInput(k,ctrl)),
+                                            (fun() -> this.ToggleHotKeys())))
+                        member _.Close() = 
+                            if Popouts.ClickableNumPadPopout.Singleton<>null then
+                                Popouts.ClickableNumPadPopout.Singleton.ThreadSafeClose()
+                        member _.GetJson() = AppSettings.theAppSettingsJson.ClickableNumPadPopout
+                        }
     /////////
     do
         doZoom <- zoom
@@ -723,7 +733,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN, Focusable=false)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
-                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,float APP_WIDTH), "Popout Settings", closeEv.Publish)
+                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,popout_cnp,float APP_WIDTH), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN, Focusable=false)
@@ -783,7 +793,8 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 do! Async.Sleep(500)
                 do! Async.SwitchToContext(ctxt)
                 if not(thisWindowHasClosed) then
-                    for p in [popout_ccs; popout_lm; popout_ln; popout_agp; popout_app; popout_gn] do
+                    this.RegisterHotKey()
+                    for p in [popout_ccs; popout_lm; popout_ln; popout_agp; popout_app; popout_gn; popout_cnp] do
                         if p.GetJson().IsActive then
                             p.Activate()
                     do! Async.Sleep(200)                // give popouts a chance to open on their own threads
@@ -795,7 +806,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
         let helper = new System.Windows.Interop.WindowInteropHelper(this)
         hwndSource <- System.Windows.Interop.HwndSource.FromHwnd(helper.Handle)
         hwndSource.AddHook(System.Windows.Interop.HwndSourceHook(fun a b c d e -> this.HwndHook(a,b,c,d,&e)))
-        this.RegisterHotKey()
     override this.OnClosed(e) =
         if hwndSource <> null then
             hwndSource.RemoveHook(System.Windows.Interop.HwndSourceHook(fun a b c d e -> this.HwndHook(a,b,c,d,&e)))
@@ -803,23 +813,35 @@ type MyWindow(mkGlassF : unit->unit) as this =
         this.UnregisterHotKey()
         thisWindowHasClosed <- true
         base.OnClosed(e)
+    member this.ToggleHotKeys() =
+        if areHotKeysRegistered then
+            this.UnregisterHotKey()
+        else
+            this.RegisterHotKey()
+        areHotKeysRegistered
     member this.RegisterHotKey() =
-        let helper = new System.Windows.Interop.WindowInteropHelper(this);
+        let helper = new System.Windows.Interop.WindowInteropHelper(this)
         let s = "This might indicate that another program is also using NumPad hotkeys.\n" +
-                    "If you know which program that is, you could close it and try this tool again.\n" +
-                    "But this tool cannot run without exclusive NumPad hotkey access, and will now close.\n\n"
+                    "If you know which program that is, you could close it and try this again.\n" +
+                    "Otherwise use the Popout window 'ClickableNumPad' for app mouse controls."
+        let mutable msg = null
         for k in KEYS do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID, MOD_NONE, uint32 k))) then
-                failwithf "\n\ncould not register hotkey %A\n%s" k s
+                msg <- sprintf "Could not register hotkey %s\n%s" (KEY_TO_NAME k) s
         for k in KEYS_WITH_CTRL do
             if(not(Elephantasy.Winterop.RegisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1, MOD_CONTROL, uint32 k))) then
-                failwithf "\n\ncould not register hotkey ctrl+%A\n%s" k s
+                msg <- sprintf "Could not register hotkey Ctrl+%s\n%s" (KEY_TO_NAME k) s
+        if msg<>null then
+            MessageBox.Show(msg) |> ignore
+            this.UnregisterHotKey()
+        else
+            areHotKeysRegistered <- true
     member this.UnregisterHotKey() =
         let helper = new System.Windows.Interop.WindowInteropHelper(this)
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID) |> ignore
         Elephantasy.Winterop.UnregisterHotKey(helper.Handle, Elephantasy.Winterop.HOTKEY_ID+1) |> ignore
+        areHotKeysRegistered <- false
     member this.HwndHook(_hwnd:IntPtr, msg:int, wParam:IntPtr, lParam:IntPtr, handled:byref<bool>) : IntPtr =
-        if Utils.nestedModalDialogCount > 0 then (broadcastHotKeyEv.Trigger(msg,wParam,lParam); IntPtr.Zero) else
         let WM_HOTKEY = 0x0312
         if msg = WM_HOTKEY && (wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID || wParam.ToInt32() = Elephantasy.Winterop.HOTKEY_ID+1) then
             if currentlyRunningAHotkeyCommand then
@@ -833,36 +855,42 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     for k in KEYS do
                         if key = k then
                             printfn "key %A was pressed, ctrl_bits are %d" k ctrl_bits
-                match quickNavModeSavedSettings with
-                | None ->
-                    if key = VK_SUBTRACT then           this.DoCut()
-                    if key = VK_ADD then                this.DoPaste()
-                    if key = VK_MULTIPLY then           this.CycleZone(false,1)
-                    if key = VK_NUMPAD4 then            this.MoveLeft((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD6 then            this.MoveRight((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD8 then            this.MoveUp((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD2 then            this.MoveDown((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD0 then            this.DoScreenshot()
-                    if key = VK_NUMPAD7 then            this.ZoomOut()
-                    if key = VK_NUMPAD9 then            this.ZoomIn()
-                    if key = VK_NUMPAD5 then            this.DoCentering()
-                    if key = VK_DIVIDE then             this.EditNotes((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_NUMPAD3 then            this.DoTextMacro((ctrl_bits = int MOD_CONTROL))
-                    if key = VK_DECIMAL then            this.ToggleQuickNav(false)
-                | Some(_) ->    // we're in QuickNav mode
-                    if key = VK_MULTIPLY then           this.CycleZone(true,1)
-                    if key = VK_NUMPAD7 then            this.CycleZone(true,-1)
-                    if key = VK_NUMPAD9 then            this.CycleZone(true,1)
-                    if key = VK_NUMPAD4 then            (QuickNav.theQuickNav.MoveLeftRight(-1); this.MoveCoda())
-                    if key = VK_NUMPAD6 then            (QuickNav.theQuickNav.MoveLeftRight(1); this.MoveCoda())
-                    if key = VK_NUMPAD8 then            (QuickNav.theQuickNav.MoveUpDown(-1); this.MoveCoda())
-                    if key = VK_NUMPAD2 then            (QuickNav.theQuickNav.MoveUpDown(1); this.MoveCoda())
-                    if key = VK_NUMPAD1 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(-1)
-                    if key = VK_NUMPAD3 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(1)
-                    if key = VK_NUMPAD5 then            this.ToggleQuickNav(true)
-                    if key = VK_DECIMAL then            this.ToggleQuickNav(false)
+                let ctrlHeld = (ctrl_bits = int MOD_CONTROL)
+                this.ProcessNumPadInput(key,ctrlHeld)
                 currentlyRunningAHotkeyCommand <- false
         IntPtr.Zero
+    member this.ProcessNumPadInput(key,ctrlHeld) =
+        if Utils.nestedModalDialogCount > 0 then 
+            broadcastHotKeyEv.Trigger(key,ctrlHeld) 
+        else
+            match quickNavModeSavedSettings with
+            | None ->
+                if key = VK_SUBTRACT then           this.DoCut()
+                if key = VK_ADD then                this.DoPaste()
+                if key = VK_MULTIPLY then           this.CycleZone(false,1)
+                if key = VK_NUMPAD4 then            this.MoveLeft(ctrlHeld)
+                if key = VK_NUMPAD6 then            this.MoveRight(ctrlHeld)
+                if key = VK_NUMPAD8 then            this.MoveUp(ctrlHeld)
+                if key = VK_NUMPAD2 then            this.MoveDown(ctrlHeld)
+                if key = VK_NUMPAD0 then            this.DoScreenshot()
+                if key = VK_NUMPAD7 then            this.ZoomOut()
+                if key = VK_NUMPAD9 then            this.ZoomIn()
+                if key = VK_NUMPAD5 then            this.DoCentering()
+                if key = VK_DIVIDE then             this.EditNotes(ctrlHeld)
+                if key = VK_NUMPAD3 then            this.DoTextMacro(ctrlHeld)
+                if key = VK_DECIMAL then            this.ToggleQuickNav(false)
+            | Some(_) ->    // we're in QuickNav mode
+                if key = VK_MULTIPLY then           this.CycleZone(true,1)
+                if key = VK_NUMPAD7 then            this.CycleZone(true,-1)
+                if key = VK_NUMPAD9 then            this.CycleZone(true,1)
+                if key = VK_NUMPAD4 then            (QuickNav.theQuickNav.MoveLeftRight(-1); this.MoveCoda())
+                if key = VK_NUMPAD6 then            (QuickNav.theQuickNav.MoveLeftRight(1); this.MoveCoda())
+                if key = VK_NUMPAD8 then            (QuickNav.theQuickNav.MoveUpDown(-1); this.MoveCoda())
+                if key = VK_NUMPAD2 then            (QuickNav.theQuickNav.MoveUpDown(1); this.MoveCoda())
+                if key = VK_NUMPAD1 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(-1)
+                if key = VK_NUMPAD3 then            QuickNav.theQuickNav.CycleWhichHashtagTarget(1)
+                if key = VK_NUMPAD5 then            this.ToggleQuickNav(true)
+                if key = VK_DECIMAL then            this.ToggleQuickNav(false)
     member this.DoCut() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         if zm.MapTiles.[theGame.CurX,theGame.CurY].ThereAreScreenshots() then   // assumes we want to remove last in the list; if user wants specific one, they click image and select among them

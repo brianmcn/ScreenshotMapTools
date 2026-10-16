@@ -48,6 +48,7 @@ type AppSettingsJson() =
     member val AppPreviewPanePopout : PopoutDetailJson = null with get,set
     member val GlobalNotePopout : PopoutDetailJson = null with get,set
     member val GlobalNoteFontSize : int = 20 with get,set
+    member val ClickableNumPadPopout : PopoutDetailJson = null with get,set
     ////
     static member TheAppSettingsJson = theAppSettingsJson 
     member this.Save() = // assumes just one global instance
@@ -67,6 +68,8 @@ type AppSettingsJson() =
             this.AppPreviewPanePopout <- new PopoutDetailJson()
         if this.GlobalNotePopout = null then
             this.GlobalNotePopout <- new PopoutDetailJson()
+        if this.ClickableNumPadPopout = null then
+            this.ClickableNumPadPopout <- new PopoutDetailJson()
 let theAppSettingsJson = AppSettingsJson.TheAppSettingsJson
 
 do  // load at startup
@@ -85,6 +88,7 @@ do  // load at startup
         theAppSettingsJson.AppPreviewPanePopout <- data.AppPreviewPanePopout
         theAppSettingsJson.GlobalNotePopout <- data.GlobalNotePopout
         theAppSettingsJson.GlobalNoteFontSize <- data.GlobalNoteFontSize
+        theAppSettingsJson.ClickableNumPadPopout <- data.ClickableNumPadPopout
     theAppSettingsJson.EnsurePopoutData()
 
 

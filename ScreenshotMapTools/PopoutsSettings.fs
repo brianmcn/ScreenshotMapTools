@@ -18,12 +18,13 @@ let mkTxtWithStarStarBold(txt:string) =
     tb
 let Bold(tb:TextBlock) = tb.FontWeight <- FontWeights.Bold; tb
 
-let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, agp:IPopoutWindowBehavior, app:IPopoutWindowBehavior, pn:IPopoutWindowBehavior, width) =
+let makePopoutSettingsDialogElement(ccs: IPopoutWindowBehavior, lm:IPopoutWindowBehavior, ln:IPopoutWindowBehavior, agp:IPopoutWindowBehavior, app:IPopoutWindowBehavior, 
+                                        pn:IPopoutWindowBehavior, cnp:IPopoutWindowBehavior, width) =
     let instructions1 = mkTxt("Click checkboxes in the left column to choose which popout windows to enable.")
     let instructions2 = mkTxtWithStarStarBold("""**Each window remembers its size and location you last used it**, for convenience.  
 But if a window ever gets 'lost' (offscreen, on another monitor, etc) you can press its 'Reset' button (above) to restore it.
 
-Popout windows have no 'Window Chrome' and are controlled thusly:
+Most popout windows have no 'Window Chrome' and are controlled thusly:
  - **move popout**: just **left-click and drag** the window
  - **resize popout**: grab and **drag the edges** of the window like a normal window
  - **close popout**: simply **right-click** a popout window to close it
@@ -63,6 +64,7 @@ The app remembers which popouts you enabled, so next time you start the app, it 
         pn,  GlobalNoteWindow.Name,                 "(Z) A resizable window displaying the 'global' Note." +
                                                     "\nThis is a text note not tied to any particular cell, which you can use for general notes about the game." +
                                                     "\nEdit this note by pressing Ctrl+NumPad/"
+        cnp, ClickableNumPadPopout.Name,            "Mouse-clickable buttons that simulate a NumPad, for users without a usable keyboard NumPad"
         |]
     for ipwb, name, desc in data do
         // layout
