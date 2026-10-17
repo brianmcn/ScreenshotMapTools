@@ -6,12 +6,14 @@ let APP_WIDTH = 1920 - 1280 - 12                            // my monitor, a gam
 
 let TOP_BAR_HEIGHT = 30.                                    // button/quicknav bar
 let MAPX,MAPY = APP_WIDTH,420                               // grid
-let SHORTEN = 0 //70
-let BOTTOM_HEIGHT = 480. - float SHORTEN                    // whole bottom
+let SHORTEN = 70
+let BOTTOM_HEIGHT = 480 - SHORTEN                           // whole bottom
 let RICH_TEXT_HEIGHT = 200 - SHORTEN                        // notes area, but then has a Margin(ThickNess(4)) -- preview pane takes rest as a LastChildFill of a DockPanel
+let RICH_TEXT_MARGIN = 4
+let PREVIEW_PANE_HEIGHT = BOTTOM_HEIGHT - RICH_TEXT_HEIGHT - 2*RICH_TEXT_MARGIN
 let RIGHT_COL_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH + 8      // hashtags or quicknav instructions    (notes and preview take the rest)
 
-let APP_HEIGHT = TOP_BAR_HEIGHT + float MAPY + BOTTOM_HEIGHT
+let APP_HEIGHT = TOP_BAR_HEIGHT + float MAPY + float BOTTOM_HEIGHT
 
 
 let mutable appShutItselfDownAfterTrim = false
@@ -37,7 +39,7 @@ let MakeRichTextBox(margin) =
     new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
                                 HorizontalAlignment=HorizontalAlignment.Stretch, IsDocumentEnabled=true,
-                                Height=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
+                                MinHeight=float RICH_TEXT_HEIGHT, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(margin))
 let UpdateRichTextBox(tb:RichTextBox, i, j, z, mt:BackingStoreData.MapTile) =
     let fd = new System.Windows.Documents.FlowDocument()
     let p = new System.Windows.Documents.Paragraph()
@@ -191,7 +193,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let printCurrentZoneButtonDefaultContent = "Print zone"
     let printCurrentZoneButton = new Button(Content=printCurrentZoneButtonDefaultContent, Margin=CONTROL_MARGIN, Focusable=false)
     // summary of current selection
-    let summaryTB = MakeRichTextBox(4.)
+    let summaryTB = MakeRichTextBox(RICH_TEXT_MARGIN)
     let mutable NavigateTo = (fun (_loc:GenericMetadata.Location) -> ())
     let navigationFunc (_o:obj) (ea:System.Windows.Navigation.RequestNavigateEventArgs) =
         let s = ea.Uri.AbsolutePath
@@ -701,10 +703,12 @@ type MyWindow(mkGlassF : unit->unit) as this =
             )
         this.UseLayoutRounding <- true
         this.SizeToContent <- SizeToContent.WidthAndHeight
-        this.ResizeMode <- ResizeMode.CanMinimize
+        this.ResizeMode <- ResizeMode.CanResizeWithGrip
         // layout
-        let all = new StackPanel(Orientation=Orientation.Vertical)
-        let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
+        let all = new Grid(Width=float APP_WIDTH, MinHeight=APP_HEIGHT, MaxHeight=APP_HEIGHT)   // force initial height, then give flexibility when Loaded event
+        all.RowDefinitions.Add(new RowDefinition(Height=GridLength(float TOP_BAR_HEIGHT, GridUnitType.Pixel)))
+        all.RowDefinitions.Add(new RowDefinition(Height=GridLength(float MAPY, GridUnitType.Pixel)))
+        all.RowDefinitions.Add(new RowDefinition(Height=GridLength(1.0, GridUnitType.Star)))
         let quickNavModeBar = 
             let tb = new TextBlock(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT, Background=Brushes.Red, Foreground=Brushes.White, Visibility=Visibility.Hidden, FontSize=16.,
                                     TextAlignment=TextAlignment.Center)
@@ -750,14 +754,13 @@ type MyWindow(mkGlassF : unit->unit) as this =
             c.Children.Add(sp) |> ignore
             c.Children.Add(quickNavModeBar) |> ignore
             c
-        mapPortion.Children.Add(topBar) |> ignore
-        mapPortion.Children.Add(wholeMapCanvas) |> ignore
-        all.Children.Add(mapPortion) |> ignore
-        let quickNavInstructionsPane = QuickNav.MakeInstructionsPane(this, all.ActualWidth, RIGHT_COL_WIDTH, BOTTOM_HEIGHT)
+        Utils.gridAdd(all, topBar, 0, 0)
+        Utils.gridAdd(all, wholeMapCanvas, 0, 1)
+        let quickNavInstructionsPane = QuickNav.MakeInstructionsPane(this, APP_WIDTH)
         let bottom =
             refreshMetadataKeys()
             let rightColumn =
-                let rc = (new DockPanel(LastChildFill=true, Height=BOTTOM_HEIGHT)).AddBottom(clipDP)
+                let rc = (new DockPanel(LastChildFill=true)).AddBottom(clipDP)
                 let mutable iconKeys = MapIcons.MakeIconUI(this, MAPX)
                 rc.Children.Add(iconKeys) |> ignore
                 MapIcons.redrawPanelEv.Publish.Add(fun _ ->
@@ -765,17 +768,26 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     iconKeys <- MapIcons.MakeIconUI(this, MAPX)
                     rc.Children.Add(iconKeys) |> ignore
                     )
-                let c = new Canvas(Width=RIGHT_COL_WIDTH, Height=BOTTOM_HEIGHT)
-                c.Children.Add(rc) |> ignore
-                c.Children.Add(quickNavInstructionsPane) |> ignore
-                c
-            let leftColumn = (new DockPanel(LastChildFill=true, Background=Brushes.Yellow)).AddTop(summaryTB).Add(previewPane)
-            let dp = (new DockPanel(LastChildFill=true, Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)).AddRight(rightColumn).Add(leftColumn)
-            let r = new Canvas(Width=float APP_WIDTH, Height=BOTTOM_HEIGHT)
-            r.Children.Add(dp) |> ignore
-            r
-        all.Children.Add(bottom) |> ignore
+                let g = new Grid(Width=RIGHT_COL_WIDTH)     // a single cell grid with multiple children behaves much like a canvas, except enforcing container-size constraints
+                g.Children.Add(rc) |> ignore
+                g.Children.Add(quickNavInstructionsPane) |> ignore
+                g
+            let leftColumn =
+                let g = new Grid(Background=Brushes.Yellow)
+                g.RowDefinitions.Add(new RowDefinition(Height=GridLength(1.0, GridUnitType.Star)))
+                g.RowDefinitions.Add(new RowDefinition(Height=GridLength(float PREVIEW_PANE_HEIGHT)))
+                Utils.gridAdd(g, summaryTB, 0, 0)
+                Utils.gridAdd(g, previewPane, 0, 1)
+                g
+            let g = new Grid(MinWidth=float APP_WIDTH, MinHeight=float BOTTOM_HEIGHT)
+            g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(1.0, GridUnitType.Star)))
+            g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength.Auto))
+            Utils.gridAdd(g, leftColumn, 0, 0)
+            Utils.gridAdd(g, rightColumn, 1, 0)
+            g
+        Utils.gridAdd(all, bottom, 0, 2)
         all.UseLayoutRounding <- true
+        this.Content <- all
         updateQuickNavView <- (fun() ->
             match quickNavModeSavedSettings with
             | Some(_) ->
@@ -785,8 +797,13 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 quickNavModeBar.Visibility <- Visibility.Hidden
                 quickNavInstructionsPane.Visibility <- Visibility.Hidden
             )
-        this.Content <- all
         this.Loaded.Add(fun _ ->
+            this.MinWidth <- this.ActualWidth
+            this.MaxWidth <- this.ActualWidth
+            this.MinHeight <- this.ActualHeight
+            this.MaxHeight <- this.ActualHeight + float SHORTEN
+            all.MaxHeight <- all.MaxHeight + float SHORTEN
+            this.SizeToContent <- SizeToContent.Manual
             GameSpecific.ActivateMainAppWindow <- (fun() -> Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(this)).Handle) |> ignore)
             let handle = Elephantasy.Winterop.GetConsoleWindow()
             Elephantasy.Winterop.ShowWindow(handle, Elephantasy.Winterop.SW_MINIMIZE) |> ignore

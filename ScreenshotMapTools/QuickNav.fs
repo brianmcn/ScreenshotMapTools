@@ -111,7 +111,7 @@ type QuickNav() =
 
 let theQuickNav = new QuickNav()
 
-let MakeInstructionsPane(parentWindow,appWidth,w,h) =
+let MakeInstructionsPane(parentWindow,appWidth) =
     let mkTxt(txt) = new TextBlock(IsHitTestVisible=false, FontSize=16., FontWeight=FontWeights.Bold, Text=txt, Foreground=Brushes.Black, Background=Brushes.Transparent) 
     let border(e) = new Border(BorderBrush=Brushes.Black, BorderThickness=Thickness(1.0), Child=e)
     let g = new Grid()
@@ -144,7 +144,7 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
         bt.Padding <- Thickness(6.,0.,6.,0.)
         Utils.gridAdd(g, border(bt), 1, i)
     let navInstructionTextBox = (g.Children.[g.Children.Count-1] :?> Border).Child :?> TextBlock
-    let sp = new StackPanel(Orientation=Orientation.Vertical, Background=Brushes.LightSteelBlue, Visibility=Visibility.Hidden, Width=w, Height=h)
+    let sp = new StackPanel(Orientation=Orientation.Vertical, Background=Brushes.LightSteelBlue, Visibility=Visibility.Hidden)
     sp.Children.Add(mkTxt("QuickNav NumPad")) |> ignore
     g.Margin <- Thickness(0.,2.,0.,2.)
     sp.Children.Add(g) |> ignore
