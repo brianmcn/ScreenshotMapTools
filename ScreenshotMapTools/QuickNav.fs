@@ -122,34 +122,35 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
             1, "9 *",          "next zone"
             1, "7",            "prior zone"
             2, "5",            "follow first\nhyperlink"
-            1, "1",            "next hashtag"
-            1, "3",            "prior hashtag"
+            1, "3",            "next hashtag"
+            1, "1",            "prior hashtag"
             3, "8 \n4 6\n2 ",  ""
         |]
     let COUNT = data.Length
+    let HOFF = 1.
     for i = 0 to COUNT-1 do
         let n,a,b = data.[i]
         let h = (float n) * 24.
-        g.RowDefinitions.Add(new RowDefinition(Height=GridLength(h)))
+        g.RowDefinitions.Add(new RowDefinition(Height=GridLength(h-HOFF)))
         let at = mkTxt(a)
         at.Height <- h
         at.TextAlignment <- TextAlignment.Right
         at.Padding <- Thickness(6.,0.,6.,0.)
         if at.Text="." then
             at.FontSize <- at.FontSize + 8.0
+        at.Margin <- Thickness(0.,-HOFF,-0.,0.)
         Utils.gridAdd(g, border(at), 0, i)
         let bt = mkTxt(b)
         bt.Padding <- Thickness(6.,0.,6.,0.)
         Utils.gridAdd(g, border(bt), 1, i)
     let navInstructionTextBox = (g.Children.[g.Children.Count-1] :?> Border).Child :?> TextBlock
     let sp = new StackPanel(Orientation=Orientation.Vertical, Background=Brushes.LightSteelBlue, Visibility=Visibility.Hidden, Width=w, Height=h)
-    sp.Children.Add(border(mkTxt("--QuickNav Mode--"))) |> ignore
-    sp.Children.Add(mkTxt("NumPad hotkeys:")) |> ignore
-    g.Margin <- Thickness(0.,4.,0.,4.)
+    sp.Children.Add(mkTxt("QuickNav NumPad")) |> ignore
+    g.Margin <- Thickness(0.,2.,0.,2.)
     sp.Children.Add(g) |> ignore
     sp.Children.Add(mkTxt("Current target:")) |> ignore
     let curTargetTb = mkTxt("")
-    curTargetTb.Margin <- Thickness(0.,0.,0.,4.)
+    curTargetTb.Margin <- Thickness(0.,0.,0.,2.)
     sp.Children.Add(curTargetTb) |> ignore
     let update() = 
         let curHashtagTarget = theQuickNav.CurrentlyTargetedHashtag()
@@ -163,8 +164,8 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
             curTargetTb.Text <- "#" + curHashtagTarget
     update()
     theQuickNav.SetUpdateInstructionPaneFunc(update)
-    sp.Children.Add(mkTxt("Click below to\nchange which\nhashtags are targets")) |> ignore
-    let b = new Button(Content="change\nhashtag targets", Margin=Thickness(6.))
+    sp.Children.Add(mkTxt("Click below to\nchoose targets")) |> ignore
+    let b = new Button(Content="choose set of\nhashtag targets", Margin=Thickness(6.,2.,6.,2.))
     b.Click.Add(fun _ ->
         let orig = System.String.Join(",", theGame.HashtagTargetsForQuickNav)
         let extra = "Type in a comma-separated list of hashtags, without octothorpes (no '#')" 
@@ -172,7 +173,7 @@ let MakeInstructionsPane(parentWindow,appWidth,w,h) =
                         + "\nCycle through them using NumPad1 and NumPad3 in QuickNav Mode"
                         + "\nExample:"
                         + "\nrespawn,fastTravel,save"
-        let save, r = Utils.DoBasicModalTextDialogCore(parentWindow, "Hashtags for QuickNav", extra, orig, appWidth, 500., false)
+        let save, r = Utils.DoBasicModalTextDialogCore(parentWindow, "Hashtags for QuickNav", extra, orig, appWidth-50., 500., false)
         if save then
             let a = r.Split([|','|], System.StringSplitOptions.RemoveEmptyEntries)
             let mutable error = null

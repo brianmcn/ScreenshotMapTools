@@ -1,9 +1,18 @@
 ﻿module Generic
 
-let APP_WIDTH = 1920 - 1280 - 12        // my monitor, a game, a little buffer
-let APP_HEIGHT = 980. + 16. + 20.
-let BOTTOM_HEIGHT = 480.
-let KEYS_LIST_BOX_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH
+
+// these constants are for the actual content of the app window; the window chrome adds another 30+2 height and 2 width
+let APP_WIDTH = 1920 - 1280 - 12                            // my monitor, a game, a little buffer
+
+let TOP_BAR_HEIGHT = 30.                                    // button/quicknav bar
+let MAPX,MAPY = APP_WIDTH,420                               // grid
+let SHORTEN = 0 //70
+let BOTTOM_HEIGHT = 480. - float SHORTEN                    // whole bottom
+let RICH_TEXT_HEIGHT = 200 - SHORTEN                        // notes area, but then has a Margin(ThickNess(4)) -- preview pane takes rest as a LastChildFill of a DockPanel
+let RIGHT_COL_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH + 8      // hashtags or quicknav instructions    (notes and preview take the rest)
+
+let APP_HEIGHT = TOP_BAR_HEIGHT + float MAPY + BOTTOM_HEIGHT
+
 
 let mutable appShutItselfDownAfterTrim = false
 
@@ -24,7 +33,6 @@ let mutable updateClipboardView = fun() -> ()        // TODO how remove this ugl
 
 ///////////////////////////////////////////////////////
 
-let RICH_TEXT_HEIGHT = 200
 let MakeRichTextBox(margin) = 
     new RichTextBox(IsReadOnly=true, FontSize=20., BorderThickness=Thickness(1.), Foreground=Brushes.Black, Background=Brushes.CornflowerBlue, // SolidColorBrush(Color.FromRgb(0x84uy,0xB5uy,0xFDuy)), 
                                 FontFamily=FontFamily("Consolas"), FontWeight=FontWeights.Bold, SelectionBrush=Brushes.Orange,
@@ -134,7 +142,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let KEY_TO_NAME(key) = KEYS_AND_NAMES |> Array.find (fun (k,_n) -> k=key) |> snd
     let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
     let mutable areHotKeysRegistered = false
-    let MAPX,MAPY = APP_WIDTH,420
     // next two lines are temp backing store for mapImage and mapMarkersHoverImage, allocated more than large enough to always hold all the data we need
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
     let rmihobackBuffer, rmihobackBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
@@ -698,7 +705,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
         // layout
         let all = new StackPanel(Orientation=Orientation.Vertical)
         let mapPortion = new StackPanel(Orientation=Orientation.Vertical, Width=float APP_WIDTH)
-        let TOP_BAR_HEIGHT = 30.
         let quickNavModeBar = 
             let tb = new TextBlock(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT, Background=Brushes.Red, Foreground=Brushes.White, Visibility=Visibility.Hidden, FontSize=16.,
                                     TextAlignment=TextAlignment.Center)
@@ -722,19 +728,19 @@ type MyWindow(mkGlassF : unit->unit) as this =
                     System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
                     appShutItselfDownAfterTrim <- true
                     Application.Current.Shutdown()
-                    ), APP_WIDTH)
+                    ), all.ActualWidth)
                 mfsRefresh()
                 }))
             sp.Children.Add(trimButton) |> ignore
             let featureButton = new Button(Content="Feature", Margin=CONTROL_MARGIN, Focusable=false)
             featureButton.Click.Add(fun _ -> 
-                this.DoFeatureButton()
+                this.DoFeatureButton(all.ActualWidth)
                 )
             sp.Children.Add(featureButton) |> ignore
             let popoutsButton = new Button(Content="Popouts", Margin=CONTROL_MARGIN, Focusable=false)
             popoutsButton.Click.Add(fun _ -> 
                 let closeEv = new Event<unit>()
-                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,popout_cnp,float APP_WIDTH), "Popout Settings", closeEv.Publish)
+                Utils.DoModalDialog(this, PopoutsSettings.makePopoutSettingsDialogElement(popout_ccs,popout_lm,popout_ln,popout_agp,popout_app,popout_gn,popout_cnp,all.ActualWidth), "Popout Settings", closeEv.Publish)
                 )
             sp.Children.Add(popoutsButton) |> ignore
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN, Focusable=false)
@@ -747,12 +753,11 @@ type MyWindow(mkGlassF : unit->unit) as this =
         mapPortion.Children.Add(topBar) |> ignore
         mapPortion.Children.Add(wholeMapCanvas) |> ignore
         all.Children.Add(mapPortion) |> ignore
-        let RIGHT_COL_WIDTH = MapIcons.KEYS_LIST_BOX_WIDTH + 8
-        let quickNavInstructionsPane = QuickNav.MakeInstructionsPane(this, APP_WIDTH, RIGHT_COL_WIDTH, BOTTOM_HEIGHT)
+        let quickNavInstructionsPane = QuickNav.MakeInstructionsPane(this, all.ActualWidth, RIGHT_COL_WIDTH, BOTTOM_HEIGHT)
         let bottom =
             refreshMetadataKeys()
             let rightColumn =
-                let rc = (new DockPanel(LastChildFill=true)).AddBottom(clipDP)
+                let rc = (new DockPanel(LastChildFill=true, Height=BOTTOM_HEIGHT)).AddBottom(clipDP)
                 let mutable iconKeys = MapIcons.MakeIconUI(this, MAPX)
                 rc.Children.Add(iconKeys) |> ignore
                 MapIcons.redrawPanelEv.Publish.Add(fun _ ->
@@ -1121,5 +1126,5 @@ type MyWindow(mkGlassF : unit->unit) as this =
             //MapIcons.redrawMapIconsEv.Trigger()   // called by .IsChecked update
             MapIcons.redrawMapIconHoverOnly.Trigger()
             updateQuickNavView()
-    member this.DoFeatureButton() =
-        FeatureWindow.DoFeatureButton(this, APP_WIDTH)
+    member this.DoFeatureButton(allActualWidth) =
+        FeatureWindow.DoFeatureButton(this, allActualWidth)

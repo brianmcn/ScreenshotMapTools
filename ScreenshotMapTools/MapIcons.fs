@@ -451,7 +451,7 @@ let MakeIconUI(parentWindow, appMAPX) =
             redrawMapIconsEv.Trigger()
             SaveMapIconData()
             )
-    let sv = new ScrollViewer(Width=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), MaxHeight=350., Content=g,
+    let sv = new ScrollViewer(Width=float KEYS_LIST_BOX_WIDTH, Margin=Thickness(4.), Content=g,
                                 VerticalScrollBarVisibility=ScrollBarVisibility.Auto, HorizontalScrollBarVisibility=ScrollBarVisibility.Auto)
     sv
 

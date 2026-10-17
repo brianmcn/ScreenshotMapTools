@@ -520,7 +520,7 @@ let DoFullMapPanZoomFeatureWindow(app:Window, ctrl) =
             Utils.canvasAdd(c, mapMarkersImage, 0, 0)
         EnsureFeature(app.Owner, c, null)
 
-let DoFeatureButton(app:Window, app_APP_WIDTH) =
+let DoFeatureButton(app:Window, app_APP_WIDTH:float) =
     let featureZoneButton = new Button(Content="This Zone\nw/ Details")
     let featureZone() = MakeFeatureMap(app.Owner, Array2D.init 1 1 (fun _ _ -> Some(ZoneMemory.Get(theGame.CurZone))))
 (*
@@ -594,7 +594,7 @@ let DoFeatureButton(app:Window, app_APP_WIDTH) =
     let zoomable2x2() = DoFullMapPanZoomFeatureWindow(app,true)
     let mkTxt(txt) = new TextBlock(FontSize=16., Text=txt, Foreground=Brushes.Black, TextWrapping=TextWrapping.Wrap, 
                                         Margin=Thickness(3., 0., 3., 0.), VerticalAlignment=VerticalAlignment.Center)
-    let sp = new StackPanel(Orientation=Orientation.Vertical, Width=float(app_APP_WIDTH-16), Background=Brushes.White)
+    let sp = new StackPanel(Orientation=Orientation.Vertical, Width=app_APP_WIDTH-16., Background=Brushes.White)
     sp.Children.Add(mkTxt("""The Feature Window is a large window that presents one of a few different useful projections of your screenshots and Notes.
 
 Choose one of these options:""")) |> ignore
@@ -605,7 +605,7 @@ Choose one of these options:""")) |> ignore
     let border(e) = new Border(BorderBrush=Brushes.Black, BorderThickness=Thickness(1.0), Child=e)
     let g = new Grid()
     g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(104.)))
-    g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(float(app_APP_WIDTH-120))))
+    g.ColumnDefinitions.Add(new ColumnDefinition(Width=GridLength(app_APP_WIDTH-120.)))
     for _i = 1 to 4 do g.RowDefinitions.Add(new RowDefinition())
     let mutable row = 0
     let closeEv = new Event<_>()
