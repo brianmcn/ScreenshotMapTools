@@ -1,7 +1,7 @@
 ﻿dwarf:
-dwarf was using the toggled layout, in general app is too tall.large, really need some scaling.resizing
-    - i have ideas about resizing some
 dwarf wants unicode not alphanum for icon markers... dunno how system fonts work for that, but probably doable? and also json can save it i think
+
+
 
 
 

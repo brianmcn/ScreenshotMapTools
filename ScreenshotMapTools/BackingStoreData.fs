@@ -97,10 +97,7 @@ let SaveScreenshot(bmp : System.Drawing.Bitmap) =
     let file = ScreenshotFilenameFromTimestampId(id)
     System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)) |> ignore
     bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png)
-    let img = Utils.BMPtoImage bmp
-    img.Stretch <- System.Windows.Media.Stretch.Fill
-    //System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.NearestNeighbor)
-    id, img
+    id
 // each zone has a folder:
 // with files MapTileXnnYmm where nn/mm range 00-99
 let GetZoneFolder(zone) = System.IO.Path.Combine(GetRootFolder(), sprintf "zone%02d" zone)
@@ -126,8 +123,8 @@ let TakeNewScreenshotCore() =
     bmp
 let TakeNewScreenshot() =
     let bmp = TakeNewScreenshotCore()
-    let id,img = SaveScreenshot(bmp)
-    img, bmp, id
+    let id = SaveScreenshot(bmp)
+    bmp, id
 
 //////////////////////////////////////////////////////////////////////////
 

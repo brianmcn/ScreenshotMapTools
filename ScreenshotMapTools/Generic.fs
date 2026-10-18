@@ -153,7 +153,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let mapMarkersHoverImage = new Image(IsHitTestVisible=false)
     let mouseCursorCanvas = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, IsHitTestVisible=false)
     let wholeMapCanvas =
-        let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.Gray)
+        let r = new Canvas(Width=float(MAPX), Height=float(MAPY), ClipToBounds=true, Background=Brushes.LightGray)
         r.Children.Add(mapImage) |> ignore                  // the Map-Trim screenshots, blitted to the pixel grid
         r.Children.Add(checkerboardCanvas) |> ignore        // the gray checkerboard and coordinate textboxes, as well as mouse event listener
         r.Children.Add(mapMarkersImage) |> ignore           // the colored icons showing the #hashtags the user has checked 
@@ -207,13 +207,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     let clipView = new Border(Width=float(MAPX/5), Height=float(MAPX/6), BorderThickness=Thickness(2.), BorderBrush=Brushes.Orange, Margin=Thickness(2.))
     let clipDP = (new DockPanel(LastChildFill=true)).AddTop(clipTB).Add(clipView)
     // meta and full summary of current tile
-    let metadataKeys = new System.Collections.ObjectModel.ObservableCollection<string>()
-    let refreshMetadataKeys() =   // TODO can clean this up
-        let newKeys = metadataStore.AllKeys() |> Array.sort
-        MapIcons.redrawPanelEv.Trigger()
-        metadataKeys.Clear()
-        for s in newKeys do
-            metadataKeys.Add(s)
+    let refreshMetadataKeys() = MapIcons.redrawPanelEv.Trigger()
     let previewPane = new DockPanel(Margin=Thickness(4.,0.,4.,4.),LastChildFill=true, Background=Brushes.DarkSlateBlue)
     let mutable doZoom = fun () -> ()
     let mutable cycleZone = fun (_delta) -> ()
@@ -300,9 +294,6 @@ type MyWindow(mkGlassF : unit->unit) as this =
                             tb.Height<- float H
                             let struct(x,y) = pgl.GetULXYFromIJ(i-ci,j-cj)
                             Utils.canvasAdd(checkerboardCanvas, tb, x, y)
-                    else
-                        let struct(x,y) = pgl.GetULXYFromIJ(i-ci,j-cj)
-                        Utils.canvasAdd(checkerboardCanvas, new DockPanel(Background=Brushes.LightGray, Width=W, Height=H), x, y)
             pgl.Setup(mapImage)
             let bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(pgl.XW, pgl.YH, 96., 96., PixelFormats.Bgra32, null, backBuffer, backBufferStride)
             mapImage.Source <- bitmapSource
@@ -549,9 +540,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
         for i = 0 to theGame.ZoneNames.Length-1 do
             let name = makeZoneName i
             printf "Loading screenshots for zone%-35s..." name
-            // populate zone names for combobox
             zoneOptions.Add(name)
-            // populate key metdata from all notes
             theGame.CurZone <- i
             let zm = ZoneMemory.Get(i)
             let bmpCount,maptileCount = LoadZoneMapTiles(zm)
@@ -584,10 +573,10 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 warp()
             )
         cycleZone <- (fun(delta) ->
-                if theGame.ZoneNames.Length > 1 then
-                    let newZone = (theGame.CurZone + delta + theGame.ZoneNames.Length) % theGame.ZoneNames.Length
-                    let newLoc = GenericMetadata.Location(newZone, theGame.CurX, theGame.CurY)
-                    NavigateTo(newLoc)
+            if theGame.ZoneNames.Length > 1 then
+                let newZone = (theGame.CurZone + delta + theGame.ZoneNames.Length) % theGame.ZoneNames.Length
+                let newLoc = GenericMetadata.Location(newZone, theGame.CurX, theGame.CurY)
+                NavigateTo(newLoc)
             )
         zoneComboBox.SelectionChanged.Add(fun _ ->
             if not selectionChangeIsDisabled then
@@ -994,7 +983,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
     member this.DoScreenshot() =
         let zm = ZoneMemory.Get(theGame.CurZone)
         setCursor()
-        let _img,bmp,id = TakeNewScreenshot()
+        let bmp,id = TakeNewScreenshot()
         if bmpDict.ContainsKey(id) then
             printfn "screenshot not taken, you can only take one screenshot per second, screenshot id already exists '%s'" id
         else
