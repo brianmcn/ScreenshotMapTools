@@ -1,10 +1,4 @@
-﻿dwarf:
-dwarf wants unicode not alphanum for icon markers... dunno how system fonts work for that, but probably doable? and also json can save it i think
-
-
-
-
-
+﻿
 
 
 

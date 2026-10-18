@@ -1,5 +1,104 @@
 ﻿module MapIcons
 
+module NativeMethods =
+    // Gemini
+    open System.Runtime.InteropServices
+    // Import the native Windows User32 library for keyboard event synthesis
+    [<DllImport("user32.dll", SetLastError = true)>]
+    extern void keybd_event(byte bVk, byte bScan, uint32 dwFlags, uint32 dwExtraInfo)
+    // Virtual Key Constant Hex Codes
+    let [<Literal>] VK_LWIN = 0x5Buy      // Left Windows Key
+    let [<Literal>] VK_PERIOD = 0xBEuy    // Period / Dot Key
+    // Key Event Flag Constants
+    let [<Literal>] KEYEVENTF_KEYDOWN = 0x0000u
+    let [<Literal>] KEYEVENTF_KEYUP = 0x0002u
+    /// Synthesizes a Win + . (Windows + Period) keystroke to open the native OS Emoji Picker
+    let ShowEmojiPicker() =
+        // 1. Press Left Windows Key down
+        keybd_event(VK_LWIN, 0uy, KEYEVENTF_KEYDOWN, 0u)
+        // 2. Press Period Key down
+        keybd_event(VK_PERIOD, 0uy, KEYEVENTF_KEYDOWN, 0u)
+        // 3. Release Period Key
+        keybd_event(VK_PERIOD, 0uy, KEYEVENTF_KEYUP, 0u)
+        // 4. Release Left Windows Key
+        keybd_event(VK_LWIN, 0uy, KEYEVENTF_KEYUP, 0u)
+module Emoji =
+    // Gemini
+    open System
+    open System.Linq
+    open System.Globalization
+    /// Safely inspects a string and returns true if any visual text element 
+    /// is a simple emoji, surrogate pair, or complex composite emoji sequence.
+    let ContainsEmoji(text: string) =
+        if String.IsNullOrEmpty(text) then 
+            false
+        else
+            // 1. Initialize an enumerator to break down the string into human-perceived visual blocks
+            let enumerator = StringInfo.GetTextElementEnumerator(text)
+            let mutable foundEmoji = false
+            // 2. Loop through each text element (grapheme cluster)
+            while enumerator.MoveNext() && not foundEmoji do
+                let currentCluster = enumerator.GetTextElement()
+                // 3. Evaluate the cluster structure
+                let isSurrogate = Char.IsSurrogatePair(currentCluster, 0)
+                let isEmojiCodePoint = currentCluster.Any(fun ch -> ch > '\u2600')
+                if isSurrogate || isEmojiCodePoint then
+                    foundEmoji <- true
+            foundEmoji
+
+open Utils.Extensions
+let DoEmojiPickDialog(parentWindow) =
+    let mkTB() = new System.Windows.Controls.TextBox(IsReadOnly=false, FontSize=12., Text="", BorderThickness=System.Windows.Thickness(1.), 
+                                                        Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                                                        Width=300., Height=20., TextWrapping=System.Windows.TextWrapping.NoWrap, AcceptsReturn=false)
+    let tb = mkTB()
+    let closeEv = new Event<unit>()
+    let mutable result = null
+    tb.PreviewTextInput.Add(fun ea ->
+        if Emoji.ContainsEmoji(ea.Text) then
+            result <- ea.Text
+        closeEv.Trigger()
+        )
+    Utils.DoModalDialogCore(parentWindow, tb, "Choose Emoji", closeEv.Publish, (fun() -> 
+                                async {
+                                    let ctxt = System.Threading.SynchronizationContext.Current
+                                    System.Windows.Input.Keyboard.Focus(tb) |> ignore
+                                    do! Async.Sleep(100)
+                                    do! Async.SwitchToContext(ctxt)
+                                    let currentSelection = tb.SelectionStart
+                                    tb.CaretIndex <- currentSelection   // force WPF to send event to OS locating keyboard focus control
+                                    do! Async.Sleep(100)
+                                    do! Async.SwitchToContext(ctxt)
+                                    NativeMethods.ShowEmojiPicker()
+                                } |> Async.StartImmediate
+                                ))
+    if result = null then
+        System.Windows.MessageBox.Show("Failed to capture this emoji") |> ignore
+        null
+    else
+        result
+        (*
+        let closeEv = new Event<unit>()
+        let mutable ok = false
+        let cb = new System.Windows.Controls.Button(Content=" Cancel ", Margin=System.Windows.Thickness(4.))
+        let sb = new System.Windows.Controls.Button(Content=" Ok ", Margin=System.Windows.Thickness(4.))
+        cb.Click.Add(fun _ -> closeEv.Trigger())
+        sb.Click.Add(fun _ -> ok <- true; closeEv.Trigger())
+        let tb = new Emoji.Wpf.TextBox(IsReadOnly=true, FontSize=16., BorderThickness=System.Windows.Thickness(1.), 
+                                                        Foreground=System.Windows.Media.Brushes.Black, Background=System.Windows.Media.Brushes.White,
+                                                        Width=300., Height=70., TextWrapping=System.Windows.TextWrapping.NoWrap, AcceptsReturn=false)
+        tb.Text <- sprintf "You chose\n%s\nIf that looks ok, click Ok" result
+        let dp = (new System.Windows.Controls.DockPanel(LastChildFill=true)).AddLeft(cb).AddRight(sb).Add(new System.Windows.Controls.DockPanel())
+        let sp = new System.Windows.Controls.StackPanel(Orientation=System.Windows.Controls.Orientation.Vertical)
+        sp.Children.Add(tb) |> ignore
+        sp.Children.Add(dp) |> ignore
+        Utils.DoModalDialog(parentWindow, sp, "Verify Emoji", closeEv.Publish)
+        if ok then
+            result
+        else
+            null
+        *)
+
 (*
 module DU =
     open Microsoft.FSharp.Reflection
@@ -24,7 +123,34 @@ type IconShape =
     | SmallBox
     | X
     | AlphaNum of char
-    static member AllBasicShapes = [|      // the non-AlphaNum
+    | AlphaNumLeft of char
+    | AlphaNumRight of char
+    | Emoji of string
+    | EmojiLeft of string
+    | EmojiRight of string
+    static let writeAlpha(ch, c, w, brush, offset) =
+        let typeface = new System.Windows.Media.Typeface(new System.Windows.Media.FontFamily("Courier New"), 
+                                                            System.Windows.FontStyles.Normal, System.Windows.FontWeights.Bold, System.Windows.FontStretches.Normal)
+        let mutable glyphTypeface = Unchecked.defaultof<System.Windows.Media.GlyphTypeface>
+        if not(typeface.TryGetGlyphTypeface(&glyphTypeface)) then
+            failwith "Glyph typeface could not be loaded"
+        let glyphIndex = glyphTypeface.CharacterToGlyphMap.[int ch]   // rather than 'int ch' should be unicode code point for ch, but whatevs
+        let mk(colorBrush) =
+            let glyphs = new System.Windows.Documents.Glyphs()
+            glyphs.FontUri <- glyphTypeface.FontUri
+            glyphs.FontRenderingEmSize <- w/2.   // TODO adjust, espescially if weird w/h aspect ratio
+            glyphs.Fill <- colorBrush
+            glyphs.Indices <- glyphIndex.ToString()
+            glyphs
+        // faux-outline
+        Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), offset + w/3.2 - 1., -1.)
+        Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), offset + w/3.2 + 1., +1.)
+        // the text
+        Utils.canvasAdd(c, mk(brush), offset + w/3.2, 0.)
+    static let writeEmoji(s, c, w, offset) =
+        let tb = new Emoji.Wpf.TextBlock(FontSize=w/2.8, Text=s)
+        Utils.canvasAdd(c, tb, offset+w/4.25, 0.)
+    static member AllBasicShapes = [|      // the non-AlphaNum/Emoji
         IconShape.LargeOval
         IconShape.SmallOval
         IconShape.LargeBox
@@ -39,8 +165,18 @@ type IconShape =
         | "SmallBox" -> Some IconShape.SmallBox
         | "X" -> Some IconShape.X
         | _ -> 
-            if s.StartsWith("AlphaNum") && s.Length = 10 && s.Chars(8)=' ' && System.Char.IsLetterOrDigit(s.Chars(9)) then
+            if s.StartsWith("AlphaNumLeft ") && s.Length = 14 && System.Char.IsLetterOrDigit(s.Chars(13)) then
+                Some(IconShape.AlphaNumLeft(s.Chars(13)))
+            elif s.StartsWith("AlphaNumRight ") && s.Length = 15 && System.Char.IsLetterOrDigit(s.Chars(14)) then
+                Some(IconShape.AlphaNumRight(s.Chars(14)))
+            elif s.StartsWith("AlphaNum ") && s.Length = 10 && System.Char.IsLetterOrDigit(s.Chars(9)) then
                 Some(IconShape.AlphaNum(s.Chars(9)))
+            elif s.StartsWith("EmojiLeft ") && Emoji.ContainsEmoji(s.Substring(10)) then
+                Some(IconShape.EmojiLeft(s.Substring(10)))
+            elif s.StartsWith("EmojiRight ") && Emoji.ContainsEmoji(s.Substring(11)) then
+                Some(IconShape.EmojiRight(s.Substring(11)))
+            elif s.StartsWith("Emoji ") && Emoji.ContainsEmoji(s.Substring(6)) then
+                Some(IconShape.Emoji(s.Substring(6)))
             else
                 None
     member this.AsString() =
@@ -51,6 +187,11 @@ type IconShape =
         | IconShape.SmallBox -> "SmallBox"
         | IconShape.X -> "X"
         | IconShape.AlphaNum c -> sprintf "AlphaNum %c" c
+        | IconShape.AlphaNumLeft c -> sprintf "AlphaNumLeft %c" c
+        | IconShape.AlphaNumRight c -> sprintf "AlphaNumRight %c" c
+        | IconShape.Emoji s -> sprintf "Emoji %s" s
+        | IconShape.EmojiLeft s -> sprintf "EmojiLeft %s" s
+        | IconShape.EmojiRight s -> sprintf "EmojiRight %s" s
     member this.AddToCanvas(c:System.Windows.Controls.Canvas,brush,w,h) =
         match this with
         | IconShape.LargeOval -> 
@@ -70,25 +211,24 @@ type IconShape =
             Utils.canvasAdd(c, s, 0., 0.)
             let s = new System.Windows.Shapes.Line(X2=w*0.1, X1=w*0.9, Y1=h*0.1, Y2=h*0.9, Stroke=brush, StrokeThickness=IST(w,h))
             Utils.canvasAdd(c, s, 0., 0.)
-        | IconShape.AlphaNum ch ->
-            let typeface = new System.Windows.Media.Typeface(new System.Windows.Media.FontFamily("Courier New"), 
-                                                                System.Windows.FontStyles.Normal, System.Windows.FontWeights.Bold, System.Windows.FontStretches.Normal)
-            let mutable glyphTypeface = Unchecked.defaultof<System.Windows.Media.GlyphTypeface>
-            if not(typeface.TryGetGlyphTypeface(&glyphTypeface)) then
-                failwith "Glyph typeface could not be loaded"
-            let glyphIndex = glyphTypeface.CharacterToGlyphMap.[int ch]   // rather than 'int ch' should be unicode code point for ch, but whatevs
-            let mk(colorBrush) =
-                let glyphs = new System.Windows.Documents.Glyphs()
-                glyphs.FontUri <- glyphTypeface.FontUri
-                glyphs.FontRenderingEmSize <- w/2.   // TODO adjust, espescially if weird w/h aspect ratio
-                glyphs.Fill <- colorBrush
-                glyphs.Indices <- glyphIndex.ToString()
-                glyphs
-            // faux-outline
-            Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), w/4. - 1., -1.)
-            Utils.canvasAdd(c, mk(System.Windows.Media.Brushes.Black), w/4. + 1., +1.)
-            // the text
-            Utils.canvasAdd(c, mk(brush), w/4., 0.)
+        | IconShape.AlphaNum ch -> writeAlpha(ch,c,w,brush,0.)
+        | IconShape.AlphaNumLeft ch -> writeAlpha(ch,c,w,brush,-w/3.5)
+        | IconShape.AlphaNumRight ch -> writeAlpha(ch,c,w,brush,w/3.5)
+        | IconShape.Emoji s -> writeEmoji(s,c,w,0.)
+        | IconShape.EmojiLeft s -> writeEmoji(s,c,w,-w/3.9)
+        | IconShape.EmojiRight s -> writeEmoji(s,c,w,w/3.9)
+    member this.GetAlphaNum() =
+        match this with
+        | IconShape.AlphaNum ch -> Some(ch)
+        | IconShape.AlphaNumLeft ch -> Some(ch)
+        | IconShape.AlphaNumRight ch -> Some(ch)
+        | _ -> None
+    member this.GetEmoji() =
+        match this with
+        | IconShape.Emoji s -> Some(s)
+        | IconShape.EmojiLeft s -> Some(s)
+        | IconShape.EmojiRight s -> Some(s)
+        | _ -> None
         
 [<AllowNullLiteral>]
 type Icon() =
@@ -209,11 +349,14 @@ let updateMMC(k,icon:Icon) =
     let brush = new SolidColorBrush(icon.GetColor())
     let shape = IconShape.FromString(icon.Shape).Value
     let jitterDx, jitterDy =
-        let idx = 
-            match hexColorUniverse.TryGetValue(icon.HexColorRGB) with
-            | true, r -> r
-            | _ -> 0
-        ColorJitters.[idx]
+        if shape.GetEmoji().IsSome then
+            0,0 // don't jitter emojis, they have own colors and are thick such that jittering won't let others peek thru well
+        else
+            let idx = 
+                match hexColorUniverse.TryGetValue(icon.HexColorRGB) with
+                | true, r -> r
+                | _ -> 0
+            ColorJitters.[idx]
     let JITTERSCALE = 0.07
     let draw(c,w,h) = 
         let oc = new Canvas(Width=float w, Height=float h)
@@ -332,9 +475,12 @@ let MakeIconUI(parentWindow, appMAPX) =
                 let dp = new DockPanel(MaxWidth=400., MaxHeight=400., LastChildFill=true, HorizontalAlignment=HorizontalAlignment.Center)
 
                 // shapes
-                let makeShapeSelector() =   // function as it references current color, draw a new one when change color
+                let rec redrawShapeSelector() =
+                    dp.Children.RemoveAt(dp.Children.Count-1)
+                    dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                and makeShapeSelector() =   // function, as it references current color/glyph/emoji, draw a new one when change
                     let curBrush = new SolidColorBrush(cur.GetColor())
-                    let shapeSelector = Utils.makeGrid(1, IconShape.AllBasicShapes.Length + 1, 80, 52)
+                    let shapeSelector = Utils.makeGrid(2, max 6 IconShape.AllBasicShapes.Length, 80, 52)
                     let mutable i = 0
                     let allBorders = ResizeArray()
                     for s in IconShape.AllBasicShapes do
@@ -352,16 +498,22 @@ let MakeIconUI(parentWindow, appMAPX) =
                             b.BorderBrush <- currentSelectionBorder
                             cur.Shape <- s.AsString()
                             )
-                    if true then  // AlphaNum option
+                    // AlphaNum options
+                    i <- 0
+                    let center(ch) = IconShape.AlphaNum(ch)
+                    let left(ch) = IconShape.AlphaNumLeft(ch)
+                    let right(ch) = IconShape.AlphaNumRight(ch)
+                    for which in [center; left; right] do
                         let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)   // TODO contrast bg with cur color?
                         let curShape = IconShape.FromString(cur.Shape)
                         let s,curGlyph = 
-                            match curShape with
-                            | Some(IconShape.AlphaNum(ch)) -> IconShape.AlphaNum(ch), ch
-                            | _ -> IconShape.AlphaNum('A'), 'A'
+                            let r = match curShape with | Some(sh) -> sh.GetAlphaNum() | _ -> None
+                            match r with 
+                            | Some(ch) -> which(ch), ch
+                            | _ -> which('A'), 'A'
                         s.AddToCanvas(c, curBrush, c.Width, c.Height)
                         let b = new Border(Child=new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=BG), BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
-                        Utils.gridAdd(shapeSelector, b, 0, i)
+                        Utils.gridAdd(shapeSelector, b, 1, i)
                         i <- i + 1
                         if cur.Shape = s.AsString() then
                             b.BorderBrush <- currentSelectionBorder
@@ -378,11 +530,40 @@ let MakeIconUI(parentWindow, appMAPX) =
                                     result.Chars(0)
                                 else
                                     curGlyph
-                            let newShape = IconShape.AlphaNum(r)
+                            let newShape = which(r)
                             cur.Shape <- newShape.AsString()
                             // redraw UI, we're still in a modal dialog where they may change color after editing glyph
-                            c.Children.Clear()
-                            newShape.AddToCanvas(c, curBrush, c.Width, c.Height)
+                            redrawShapeSelector()
+                            )
+                    // Emoji options
+                    let center(ch) = IconShape.Emoji(ch)
+                    let left(ch) = IconShape.EmojiLeft(ch)
+                    let right(ch) = IconShape.EmojiRight(ch)
+                    for which in [center; left; right] do
+                        let c = new Canvas(Width=64., Height=36., Background=Brushes.Black)
+                        let curShape = IconShape.FromString(cur.Shape)
+                        let s = 
+                            let r = match curShape with | Some(sh) -> sh.GetEmoji() | _ -> None
+                            match r with 
+                            | Some(s) -> which(s)
+                            | _ -> which("😊")
+                        s.AddToCanvas(c, curBrush, c.Width, c.Height)
+                        let b = new Border(Child=new Border(Child=c, BorderThickness=Thickness(4.), BorderBrush=BG), BorderThickness=Thickness(4.), BorderBrush=Brushes.Transparent)
+                        Utils.gridAdd(shapeSelector, b, 1, i)
+                        i <- i + 1
+                        if cur.Shape = s.AsString() then
+                            b.BorderBrush <- currentSelectionBorder
+                        allBorders.Add(b)
+                        b.MouseDown.Add(fun _ ->
+                            for x in allBorders do
+                                x.BorderBrush <- Brushes.Transparent
+                            b.BorderBrush <- currentSelectionBorder
+                            Winterop.Win32.SetForegroundWindow((new System.Windows.Interop.WindowInteropHelper(parentWindow)).Handle) |> ignore
+                            let result = DoEmojiPickDialog(parentWindow)
+                            let newShape = if result=null then s else which(result)
+                            cur.Shape <- newShape.AsString()
+                            // redraw UI, we're still in a modal dialog where they may change color after editing glyph
+                            redrawShapeSelector()
                             )
                     shapeSelector
                 
@@ -406,8 +587,7 @@ let MakeIconUI(parentWindow, appMAPX) =
                             x.BorderBrush <- Brushes.Transparent
                         b.BorderBrush <- currentSelectionBorder
                         cur.HexColorRGB <- c
-                        dp.Children.RemoveAt(dp.Children.Count-1)
-                        dp.Children.Add(new ScrollViewer(Content=makeShapeSelector(), VerticalScrollBarVisibility=ScrollBarVisibility.Auto)) |> ignore
+                        redrawShapeSelector()
                         )
 
                 dp.Children.Add(new ScrollViewer(Content=colorSelector, VerticalScrollBarVisibility=ScrollBarVisibility.Auto, Margin=Thickness(0.,0.,10.,0.))) |> ignore
