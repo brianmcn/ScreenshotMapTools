@@ -289,28 +289,18 @@ let ImageProjection(img:System.Windows.Controls.Image,(x,y,w,h)) =
 open System.Drawing
 open System.Drawing.Imaging
 open System.Drawing.Drawing2D
-(*
-let ResizeImage(image:Image, width, height) =
-    let destRect = new Rectangle(0, 0, width, height)
-    let destImage = new Bitmap(width, height)
-    destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution)
-    use graphics = Graphics.FromImage(destImage)
-    graphics.CompositingMode <- CompositingMode.SourceCopy
-    graphics.CompositingQuality <- CompositingQuality.HighQuality
-    graphics.InterpolationMode <- InterpolationMode.NearestNeighbor // .HighQualityBicubic
-    graphics.SmoothingMode <- SmoothingMode.None // .HighQuality
-    graphics.PixelOffsetMode <- PixelOffsetMode.None // .HighQuality
-    use wrapMode = new ImageAttributes()
-    wrapMode.SetWrapMode(WrapMode.TileFlipXY)
-    graphics.DrawImage(image, destRect, 0, 0, image.Width,image.Height, GraphicsUnit.Pixel, wrapMode)
-    destImage
-*)
-let PerfectDownscale(bmp:Bitmap, scale) =
-    let r = new Bitmap(bmp.Width/scale, bmp.Height/scale)
-    for x = 0 to r.Width-1 do
-        for y = 0 to r.Height-1 do
-            r.SetPixel(x,y, bmp.GetPixel(x*scale, y*scale))
-    r
+
+let CloneScaledDownSize(source: Bitmap, scale) =
+    let w = max 1 (source.Width / scale)
+    let h = max 1 (source.Height / scale)
+    let destBitmap = new Bitmap(w, h, source.PixelFormat)
+    use g = Graphics.FromImage(destBitmap)
+    g.InterpolationMode <- InterpolationMode.HighQualityBicubic
+    g.SmoothingMode <- SmoothingMode.HighQuality
+    g.PixelOffsetMode <- PixelOffsetMode.HighQuality
+    let destRect = Rectangle(0, 0, w, h)
+    g.DrawImage(source, destRect, 0, 0, source.Width, source.Height, GraphicsUnit.Pixel)
+    destBitmap
 
 #nowarn "9"
 let GetColorFromLockedFormat32BppArgb(x,y,bmd:BitmapData) =

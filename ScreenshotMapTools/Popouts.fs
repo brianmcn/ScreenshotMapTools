@@ -126,9 +126,12 @@ Make sure have right encapsulation boundaries architected to make it so that stu
 
 //////////////////////////////////////////////////////////////////////////
 
+let private chromeLock = obj()
 let MakeWindowChromelessAndHandleClicksForMoveAndClose(w:Window) =
     let customChrome = new System.Windows.Shell.WindowChrome(CaptionHeight=0, ResizeBorderThickness = Thickness(8), GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(0))
-    System.Windows.Shell.WindowChrome.SetWindowChrome(w, customChrome)
+    lock chromeLock (fun () ->  // WPF's DependencyObjectPropertyDescriptor cache is shared globally across the entire AppDomain, and not threadsafe
+        System.Windows.Shell.WindowChrome.SetWindowChrome(w, customChrome)
+        )
     w.MouseDown.Add(fun ea ->
         if ea.ChangedButton = System.Windows.Input.MouseButton.Left then
             ea.Handled <- true

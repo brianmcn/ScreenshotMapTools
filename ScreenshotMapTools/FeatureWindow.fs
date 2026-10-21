@@ -407,13 +407,23 @@ open BackingStoreData
 
 let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
     let mx,my,mw,mh = gameProjection
-    let r = new System.Drawing.Bitmap(mw*bmpcis.GetLength(0), mh*bmpcis.GetLength(1))
+    let bmpw,bmph = mw*bmpcis.GetLength(0), mh*bmpcis.GetLength(1)
+    let mutable scale = 1   // how much to scale down each image
+    let MAX = 20000         // Bitmaps fail if > 2GB, which is little larger than 23k x 23k x 4
+    while bmpw/scale > MAX || bmph/scale > MAX do
+        scale <- scale * 2
+    let r = new System.Drawing.Bitmap(bmpw/scale, bmph/scale)
     let rData = r.LockBits(System.Drawing.Rectangle(0,0,r.Width,r.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
     for i = 0 to bmpcis.GetLength(0)-1 do
         for j = 0 to bmpcis.GetLength(1)-1 do
             let bmp,ci = bmpcis.[i,j]
             if bmp <> null then
                 let bmp = bmp.Clone(System.Drawing.Rectangle(mx,my,mw,mh), System.Drawing.Imaging.PixelFormat.Format32bppArgb)  // project out the map area
+                let bmp, mw, mh =
+                    if scale=1 then
+                        bmp, mw, mh
+                    else
+                        Utils.CloneScaledDownSize(bmp, scale), mw/scale, mh/scale
                 if ci = -1 then        // ci is color index for kinds (e.g. MasterKey interiors)
                     // no color change, just Blit the data copy efficiently...
                     Utils.Blit(bmp, rData, mw*i, mh*j)
