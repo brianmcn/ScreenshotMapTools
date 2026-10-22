@@ -39,7 +39,7 @@ See the [setup page](setup.md) for instructions setting up a new game.
 
 ## <a id="basiccontrols"></a>Basic Controls - Screenshots on a grid
 
-The tool is designed to visible to player (off to the side, or on a separate monitor)
+The tool is designed to be visible to the player (off to the side, or on a separate monitor)
 while they are playing the game (via keyboard or controller).  The basic controls of
 the tool run via num-pad hotkeys that allow you to move the cursor around the map grid 
 and take screenshots without ever needing to alt-tab or have the game lose focus.
@@ -128,7 +128,7 @@ Type with the keyboard.  Press `Ctrl+Enter` to add a newline in the text box; pr
 you are all done.
 
 When the cursor is on a cell with notes, the bottom left pane of the tool shows a larger
-screenshot of that cell, along with your text notes	for that call.
+screenshot of that cell, along with your text notes	for that cell.
 
 ### Hashtags
 
@@ -146,7 +146,7 @@ locations on the map, and right-clicking lets you change the color and shape of 
 
 (In addition to marking up cells containing #hashtags, you can also mark up cells containing any text
 that matches a regular expression, by clicking the little button next to "RE:" at the top of the tag
-list in the lower-right pans of the app.)
+list in the lower-right panes of the app.)
 
 (You can click the '(disable all)' to temporarily disable all the hashtag markup, if you just want to
 look at the unobscured map.)

@@ -2,6 +2,8 @@
 
 
 
+
+
 i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
 
 should 'trim' be able to work on screenshots, as well as game?

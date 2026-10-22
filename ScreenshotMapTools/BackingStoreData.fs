@@ -2,6 +2,7 @@
 
 open Winterop
 
+let blackBrush = new System.Drawing.SolidBrush(System.Drawing.Color.Black)
 let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
     let bmp = new System.Drawing.Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
     let gfxBmp = System.Drawing.Graphics.FromImage(bmp)
@@ -11,7 +12,7 @@ let GetWindowScreenshot(hwnd:System.IntPtr, w, h) =
     let succeeded = Win32.PrintWindow(hwnd, hdcBitmap, PW_RENDERFULLCONTENT ||| PW_CLIENTONLY)   // theoretically might run faster if topmost, but in practice, I didn't see difference, and this is not the bottleneck
     gfxBmp.ReleaseHdc(hdcBitmap)
     if not succeeded then
-        gfxBmp.FillRectangle(new System.Drawing.SolidBrush(System.Drawing.Color.Black), new System.Drawing.Rectangle(System.Drawing.Point.Empty, bmp.Size))
+        gfxBmp.FillRectangle(blackBrush, new System.Drawing.Rectangle(System.Drawing.Point.Empty, bmp.Size))
     gfxBmp.Dispose()
     bmp
 

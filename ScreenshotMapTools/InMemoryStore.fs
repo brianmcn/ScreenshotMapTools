@@ -13,7 +13,6 @@ let MAP_FOLDER_NAME = "map-cache"
 
 open System.Drawing
 open System.Drawing.Drawing2D
-open System.Drawing.Imaging
 
 let ResizeBitmap(bmp: Bitmap, newWidth: int, newHeight: int) : Bitmap =
     let r = new Bitmap(newWidth, newHeight)
@@ -21,10 +20,8 @@ let ResizeBitmap(bmp: Bitmap, newWidth: int, newHeight: int) : Bitmap =
     g.InterpolationMode <- InterpolationMode.HighQualityBicubic
     g.SmoothingMode <- SmoothingMode.HighQuality
     g.PixelOffsetMode <- PixelOffsetMode.HighQuality
-    //use wrapMode = new ImageAttributes()
-    //wrapMode.SetWrapMode(WrapMode.TileFlipXY)
     let destRect = Rectangle(0, 0, newWidth, newHeight)
-    g.DrawImage(bmp, destRect, 0, 0, bmp.Width, bmp.Height, GraphicsUnit.Pixel (*,wrapMode*))
+    g.DrawImage(bmp, destRect, 0, 0, bmp.Width, bmp.Height, GraphicsUnit.Pixel)
     r
 
 // caches are per-zone
@@ -83,6 +80,8 @@ type ImgArrayCache(proj,zone) =
         imgArray.[x,y] <- if bmp=null then null else Utils.BMPtoImage bmp
         if rawCaches.[x,y] <> null then
             rawCaches.[x,y].Clear()
+        if ownedBmps.[x,y] <> null then ownedBmps.[x,y].Dispose()
+        if downsampledBmps.[x,y] <> null then downsampledBmps.[x,y].Dispose()
         ownedBmps.[x,y] <- if bmp=null then null else FullClone(bmp)
         downsampledBmps.[x,y] <- if bmp=null then null else DownsampleClone(bmp)
     member this.HasBmp(x,y) =
