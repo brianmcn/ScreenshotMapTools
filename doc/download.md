@@ -1,6 +1,6 @@
 ## Pre-requisites
 
-To use the tool, you currently will need
+To use SnapMap, you currently will need
 
 * To be running Win10 or Win11
 
@@ -8,14 +8,14 @@ To use the tool, you currently will need
 
 * (strongly suggested) A keyboard with a NumPad (none of the keyboard controls are currently rebindable, and the app is mostly driven via NumPad hotkeys; there are alternative mouse controls, but they are a little clunky)
 
-## Downloading the tool
+## Downloading
 
 TODO actual release files
 
-The app is released as a .zip file folder of the executable and all its helper files. Download the .zip file, and then
+SnapMap is released as a .zip file folder of the executable and all its helper files. Download the .zip file, and then
 
 * unzip the folder somewhere (wherever you want to store this installation of the tool)
-* run ScreenshotMapTools.exe to start the program (you probably need to click 'More Info' and 'Run Anyway'; see [Windows Defender](#defender) section below)
+* run SnapMap.exe to start the program (you probably need to click 'More Info' and 'Run Anyway'; see [Windows Defender](#defender) section below)
 
 ## <a id="defender"></a>Windows Defender
 

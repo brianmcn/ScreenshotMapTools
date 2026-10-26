@@ -1,11 +1,11 @@
 ## Quickstart - Setting up a new game
 
-The tool requires that all screenshots of the game window be the same size.  So **before using the tool, be sure to configure the
-game itself to be in your preferred window size**, and that when you start up the game again another day it will still be the same size.
+SnapMap requires that all screenshots of the game window be the same size.  So **before using SnapMap, be sure to configure the
+game itself to be in your preferred window size**, and ensure that when you start up the game again another day it will still be the same size.
 
-Then **start up the game first**, before starting up the screenshot tool.
+Then **start up the game first**, before starting SnapMap.
 
-When you first start the screenshot tool (by running `ScreenshotMapTools.exe`), the console window lists all the previous games you have 
+When you first start SnapMap (by running `SnapMap.exe`), the console window lists all the previous games you have 
 used in the tool (if any), but the first option in the list is always "**0: New Game**".  So to set up a new game, type `0 Enter`.
 
 Then you'll be asked which window process has the game you want to set up, and shown a numbered list of all the windows open on your computer.
@@ -13,7 +13,7 @@ Type in the number that corresponds to the game you want to screenshot.
 
 Then it will ask you for a directory name (folder name) to save the screenshots; type a valid name (such as the name of the game, e.g. 'Zelda';
 alphanumeric characters only) and press `Enter`.  Screenshots and other game info will be saved to that sub-folder, under the folder 
-containing `ScreenshotMapTools.exe`.
+containing `SnapMap.exe`.
 
 The app then starts up, and you're ready to take your first screenshot!
 
@@ -22,7 +22,7 @@ Press `NumPad 0` to take a test screenshot.  You can then press `NumPad -` to 'c
 Press `NumPad 2 4 6 8` to see that these 4 keys serve as the 'arrow' keys to move the cursor around the grid.  When you move from screen to screen in 
 your game, move the cursor in the corresponding direction of the grid and press `NumPad 0` to take a screenshot of each new screen to build your map.
 
-Note that the game constantly saves all your updates to screenshots and Notes, so you can safely exit the app at any time.	The next time you run the 
+Note that SnapMap constantly saves all your updates to screenshots and Notes, so you can safely exit the app at any time.	The next time you run the 
 app, your game will be listed in the console window (e.g. "1: Zelda") at startup, and you can select it to continue where you left off.	
 
 This is enough bare essential information to start using the tool, but keep reading (below, and back on the [main page](main.md)) for a lot more details

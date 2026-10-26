@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net48</TargetFramework>
 	<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-	  
+    <AssemblyName>SnapMap</AssemblyName>
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

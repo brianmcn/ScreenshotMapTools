@@ -4,7 +4,7 @@ This is how the directory structure of the app looks:
 
 ```
 InstallFolder\
-├── ScreenshotMapTools.exe
+├── SnapMap.exe
 ├── <a bunch of DLLs>
 ├── app.json
 ├── Game1Folder\

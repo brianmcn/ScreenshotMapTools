@@ -1,5 +1,8 @@
 ﻿module GameSpecific
 
+let VersionString = "1.0.0"
+let AppTitle = sprintf "SnapMap! (version %s)" VersionString
+
 /////////////////////////////////////////////////
 
 module CommandLine =
@@ -45,6 +48,7 @@ type ChosenGame() =
     do
         if CommandLine.glass then data <- ChosenGameJson()  // populate a dummy so further code doesn't crash, data will be ignored by glass
         else
+        System.Console.WriteLine AppTitle
         System.Console.WriteLine "(documentation for this tool is found at bottom of this web page https://github.com/brianmcn/ScreenshotMapTools )"
         System.Console.WriteLine ""
         System.Console.WriteLine "examining folder for prior game data..."

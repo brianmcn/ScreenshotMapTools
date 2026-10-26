@@ -1,6 +1,5 @@
 ﻿module Generic
 
-
 // these constants are for the actual content of the app window; the window chrome adds another 30+2 height and 2 width
 let APP_WIDTH = 1920 - 1280 - 12                            // my monitor, a game, a little buffer
 
@@ -683,7 +682,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                 clipTB.Text <- clipboardSSID
             )
         // window
-        this.Title <- "Generic Screenshot Mapper"
+        this.Title <- AppTitle
         AppSettings.WindowPosition.SetInitialWindowPosition(this, (AppSettings.theAppSettingsJson.MainAppWindowLeft, AppSettings.theAppSettingsJson.MainAppWindowTop, APP_WIDTH, int APP_HEIGHT))
         this.LocationChanged.Add(fun _ ->
             AppSettings.theAppSettingsJson.MainAppWindowLeft <- int(this.Left)

@@ -1,10 +1,21 @@
-﻿
+﻿review a lot of docs, screenshots, for SnapMap branding
+
+
+imagining promo video, showing hands on retro controller, and then pressing like 60 on NumPad and showing map update
+'build your map a screen at a time' - map, larger map, larger map
+take essential notes - how get thru #bluedoor (quick cuts, tag marker)
+every adventurer could use a companion (its dangerous to go alone, from hero's spirit)
 
 
 
+ I should really try it out myself on a somewhat-scroller; ESA mostly has rooms just like 1x3 or 2x2
 
 
-i might need a name for this thing, as i keep referring to 'the app' and 'the tool' in the docs
+
+doc that bordeless-fullscreen-window-window is ok
+
+
+
 
 should 'trim' be able to work on screenshots, as well as game?
 
@@ -80,10 +91,20 @@ deployment
     - copy just files (don't need the 'ru' language directories)
     - remove app.json, printed_map*
     - zip up
- - for release build, same but also remove the pdb file
+ - for release build, same but also 
+    - remove the pdb file
 I spent a bit of time (in Sep 2026) looking into other possible framework targeting for deployment, and they all suck.
 netframework48 is still the best for being able to xcopy-deploy a zip of an-exe-and-a-few-dlls (like 2MB) and have things just work.
 so don't spend time thinking about newer net frameworks, winui, etc; no one is going to download 100MB or go thru an installer for this little tool
+
+distributing version process
+ - for a full release, change the version number in OverworldData.fs (e.g. v1.0.0)
+ - edit README.txt to point to upcoming branch URL
+ - commit to master
+ - make a branch e.g. "v1.0" in git which is a spur for the release (and bugfix updates to app/docs)
+ - make a tag on the branch with the full version number e.g. "v1.0.0"
+ - commit the branch
+ - publish Release in the branch on the tag, and add the zip as a resource
 -------------------------------------------------------
 
 
