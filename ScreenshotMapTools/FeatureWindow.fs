@@ -436,7 +436,7 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
                     // go pixel by pixel to do the color change
                     let tf = 
                         (fun (a,r,g,b) ->
-                            let c = Utils.DistinctColors.[ci % Utils.DistinctColors.Length]
+                            let c = ColorUtils.DistinctColors.[ci % ColorUtils.DistinctColors.Length]
                             let P = 0.8
                             let f(x,y) = float x * P + float y * (1.0-P) |> byte
                             f(a, c.A), f(r, c.R), f(g, c.G), f(b, c.B)
@@ -452,7 +452,7 @@ let AssembleBmpGrid(bmpcis:(System.Drawing.Bitmap*int)[,], gameProjection) =
     r.UnlockBits(rData)
     r
 
-let DoFullMapPanZoomFeatureWindow(app:Window, ctrl) =
+let GetFullMapBmp() =
     let zm = ZoneMemory.Get(theGame.CurZone)
     let bmps = Array2D.create MAX MAX (null, -1)
     let gr = GridRange(MAX,MAX,0,0)
@@ -464,6 +464,13 @@ let DoFullMapPanZoomFeatureWindow(app:Window, ctrl) =
                 gr.Extend(i,j)
     if gr.MaxX >= gr.MinX then // there was at least one screenshot
         let bmp = AssembleBmpGrid(bmps.[gr.MinX .. gr.MaxX, gr.MinY .. gr.MaxY], TheChosenGame.MapArea)
+        bmp, gr
+    else
+        null, GridRange(0,0,0,0)
+
+let DoFullMapPanZoomFeatureWindow(app:Window, ctrl) =
+    let bmp,gr = GetFullMapBmp()
+    if bmp <> null then // there was at least one screenshot
         let bmp =
             if ctrl then
                 let bmp = new System.Drawing.Bitmap(bmp, System.Drawing.Size(bmp.Width/2, bmp.Height/2))

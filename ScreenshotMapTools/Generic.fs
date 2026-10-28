@@ -64,6 +64,12 @@ let SerializeMapTile(x,y,zm:ZoneMemory) =
 
 let broadcastHotKeyEv = new Event<int*bool>()
 let mutable theCurrentLocalBHKE = fun _ -> ()
+let updateBHKE(f) =
+    theCurrentLocalBHKE <- f
+    { new System.IDisposable with
+        member _.Dispose() =
+            theCurrentLocalBHKE <- fun _ -> ()
+    }
 do
     broadcastHotKeyEv.Publish.Add(fun x -> theCurrentLocalBHKE x)
 
@@ -112,7 +118,7 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory,pictureChanged:Uti
                     b.BorderBrush <- Brushes.Transparent
                 border.BorderBrush <- Brushes.Orange
             )
-    theCurrentLocalBHKE <- (fun (key, _ctrlHeld) ->
+    use _idisp = updateBHKE(fun (key, _ctrlHeld) ->
         if key = VK_SUBTRACT then
             match whichSSIDisHighlighted with
             | None -> ()
@@ -129,7 +135,6 @@ let DoScreenshotDisplayWindow(x,y,parent:Window,zm:ZoneMemory,pictureChanged:Uti
                 closeEv.Trigger()
         )
     Utils.DoModalDialog(parent, all, sprintf "All Screenshots for (%d,%d)" x y, closeEv.Publish)
-    theCurrentLocalBHKE <- fun _ -> ()
 
 ///////////////////////////////////////////////////
 
@@ -141,7 +146,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
                             VK_MULTIPLY, "NUMPAD*"; VK_ADD, "NUMPAD+"; VK_SUBTRACT, "NUMPAD-"; VK_DECIMAL, "NUMPAD."; VK_DIVIDE, "NUMPAD/" |]
     let KEYS = KEYS_AND_NAMES |> Array.map fst
     let KEY_TO_NAME(key) = KEYS_AND_NAMES |> Array.find (fun (k,_n) -> k=key) |> snd
-    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_DIVIDE |]
+    let KEYS_WITH_CTRL = [| VK_NUMPAD1; VK_NUMPAD2; VK_NUMPAD3; VK_NUMPAD4; VK_NUMPAD6; VK_NUMPAD8; VK_MULTIPLY; VK_DIVIDE |]
     let mutable areHotKeysRegistered = false
     // next two lines are temp backing store for mapImage and mapMarkersHoverImage, allocated more than large enough to always hold all the data we need
     let backBuffer, backBufferStride = Array.zeroCreate (3*MAPX*3*MAPY*4), 3*MAPX*4
@@ -714,13 +719,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             sp.Children.Add(printCurrentZoneButton) |> ignore
             let trimButton = new Button(Margin=CONTROL_MARGIN, Content="Trim", Focusable=false)
             trimButton.Click.Add(fun _ -> Async.StartImmediate(async {
-                do! TrimWorkflow.doTheTrimButton(this, (fun () -> 
-                    // restart
-                    this.UnregisterHotKey()
-                    System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart --dontLoadInParallel %s" TheChosenGame.GAME) |> ignore
-                    appShutItselfDownAfterTrim <- true
-                    Application.Current.Shutdown()
-                    ), all.ActualWidth)
+                do! TrimWorkflow.doTheTrimButton(this, (fun () -> this.RestartApp()), all.ActualWidth)
                 mfsRefresh()
                 }))
             sp.Children.Add(trimButton) |> ignore
@@ -738,8 +737,14 @@ type MyWindow(mkGlassF : unit->unit) as this =
             let glassButton = new Button(Content="Glass", Margin=CONTROL_MARGIN, Focusable=false)
             glassButton.Click.Add(fun _ -> mkGlassF())
             sp.Children.Add(glassButton) |> ignore
+            let buttonBar = new DockPanel(Height=TOP_BAR_HEIGHT, Width=APP_WIDTH, LastChildFill=true)
+            let moreButton = new Button(Content="More...", Margin=CONTROL_MARGIN, Focusable=false)
+            moreButton.Click.Add(fun _ -> TrimWorkflow.doTheMoreButton(this, (fun () -> this.RestartApp()), updateBHKE, all.ActualWidth))
+            DockPanel.SetDock(moreButton, Dock.Right)
+            buttonBar.Children.Add(moreButton) |> ignore
+            buttonBar.Children.Add(sp) |> ignore
             let c = new Canvas(Width=APP_WIDTH, Height=TOP_BAR_HEIGHT)
-            c.Children.Add(sp) |> ignore
+            c.Children.Add(buttonBar) |> ignore
             c.Children.Add(quickNavModeBar) |> ignore
             c
         Utils.gridAdd(all, topBar, 0, 0)
@@ -878,7 +883,7 @@ type MyWindow(mkGlassF : unit->unit) as this =
             | None ->
                 if key = VK_SUBTRACT then           this.DoCut()
                 if key = VK_ADD then                this.DoPaste()
-                if key = VK_MULTIPLY then           this.CycleZone(false,1)
+                if key = VK_MULTIPLY then           this.CycleZone(false, (if ctrlHeld then -1 else 1))
                 if key = VK_NUMPAD4 then            this.MoveLeft(ctrlHeld)
                 if key = VK_NUMPAD6 then            this.MoveRight(ctrlHeld)
                 if key = VK_NUMPAD8 then            this.MoveUp(ctrlHeld)
@@ -1133,3 +1138,9 @@ type MyWindow(mkGlassF : unit->unit) as this =
             updateQuickNavView()
     member this.DoFeatureButton(allActualWidth) =
         FeatureWindow.DoFeatureButton(this, allActualWidth)
+    member this.RestartApp() =
+        // restart
+        this.UnregisterHotKey()
+        System.Diagnostics.Process.Start(Application.ResourceAssembly.Location, sprintf "--restart %s" TheChosenGame.GAME) |> ignore
+        appShutItselfDownAfterTrim <- true
+        Application.Current.Shutdown()

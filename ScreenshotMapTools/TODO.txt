@@ -1,14 +1,22 @@
-﻿review a lot of docs, screenshots, for SnapMap branding
+﻿get this out the door!
+
+review a lot of docs, screenshots, for SnapMap branding
+
+(consider 0.1 adjustments, hold ctrl to adjust 5x)
+retest trim
+docs for color tweak
+redo all screenshots of app (for more button)
+    - need a 'more...' button for this, and maybe also github link to docs, download, version info
+
 
 
 imagining promo video, showing hands on retro controller, and then pressing like 60 on NumPad and showing map update
+ - words on screen: "capture screenshots with a tap"
 'build your map a screen at a time' - map, larger map, larger map
 take essential notes - how get thru #bluedoor (quick cuts, tag marker)
 every adventurer could use a companion (its dangerous to go alone, from hero's spirit)
 
 
-
- I should really try it out myself on a somewhat-scroller; ESA mostly has rooms just like 1x3 or 2x2
 
 
 
@@ -23,6 +31,9 @@ for something like deeprune or lm2, where backside is flipped, something somethi
 
 
 --------below this line is still i'm willing to put off--------------
+
+I should really try it out myself on a somewhat-scroller; ESA mostly has rooms just like 1x3 or 2x2
+FAQ about how it works on e.g. esa, void stranger, hollow knight, blue prince, etc
 
 TODO feature window should probably be resizeable, but allow easy setting to exact size
 
@@ -49,39 +60,6 @@ consider: dwarf: A future version could just cheekily call a zone "Misc Images" 
 
 what is fallback if RegisterHotKey fails? none, program fails to start (can AHK work around it somehow)
 can i test on surface? without fullsize keyboard?
-
-
-
-
-history:
-basic screenshots post-hoc (from videos)
- - Deep Rune                        Nov 2021
- - Knytt Underground                Aug 2022
-multiple screenshots and fixed markup
- - Elephantasy                      Feb 2023
-cut and paste; notes and hashtags
- - Leaf's Odyssey                   Jun 2024
-performance work 
- - ANIMAL WELL                      Jun 2024
-clickable hyperlinks 
- - Master Key                       Aug 2024
-minimap
- - Side Scape                       Sep 2024
- - Isles of Sea and Sky             Oct 2024
-first 'glass' prototype
-finally started factoring out a zillion per-game hardcoded 
-        constants into json data, made a new-game workflow 
- - Raider Kid and the Ruby Chest    Apr 2026
-experiment with auto-tracking 
- - Minit                            May 2026
-improved map marker colors and shapes
- - EMUUROM                          Jun 2026
-starting Jul 2026, serious work: 
-    performance, usability, features, testers, documentation
-
-
-
-
 
 
 

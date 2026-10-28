@@ -341,46 +341,29 @@ let SetAndGetAndTransformColorFromLockedFormat32BppArgb(rx,ry,rbmd:BitmapData,x,
     NativeInterop.NativePtr.set rptr (rrowOffset + rcolOffset + 3) a
 let SetAndGetColorFromLockedFormat32BppArgb(rx,ry,rbmd:BitmapData,x,y,bmd:BitmapData) =   // r is result
     SetAndGetAndTransformColorFromLockedFormat32BppArgb(rx,ry,rbmd,x,y,bmd,id)
+let TransformColorFromLockedFormat32BppArgb(bmp:Bitmap,tf) =
+    let bmd = bmp.LockBits(System.Drawing.Rectangle(0,0,bmp.Width,bmp.Height), System.Drawing.Imaging.ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb)
+    let PixelSize = 4
+    for y = 0 to bmd.Height-1 do
+        let rowOffset = y * bmd.Stride
+        for x = 0 to bmd.Width-1 do
+            let colOffset = x * PixelSize
+            let ptr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt bmd.Scan0
+            let b = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 0)
+            let g = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 1)
+            let r = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 2)
+            let a = NativeInterop.NativePtr.get ptr (rowOffset + colOffset + 3)
+            let struct(a,r,g,b) = tf(struct(a,r,g,b))
+            NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 0) b
+            NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 1) g
+            NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 2) r
+            NativeInterop.NativePtr.set ptr (rowOffset + colOffset + 3) a
+    bmp.UnlockBits(bmd)
 
 let LoadBitmapWithoutLockingFile(filename:string) =
     use bmp = new Bitmap(filename)   // keeps file locked until required to make a deep copy into memory
     let r = new Bitmap(bmp)  // deep clone
     r
-
-//////////////////////////////////////////////////////////////////////
-
-// https://stackoverflow.com/questions/1335426/is-there-a-built-in-c-net-system-api-for-hsv-to-rgb
-let ColorToHSV(color:Color) =
-    let max = System.Math.Max(color.R, System.Math.Max(color.G, color.B))
-    let min = System.Math.Min(color.R, System.Math.Min(color.G, color.B))
-    //let hue = (float(color.GetHue()) + 180.) % 360.
-    let hue = float(color.GetHue())
-    let saturation = if (max = 0uy) then 0. else 1. - (1. * float min / float max)
-    let value = float max / 255.
-    hue, saturation, value
-
-let ColorFromHSV(hue, saturation, value) =
-    let hi = System.Convert.ToInt32(System.Math.Floor(hue / 60.)) % 6
-    let f = hue / 60. - System.Math.Floor(hue / 60.)
-
-    let value = value * 255.
-    let v = System.Convert.ToInt32(value);
-    let p = System.Convert.ToInt32(value * (1. - saturation))
-    let q = System.Convert.ToInt32(value * (1. - f * saturation))
-    let t = System.Convert.ToInt32(value * (1. - (1. - f) * saturation))
-
-    if (hi = 0) then
-        Color.FromArgb(255, v, t, p)
-    elif (hi = 1) then
-        Color.FromArgb(255, q, v, p)
-    elif (hi = 2) then
-        Color.FromArgb(255, p, v, t)
-    elif (hi = 3) then
-        Color.FromArgb(255, p, q, v)
-    elif (hi = 4) then
-        Color.FromArgb(255, t, p, v)
-    else
-        Color.FromArgb(255, v, p, q)
 
 //////////////////////////////////////////////////////////////////////
 
@@ -487,73 +470,6 @@ let SilentlyWarpMouseCursorTo(pos:System.Windows.Point) =
         System.Windows.Threading.Dispatcher.PushFrame(theFrame)   // creates a blocking message pump that only stops when Continue set to false
         theFrame <- null
 
-// from https://stackoverflow.com/questions/309149/generate-distinctly-different-rgb-colors-in-graphs
-let DistinctColors = [|
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x00uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0xFFuy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x00uy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x00uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x01uy, 0xFFuy, 0xFEuy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0xA6uy, 0xFEuy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0xDBuy, 0x66uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x64uy, 0x01uy)
-    System.Windows.Media.Color.FromRgb(0x01uy, 0x00uy, 0x67uy)
-    System.Windows.Media.Color.FromRgb(0x95uy, 0x00uy, 0x3Auy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x7Duy, 0xB5uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x00uy, 0xF6uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0xEEuy, 0xE8uy)
-    System.Windows.Media.Color.FromRgb(0x77uy, 0x4Duy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x90uy, 0xFBuy, 0x92uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x76uy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0xD5uy, 0xFFuy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x93uy, 0x7Euy)
-    System.Windows.Media.Color.FromRgb(0x6Auy, 0x82uy, 0x6Cuy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x02uy, 0x9Duy)
-    System.Windows.Media.Color.FromRgb(0xFEuy, 0x89uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x7Auy, 0x47uy, 0x82uy)
-    System.Windows.Media.Color.FromRgb(0x7Euy, 0x2Duy, 0xD2uy)
-    System.Windows.Media.Color.FromRgb(0x85uy, 0xA9uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x00uy, 0x56uy)
-    System.Windows.Media.Color.FromRgb(0xA4uy, 0x24uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0xAEuy, 0x7Euy)
-    System.Windows.Media.Color.FromRgb(0x68uy, 0x3Duy, 0x3Buy)
-    System.Windows.Media.Color.FromRgb(0xBDuy, 0xC6uy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0x26uy, 0x34uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0xBDuy, 0xD3uy, 0x93uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0xB9uy, 0x17uy)
-    System.Windows.Media.Color.FromRgb(0x9Euy, 0x00uy, 0x8Euy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x15uy, 0x44uy)
-    System.Windows.Media.Color.FromRgb(0xC2uy, 0x8Cuy, 0x9Fuy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x74uy, 0xA3uy)
-    System.Windows.Media.Color.FromRgb(0x01uy, 0xD0uy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x47uy, 0x54uy)
-    System.Windows.Media.Color.FromRgb(0xE5uy, 0x6Fuy, 0xFEuy)
-    System.Windows.Media.Color.FromRgb(0x78uy, 0x82uy, 0x31uy)
-    System.Windows.Media.Color.FromRgb(0x0Euy, 0x4Cuy, 0xA1uy)
-    System.Windows.Media.Color.FromRgb(0x91uy, 0xD0uy, 0xCBuy)
-    System.Windows.Media.Color.FromRgb(0xBEuy, 0x99uy, 0x70uy)
-    System.Windows.Media.Color.FromRgb(0x96uy, 0x8Auy, 0xE8uy)
-    System.Windows.Media.Color.FromRgb(0xBBuy, 0x88uy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x43uy, 0x00uy, 0x2Cuy)
-    System.Windows.Media.Color.FromRgb(0xDEuy, 0xFFuy, 0x74uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0xFFuy, 0xC6uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0xE5uy, 0x02uy)
-    System.Windows.Media.Color.FromRgb(0x62uy, 0x0Euy, 0x00uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x8Fuy, 0x9Cuy)
-    System.Windows.Media.Color.FromRgb(0x98uy, 0xFFuy, 0x52uy)
-    System.Windows.Media.Color.FromRgb(0x75uy, 0x44uy, 0xB1uy)
-    System.Windows.Media.Color.FromRgb(0xB5uy, 0x00uy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0xFFuy, 0x78uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0x6Euy, 0x41uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x5Fuy, 0x39uy)
-    System.Windows.Media.Color.FromRgb(0x6Buy, 0x68uy, 0x82uy)
-    System.Windows.Media.Color.FromRgb(0x5Fuy, 0xADuy, 0x4Euy)
-    System.Windows.Media.Color.FromRgb(0xA7uy, 0x57uy, 0x40uy)
-    System.Windows.Media.Color.FromRgb(0xA5uy, 0xFFuy, 0xD2uy)
-    System.Windows.Media.Color.FromRgb(0xFFuy, 0xB1uy, 0x67uy)
-    System.Windows.Media.Color.FromRgb(0x00uy, 0x9Buy, 0xFFuy)
-    System.Windows.Media.Color.FromRgb(0xE8uy, 0x5Euy, 0xBEuy)
-    |]
 /////////////////////////////////////////////
 // make an image n times as wide and tall by repeatedly tiling the original image
 (*

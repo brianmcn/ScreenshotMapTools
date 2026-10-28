@@ -75,3 +75,7 @@ Now the map grid stitches together seamlessly.
 If you ever need to make adjustments, you can repeat the whole process via the 'Trim' button at the top of the app, but typically this is a one-and-done setup that 
 you only need to do once when first setting up the game.
 
+-----
+
+Note: If your game uses lots of dark colors that make features hard to discern on zoomed-out screenshot maps, see [this page](misc.md) for information about
+boosting dark colors to increase contrast.

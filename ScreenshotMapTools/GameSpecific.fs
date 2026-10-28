@@ -7,7 +7,6 @@ let AppTitle = sprintf "SnapMap! (version %s)" VersionString
 
 module CommandLine =
     let mutable glass = false
-    let mutable dontLoadInParallel = false
     let mutable initGameFolder = null
     do  // process command line arguments
         let argv = System.Environment.GetCommandLineArgs()
@@ -18,12 +17,6 @@ module CommandLine =
             let argv = 
                 if argv.Length >= 1 && argv.[0] = "--restart" then
                     System.Threading.Thread.Sleep(500)  // help ensure prior app completely unloaded
-                    argv.[1..]
-                else
-                    argv
-            let argv = 
-                if argv.Length >= 1 && argv.[0] = "--dontLoadInParallel" then
-                    dontLoadInParallel <- true
                     argv.[1..]
                 else
                     argv
@@ -38,6 +31,7 @@ type ChosenGameJson() =
     member val GameWidth : int = 0 with get,set     
     member val GameHeight : int = 0 with get,set    
     member val MapArea : int*int*int*int = 0,0,0,0 with get,set     // x,y,w,h
+    member val MinLightnessForColorBoosting : float = 0.50 with get,set
 
 let WriteAllText = AppSettings.WriteAllText
 
@@ -147,8 +141,9 @@ type ChosenGame() =
     member this.PROCESS_EXE = data.ProcessExe
     member this.GAMESCREENW = data.GameWidth
     member this.GAMESCREENH = data.GameHeight
-    // this can be changed, but forces app to restart
+    // these can be changed, but forces app to restart
     member this.MapArea = data.MapArea
+    member this.MinLightnessForColorBoosting = data.MinLightnessForColorBoosting
     member this.GamefileFilename = System.IO.Path.Combine([|".";this.GAME;gameFile|])
 let TheChosenGame = ChosenGame()
 let TryFindHwndForTheChosenGame() =

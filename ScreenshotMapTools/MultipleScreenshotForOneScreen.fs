@@ -2,18 +2,43 @@
 
 open System.Drawing
 
-let tweak(c) =
-    if false then               
-        let h,s,v = Utils.ColorToHSV(c)
-        let v = 
-                // increase value so 0.1-0.4 becomes 0.1 to 0.7, and 0.4 to 1.0 becomes 0.7 to 1.0
-                if v < 0.1 then v
-                elif v < 0.4 then 0.1 + (v-0.1) * 2.
-                else 0.7 + (v-0.4) / 2.
-        let r = Utils.ColorFromHSV(h,s,v)
-        r
-    else
-        c
+module FancyTweak =
+    // Gemini
+    let maxL = 0.5
+    /// Takes a perceptual Lightness value (0.0 to 1.0) and applies an asymmetric 
+    /// contrast boost (left-skewed bell curve) targeting a window between minL and maxL.
+    let skewShadowSpline (minL:float) (l: float) =
+        if l <= minL || l >= maxL then
+            l
+        else
+            // 1. Map L into a normalized 0.0 to 1.0 window progress parameter
+            let t = (l - minL) / (maxL - minL)
+            // 2. Asymmetric bell curve profile: peaks sharply at t = 0.25 (L = 0.2)
+            // f(t) = t * (1-t)^3
+            let rawProfile = t * System.Math.Pow(1.0 - t, 3.0)
+            // The maximum value of t*(1-t)^3 occurs at t=1/4, which is 0.25 * (0.75)^3 = 0.10546875.
+            // Multiplying by (1.0 / 0.10546875) ≈ 9.4814815 normalizes the peak value to exactly 1.0.
+            let normalizedBell = rawProfile * 9.4814815
+            // 3. Define the maximum brightness addition at the peak (L = 0.2)
+            let maxGain = (maxL - minL) / 3.0
+            let currentGain = maxGain * normalizedBell
+            l + currentGain
+
+    let adjustMapContrast (minL:float) (c: Color) =
+        let l, c_chroma, h = ColorUtils.OklchHelper.ColorToOklch(c)
+        // Adjust lightness to boost darker colors
+        let newL = skewShadowSpline minL l
+        // Scale Chroma proportionally to the change in Lightness
+        // This keeps the "vibrancy ratio" stable so colors don't wash out into gray
+        let newC = 
+            if l > 0.01 then 
+                c_chroma * (newL / l)
+            else 
+                c_chroma
+        // Reconstruct the color, keeping the Hue angle completely locked
+        ColorUtils.OklchHelper.ColorFromOklch(newL, newC, h)
+
+let tweak(c) = FancyTweak.adjustMapContrast GameSpecific.TheChosenGame.MinLightnessForColorBoosting c
 
 let MoreLuminous(c1:Color,c2:Color) =
     if c1.GetBrightness() > c2.GetBrightness() then

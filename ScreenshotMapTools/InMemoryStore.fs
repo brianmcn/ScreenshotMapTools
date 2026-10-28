@@ -149,17 +149,32 @@ type ZoneMemory(zone:int) =
             dict.[z] <- zm
             zm
 
-let RecomputeBitmap(i,j,zm:ZoneMemory) =
+let resourceLocks = System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.SemaphoreSlim>()
+let AsyncRecomputeBitmap(i,j,zm:ZoneMemory) = async {
     let data = zm.MapTiles.[i,j]
     if data.ThereAreScreenshots() then
         let bmps = ResizeArray()
+        let ids = ResizeArray()
         for swk in data.ScreenshotsWithKinds do
             if swk.IsMainKind() then
                 let bmp = bmpDict.[swk.Id]
                 bmps.Add(bmp)
-        MultipleScreenshotForOneScreen.GetRepresentative(bmps)
+                ids.Add(swk.Id)
+        let sortedIds = ids.ToArray()
+        Array.sortInPlace(sortedIds)
+        let semaphores = sortedIds |> Array.map(fun key -> resourceLocks.GetOrAdd(key, fun _ -> new System.Threading.SemaphoreSlim(1, 1)))
+        for sem in semaphores do 
+            do! sem.WaitAsync() |> Async.AwaitTask
+        try
+            return MultipleScreenshotForOneScreen.GetRepresentative(bmps)
+        finally
+            for i = semaphores.Length-1 downto 0 do
+                let sem = semaphores.[i]
+                sem.Release() |> ignore
     else
-        null
+        return null
+    }
+let RecomputeBitmap(i,j,zm:ZoneMemory) = AsyncRecomputeBitmap(i,j,zm) |> Async.RunSynchronously
 
 let RecomputeImageCore(i,j,bmp,zm:ZoneMemory) =
     zm.FullImgArray.Set(i,j,bmp)
@@ -198,7 +213,7 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
                     asyncs.Add(zm.FullImgArray.TryReadFromDisk(i,j))
                     asyncs.Add(zm.MapImgArray.TryReadFromDisk(i,j))
                     codas.Add(fun() ->
-                        if zm.FullImgArray.[i,j] = null then   // assume 3 disks stay in sync
+                        if zm.FullImgArray.[i,j] = null then   // assume all disk caches stay in sync
                             bgWork.Add((i,j))
                         )
             else
@@ -213,25 +228,17 @@ let LoadZoneMapTiles(zm:ZoneMemory) =
     for f in codas do
         f()     // populate bgwork
     // recompute bitmaps that were not cached
-    if not(GameSpecific.CommandLine.dontLoadInParallel) then
-        let cde = new System.Threading.CountdownEvent(bgWork.Count)
-        let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
-        // TODO this can fail, if multiple (i,j) reference the same screenshot, we end up with LockBits issues
-        for (i,j) in bgWork do
-            async {
-                let bmp = RecomputeBitmap(i,j,zm)
-                if bmp <> null then
-                    fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp,zm))
-                cde.Signal() |> ignore
-            } |> Async.Start
-        cde.Wait()
-        for f in fgWork do
-            f()
-    else
-        // do it all in series on UI thread
-        for (i,j) in bgWork do
-            let bmp = RecomputeBitmap(i,j,zm)
+    let cde = new System.Threading.CountdownEvent(bgWork.Count)
+    let fgWork = new System.Collections.Concurrent.ConcurrentBag<_>()
+    for (i,j) in bgWork do
+        async {
+            let! bmp = AsyncRecomputeBitmap(i,j,zm)
             if bmp <> null then
-                RecomputeImageCore(i,j,bmp,zm)
+                fgWork.Add(fun () -> RecomputeImageCore(i,j,bmp,zm))
+            cde.Signal() |> ignore
+        } |> Async.Start
+    cde.Wait()
+    for f in fgWork do
+        f()
     bmpCount, mapTileCount
 

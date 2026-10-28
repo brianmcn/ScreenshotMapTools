@@ -11,9 +11,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="esaBothSmall.png" />
     <Compile Include="Winterop.fs" />
     <Compile Include="WinteropUtils.fs" />
     <Compile Include="WindowFocusTrackingUtils.fs" />
+    <Compile Include="ColorUtils.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Fourier.fs" />
     <Compile Include="StitchView.fs" />
