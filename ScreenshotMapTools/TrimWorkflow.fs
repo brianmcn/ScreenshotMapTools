@@ -238,16 +238,16 @@ let doTheMoreButton(parentWindow, appShutdownF, updateBHKE, appWidth) =
     makeHr()
 
     // version
-    let tb = new TextBlock(Text=GameSpecific.AppTitle + "\nThis app is found on github, which you can visit here:", TextWrapping=TextWrapping.Wrap)
+    let tb = new TextBlock(Text=GameSpecific.AppTitle + "\nThis app is found on GitHub, which you can visit here:", TextWrapping=TextWrapping.Wrap)
     sp.Children.Add(tb) |> ignore
     // github link
-    let githubButton = new Button(Content="Open Github page", Margin=Thickness(4.), HorizontalAlignment=HorizontalAlignment.Left)
+    let githubButton = new Button(Content="Open GitHub page", Margin=Thickness(4.), HorizontalAlignment=HorizontalAlignment.Left)
     githubButton.Click.Add(fun _ -> 
         System.Diagnostics.Process.Start("https://github.com/brianmcn/ScreenshotMapTools") |> ignore    // open a URL in default browser
         )
     sp.Children.Add(githubButton) |> ignore
     // documentation callout
-    let tb = new TextBlock(Text="Full documentation for SnapMap is linked at the bottom of the github page.", TextWrapping=TextWrapping.Wrap)
+    let tb = new TextBlock(Text="Full documentation for SnapMap is linked at the bottom of the GitHub page.", TextWrapping=TextWrapping.Wrap)
     sp.Children.Add(tb) |> ignore
 
     makeHr()

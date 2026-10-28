@@ -32,11 +32,11 @@ common/useful features first, and more advanced features (tailored to specific s
 ### Optional: Setting up a 'MAP Trim'
 
 For many games, the 'screenshot map' you want to build will not be comprised of screenshots of the *entire* game window.  
-This section explains how to to go from the map grid on the left to the map grid on the right:
+This section explains how to go from the map grid on the left to the map grid on the right:
 
 ![map grid before and after](img/MapGridBeforeAndAfter.png)
 
-The entire game window often displays more that what you want in your map grid:
+The entire game window often displays more than what you want in your map grid:
 
 * Some games have black bars at the edges of the window.  
 

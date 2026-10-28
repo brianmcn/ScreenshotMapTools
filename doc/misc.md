@@ -4,7 +4,7 @@ The "More..." button in the upper right of the app window opens a window with li
 
 -----
 
-There's a button to open the github web page in a browser.
+There's a button to open the GitHub web page in a browser.
 
 -----
 

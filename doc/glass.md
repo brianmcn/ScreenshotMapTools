@@ -1,6 +1,6 @@
 ## Glass
 
-The 'glass' button in the upper right launches a separate app window which allow you to put 
+The 'glass' button in the upper right launches a separate app window which allows you to put 
 a "pane of transparent glass you can draw on" over any window (such as the game).  You can 
 use it for basic temporary 'drawing' tasks to display an idea to livestream viewers, for example.
 

@@ -4,7 +4,7 @@ By default, the Preview Pane just displays the full screenshot of the cell the c
 
 ![emuurom start screen full screenshot](img/emuuromStartFull.png)
 
-However, you can customize the preview pane to display a composite layout of images trimmed from from multiple
+However, you can customize the preview pane to display a composite layout of images trimmed from multiple
 zones, enabling displays such as this:
 
 ![emuurom start screen customized preview](img/emuuromStartCustom.png)

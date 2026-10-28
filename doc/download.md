@@ -4,7 +4,7 @@ To use SnapMap, you currently will need
 
 * To be running Win10 or Win11
 
-* To play the targetted game in a window of a constant fixed size of your choosing
+* To play the targeted game in a window of a constant fixed size of your choosing
 
 * (strongly suggested) A keyboard with a NumPad (none of the keyboard controls are currently rebindable, and the app is mostly driven via NumPad hotkeys; there are alternative mouse controls, but they are a little clunky)
 
@@ -20,7 +20,7 @@ SnapMap is released as a .zip file folder of the executable and all its helper f
 ## <a id="defender"></a>Windows Defender
 
 Windows Defender is pretty aggressive about unknown .exe files, and sometimes flags the tool as a virus and quarantines the file (this can change from week to week).
-You might need to select 'More Info' and 'Run Anyway' from a warning screen, or go into Window Defender's virus & threat protection history to 'Restore' the tool's .exe file 
+You might need to select 'More Info' and 'Run Anyway' from a warning screen, or go into Windows Defender's virus & threat protection history to 'Restore' the tool's .exe file 
 if it gets quarantined.
 
 Note: If Chrome prevents you from downloading the zip file, you can disable security temporarily:

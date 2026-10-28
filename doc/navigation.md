@@ -8,7 +8,7 @@ of the cells in the grid one space to the left.
 While you typically use the NumPad to move the cursor in the main app window, you can also use the mouse.
 
 **"Mouse Preview"**: \
-Mouse hovering a cell will temporarily change the cell highlight that that cell, which enables you to 
+Mouse hovering a cell temporarily changes the cell highlight to that cell, which enables you to 
 quickly glance through the notes/previews of many cells, just by passing the mouse over them.
 
 **"Hard-selection"**: \
