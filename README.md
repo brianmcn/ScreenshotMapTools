@@ -6,7 +6,7 @@ The tool is a work in progress, but nearing initial release.  [Read documentatio
 
 ![video showing tool use](doc/img/VideoMp4SnapmapKeys.mp4)
 
-![gif of a map being built](doc/img/VideoGifSnapmapBuildMap.gif)
+![gif of a map being built](doc/img/VideoGifSnapmapBuildMap.GIF)
 
 -----
 
