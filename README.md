@@ -4,7 +4,7 @@
 
 The tool is a work in progress, but nearing initial release.  [Read documentation here.](doc/main.md)
 
-[![video showing tool use](doc/img/VideoSnapmapKeysThumb.png)](doc/img/VideoMp4SnapmapKeys.mp4)
+![video showing tool use](doc/img/VideoGIFSnapmapKeys.gif)
 
 ![gif of a map being built](doc/img/VideoGifSnapmapBuildMap.GIF)
 
