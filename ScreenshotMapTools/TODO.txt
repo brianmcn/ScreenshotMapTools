@@ -4,9 +4,6 @@ review a lot of docs, screenshots, for SnapMap branding
 
 (consider 0.1 adjustments, hold ctrl to adjust 5x)
 retest trim
-docs for color tweak
-redo all screenshots of app (for more button)
-    - need a 'more...' button for this, and maybe also github link to docs, download, version info
 
 
 

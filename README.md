@@ -4,6 +4,10 @@
 
 The tool is a work in progress, but nearing initial release.  [Read documentation here.](doc/main.md)
 
+![video showing tool use](doc/img/VideoMp4SnapmapKeys.mp4)
+
+![gif of a map being built](doc/img/VideoGifSnapmapBuildMap.gif)
+
 -----
 
 SnapMap is a tool for making screenshot maps of 2-D screen-at-a-time games, and for taking notes
