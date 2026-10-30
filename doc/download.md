@@ -2,7 +2,7 @@
 
 To use SnapMap, you currently will need
 
-* To be running Win10 or Win11
+* To be running Windows 10 or Windows 11
 
 * To play the targeted game in a window of a constant fixed size of your choosing
 

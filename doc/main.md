@@ -1,10 +1,11 @@
 # SnapMap full documentation
 
-## On this page
+First time here? Use these links to get started:
 
-SETUP
-* [Pre-requisites; Downloading and running SnapMap](#downloading)
-* [QuickStart - Setting up a new game with SnapMap](#newgamesetup)
+* [Pre-requisites; Downloading and running SnapMap](download.md)
+* [QuickStart - Setting up a new game with SnapMap](setup.md)
+
+## On this page
 
 TAKING SCREENSHOTS AND NOTES
 * [Basic Controls - Screenshots on a grid](#basiccontrols)
@@ -30,14 +31,6 @@ OTHER INFO
 Jump to any of the linked topics above, or scroll down to read them one-by-one.
 
 ![horizontal rule](img/HR2.png)
-
-## <a id="downloading"></a>Pre-requisites; Downloading and running SnapMap
-
-See the [download page](download.md) for information.
-
-## <a id="newgamesetup"></a>QuickStart - Setting up a new game with SnapMap
-
-See the [setup page](setup.md) for instructions setting up a new game.
 
 ## <a id="basiccontrols"></a>Basic Controls - Screenshots on a grid
 
