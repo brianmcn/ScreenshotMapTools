@@ -2,7 +2,7 @@
 
 ### Map worlds and log notes as you play: SnapMap is the desktop companion app for 2D gamers.
 
-SnapMap version 1.0 was released on DATE.  Click the very first link in the [documentation](doc/main.md) for download instructions.
+SnapMap version 1.0 was released on 2026-10-31.  Click the very first link in the [documentation](doc/main.md) for download instructions.
 
 [Read full documentation here.](doc/main.md)
 
