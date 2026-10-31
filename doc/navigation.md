@@ -102,8 +102,3 @@ dungeon with the Note #dungeon, and marking each fast-travel screen with the Not
 targets list to "respawn,dungeon,fastTravel".  Then, after dying, or using the warp whistle, or using the fast travel, 
 QuickNav makes it possible to update the cursor to the new location using fewer keystrokes. \
 (Or you could just click on the new location with the mouse, though this causes the game window to lose focus.)
-
-**Cycling backwards through many zones**: \
-If you have ten zones, and want to navigate from zone06 to zone05, it is quicker to press \
-`NumPad .7.` than to press `NumPad *********`. \
-(Or you could mouse-navigate the zone dropdown menu at the top of the app, though this causes the game window to lose focus.)

@@ -2,8 +2,8 @@
 
 First time here? Use these links to get started:
 
-* [Pre-requisites; Downloading and running SnapMap](download.md)
-* [QuickStart - Setting up a new game with SnapMap](setup.md)
+* [Pre-requisites: how to DOWNLOAD and run SnapMap](download.md)
+* [QuickStart: SETUP a new game with SnapMap](setup.md)
 
 ## On this page
 
@@ -67,7 +67,10 @@ Each 100x100 grid is called a 'zone', and you can make multiple zones for games 
 multiple maps.  For example, in The Legend of Zelda, there is an overworld map and 9
 dungeon maps, so it makes sense to put each map in its own zone.  You can add a new zone
 or rename the current zone using the buttons at the top of the app window, and the dropdown
-between those buttons can be used to select which zone to view.  In the example below,
+between those buttons can be used to select which zone to view.  (You can also use `NumPad *`
+to cycle forward to the next zone, or `Ctrl NumPad *` to cycle back to the prior zone.)
+
+In the example below,
 I renamed zone00 'Overworld', added and renamed two more zones (zone01 'caves' not shown;
 zone02 'dungeon 1' shown on the right):
 
