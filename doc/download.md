@@ -10,7 +10,7 @@ To use SnapMap, you currently will need
 
 ## Downloading
 
-TODO actual release files
+[Download SnapMap v1.0.0 here](https://github.com/brianmcn/ScreenshotMapTools/releases/download/v1.0.0/SnapMap.v1.0.0.zip)
 
 SnapMap is released as a .zip file folder of the executable and all its helper files. Download the .zip file, and then
 
